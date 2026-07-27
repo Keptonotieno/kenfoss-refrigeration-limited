@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "users": {
+      "title": "Users",
+      "description": "User profiles and account settings",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "phone": { "type": "string" },
+        "company": { "type": "string" },
+        "role": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email"]
+    },
+    "bookings": {
+      "title": "Bookings & Quotes",
+      "description": "Service bookings and quotation requests",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "phone": { "type": "string" },
+        "type": { "type": "string" },
+        "serviceType": { "type": "string" },
+        "equipmentDetails": { "type": "string" },
+        "preferredDate": { "type": "string" },
+        "location": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "userEmail"]
+    },
+    "diagnostics": {
+      "title": "AI Diagnostics",
+      "description": "Saved AI HVAC & refrigeration diagnostic reports",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "equipmentType": { "type": "string" },
+        "symptoms": { "type": "string" },
+        "diagnosis": { "type": "string" },
+        "urgency": { "type": "string" },
+        "recommendedAction": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["equipmentType", "symptoms"]
+    },
+    "contacts": {
+      "title": "Contact Inquiries",
+      "description": "General customer inquiry messages",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "subject": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "message"]
+    },
+    "invitations": {
+      "title": "Admin Staff Invitations",
+      "description": "Unique single-use invitation codes for staff account creation",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "usedBy": { "type": "string" },
+        "usedAt": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string" }
+      },
+      "required": ["code", "email", "role", "createdBy", "status"]
+    }
+  }
+}

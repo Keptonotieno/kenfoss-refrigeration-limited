@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User profiles
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+    
+    // Bookings, Quotes and Customers
+    match /bookings/{bookingId} {
+      allow read, write: if true;
+    }
+
+    match /quotes/{quoteId} {
+      allow read, write: if true;
+    }
+
+    match /customers/{customerId} {
+      allow read, write: if true;
+    }
+    
+    // AI Diagnostics
+    match /diagnostics/{diagnosticId} {
+      allow read, write: if true;
+    }
+
+    // Contact messages
+    match /contacts/{contactId} {
+      allow read, write: if true;
+    }
+
+    // Single-use Admin Invitations
+    match /invitations/{invitationId} {
+      allow read, write: if true;
+    }
+
+    // CMS Collections (Services, Projects, Testimonials, Blogs, Gallery, Settings)
+    match /services/{serviceId} {
+      allow read, write: if true;
+    }
+
+    match /projects/{projectId} {
+      allow read, write: if true;
+    }
+
+    match /testimonials/{testimonialId} {
+      allow read, write: if true;
+    }
+
+    match /blogs/{blogId} {
+      allow read, write: if true;
+    }
+
+    match /gallery/{galleryId} {
+      allow read, write: if true;
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+
+    match /notifications/{notificationId} {
+      allow read, write: if true;
+    }
+
+    match /auditLogs/{logId} {
+      allow read, write: if true;
+    }
+  }
+}
