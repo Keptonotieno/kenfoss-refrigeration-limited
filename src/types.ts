@@ -13,7 +13,11 @@ export interface ServiceItem {
   ctaLabel?: string;
   estimatedTime: string;
   features: string[];
+  equipmentServiced?: string[];
   commonIssues?: string[];
+  benefits?: string[];
+  industriesServed?: string[];
+  enabled?: boolean;
 }
 
 export interface ProjectItem {
@@ -114,6 +118,7 @@ export interface AdminUser {
   lastLogin?: string;
   twoFactorEnabled?: boolean;
   invitedBy?: string;
+  mustChangePassword?: boolean;
 }
 
 export type BookingStatus = 'New' | 'Assigned' | 'In Progress' | 'Completed' | 'Cancelled';
@@ -254,6 +259,7 @@ export interface AuditLogItem {
   userId: string;
   userName: string;
   userRole: UserRole;
+  actorName?: string;
   action: string;
   details: string;
   timestamp: string;

@@ -34,19 +34,19 @@ export const ContactInfoEditor: React.FC = () => {
   const handleResetToDefault = () => {
     if (confirm("Reset contact information to default office details?")) {
       const defaultInfo = {
-        mainPhone: '+254 712 345 678',
+        mainPhone: '+254 745 411 923',
         secondaryPhone: '+254 745 411 923',
-        emergencyPhone: '+254 700 999 111',
+        emergencyPhone: '+254 745 411 923',
         email: 'info@kenfoss.co.ke',
-        address: 'Kenfoss Complex, Enterprise Road, Industrial Area',
-        city: 'Nairobi, Kenya',
+        address: "Ivy's Park Business Park, Next to Mark Hotel, Thika Superhighway Service Lane",
+        city: 'Ruiru, Kiambu County, Kenya',
         workingHours: 'Mon - Sat: 7:30 AM - 6:00 PM | 24/7 Emergency Hotline',
-        googleMapsEmbedUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15955.15816912384!2d36.8530!3d-1.3090!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f11075c3f81e3%3A0xb3ff76c4912a76f2!2sIndustrial%20Area%2C%20Nairobi!5e0!3m2!1sen!2ske!4v1700000000000!5m2!1sen!2ske',
+        googleMapsEmbedUrl: 'https://maps.google.com/maps?q=Kenfoss+Refrigeration+limited,+Ivy%E2%80%99s+Park+Business+Park,+Next+to+Mark+Hotel,+Thika+Superhighway+Service+Lane,+Ruiru,+Kiambu+County&t=&z=16&ie=UTF8&iwloc=B&output=embed',
         facebookUrl: 'https://facebook.com/kenfossrefrigeration',
         linkedinUrl: 'https://linkedin.com/company/kenfoss-refrigeration',
         twitterUrl: 'https://twitter.com/kenfoss_ke',
         instagramUrl: 'https://instagram.com/kenfoss_refrigeration',
-        whatsappNumber: '254712345678'
+        whatsappNumber: '254745411923'
       };
       setFormData(defaultInfo);
       updateContactInfo(defaultInfo);

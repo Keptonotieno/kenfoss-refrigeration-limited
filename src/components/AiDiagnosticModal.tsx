@@ -98,7 +98,7 @@ export const AiDiagnosticModal: React.FC<AiDiagnosticModalProps> = ({
         setErrorMsg(data.error || 'Failed to generate diagnostic analysis. Please try again.');
       }
     } catch (err) {
-      setErrorMsg('Connection error. Please call +254 712 345 678 directly.');
+      setErrorMsg('Connection error. Please call +254 745 411 923 directly.');
     } finally {
       setLoading(false);
     }
@@ -161,15 +161,20 @@ export const AiDiagnosticModal: React.FC<AiDiagnosticModalProps> = ({
                   onChange={(e) => setApplianceType(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 text-white text-xs rounded-lg p-2.5 outline-none focus:border-[#00AEEF]"
                 >
-                  <option value="Refrigerator">Refrigerator (Domestic / Commercial)</option>
-                  <option value="Freezer">Chest / Upright Freezer</option>
+                  <option value="Refrigerator">Refrigerator (Single/Double/Side-by-Side)</option>
+                  <option value="Freezer">Freezer (Chest / Upright / Deep Freezer)</option>
+                  <option value="Mini Refrigerator">Mini Refrigerator / Minibar / Wine Chiller</option>
+                  <option value="Walk-in Cooler">Walk-in Cooler / Chill Vault</option>
                   <option value="Cold Room">Cold Room / Blast Freezer</option>
                   <option value="Display Chiller">Display Chiller / Supermarket Case</option>
                   <option value="Air Conditioner">Air Conditioner / HVAC / VRF System</option>
+                  <option value="Dishwasher">Dishwasher (Domestic / Commercial)</option>
+                  <option value="Washing Machine">Washing Machine</option>
+                  <option value="Dryer">Clothes Dryer / Tumble Dryer</option>
+                  <option value="Microwave">Microwave Oven (Domestic / Commercial)</option>
+                  <option value="Oven">Electric / Gas Oven & Range</option>
                   <option value="Water Dispenser">Water Dispenser</option>
                   <option value="Ice Maker">Commercial Ice Maker</option>
-                  <option value="Washing Machine">Washing Machine / Dryer</option>
-                  <option value="Commercial Refrigerator">Commercial Beverage Cooler</option>
                 </select>
               </div>
 

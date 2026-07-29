@@ -5,9 +5,19 @@ import {
   onSnapshot, 
   setDoc, 
   deleteDoc, 
+  getDoc,
   getDocs 
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut as fbSignOut, 
+  onAuthStateChanged, 
+  sendPasswordResetEmail,
+  updatePassword
+} from 'firebase/auth';
+import { db, auth, createSecondaryStaffAuthUser } from '../lib/firebase';
+import { AdminInvitationService } from '../services/adminService';
 import {
   AdminUser,
   BookingRecord,
@@ -32,7 +42,6 @@ import { INITIAL_SERVICES_DATA } from '../data/servicesData';
 import { PROJECTS_DATA } from '../data/projectsData';
 import { TESTIMONIALS_DATA } from '../data/testimonialsData';
 import { BLOG_POSTS_DATA } from '../data/blogData';
-import { AdminInvitationService } from '../services/adminService';
 
 // Seed Admin Users
 const SEED_USERS: AdminUser[] = [
@@ -41,7 +50,7 @@ const SEED_USERS: AdminUser[] = [
     name: 'Eng. Ken Munene',
     email: 'admin@kenfoss.co.ke',
     role: 'Super Administrator',
-    phone: '+254 712 345 678',
+    phone: '+254 745 411 923',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
     status: 'Active',
     createdAt: '2025-01-10T08:00:00.000Z',
@@ -292,19 +301,19 @@ const SEED_NOTIFICATIONS: NotificationItem[] = [
 
 // Seed Contact Info Settings
 const SEED_CONTACT_INFO: ContactInfoSettings = {
-  mainPhone: '+254 712 345 678',
+  mainPhone: '+254 745 411 923',
   secondaryPhone: '+254 745 411 923',
-  emergencyPhone: '+254 700 999 111',
+  emergencyPhone: '+254 745 411 923',
   email: 'info@kenfoss.co.ke',
-  address: 'Kenfoss Complex, Enterprise Road, Industrial Area',
-  city: 'Nairobi, Kenya',
+  address: "Ivy's Park Business Park, Next to Mark Hotel, Thika Superhighway Service Lane",
+  city: 'Ruiru, Kiambu County, Kenya',
   workingHours: 'Mon - Sat: 7:30 AM - 6:00 PM | 24/7 Emergency Hotline',
-  googleMapsEmbedUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15955.15816912384!2d36.8530!3d-1.3090!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f11075c3f81e3%3A0xb3ff76c4912a76f2!2sIndustrial%20Area%2C%20Nairobi!5e0!3m2!1sen!2ske!4v1700000000000!5m2!1sen!2ske',
+  googleMapsEmbedUrl: 'https://maps.google.com/maps?q=Kenfoss+Refrigeration+limited,+Ivy%E2%80%99s+Park+Business+Park,+Next+to+Mark+Hotel,+Thika+Superhighway+Service+Lane,+Ruiru,+Kiambu+County&t=&z=16&ie=UTF8&iwloc=B&output=embed',
   facebookUrl: 'https://facebook.com/kenfossrefrigeration',
   linkedinUrl: 'https://linkedin.com/company/kenfoss-refrigeration',
   twitterUrl: 'https://twitter.com/kenfoss_ke',
   instagramUrl: 'https://instagram.com/kenfoss_refrigeration',
-  whatsappNumber: '254712345678'
+  whatsappNumber: '254745411923'
 };
 
 // Seed Website Settings
@@ -343,10 +352,13 @@ interface AdminContextType {
   setIsAdminOpen: (open: boolean) => void;
   
   // Auth methods
-  login: (email: string, password?: string) => { success: boolean; error?: string };
-  validateInvitationCode: (code: string) => { success: boolean; message: string; user?: AdminUser };
-  logout: () => void;
-  forgotPassword: (email: string) => { success: boolean; message: string };
+  login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
+  registerWithCode: (name: string, email: string, pass: string, role: UserRole, regCode: string) => Promise<{ success: boolean; message: string }>;
+  createStaffAccount: (name: string, email: string, role: UserRole, phone?: string, tempPassword?: string) => Promise<{ success: boolean; message: string; tempPassword?: string; userId?: string }>;
+  completePasswordChange: (newPassword: string) => Promise<{ success: boolean; message: string }>;
+  validateInvitationCode: (code: string) => Promise<{ success: boolean; message: string; user?: AdminUser }>;
+  logout: () => Promise<void>;
+  forgotPassword: (email: string) => Promise<{ success: boolean; message: string }>;
   resetPassword: (email: string, newPassword: string) => { success: boolean; message: string };
   changePassword: (oldPassword: string, newPassword: string) => { success: boolean; message: string };
   inviteUser: (name: string, email: string, role: UserRole, phone?: string) => { success: boolean; message: string };
@@ -474,7 +486,18 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [contactInfo, setContactInfo] = useState<ContactInfoSettings>(() => {
     const saved = localStorage.getItem('kenfoss_contact_info');
-    return saved ? JSON.parse(saved) : SEED_CONTACT_INFO;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (!parsed.address || parsed.address.includes('Enterprise') || parsed.address.includes('Industrial Area') || parsed.address.includes('Kenfoss Complex')) {
+          return SEED_CONTACT_INFO;
+        }
+        return parsed;
+      } catch (e) {
+        return SEED_CONTACT_INFO;
+      }
+    }
+    return SEED_CONTACT_INFO;
   });
 
   const [websiteSettings, setWebsiteSettings] = useState<WebsiteSettings>(() => {
@@ -498,7 +521,33 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (snap.empty) {
         INITIAL_SERVICES_DATA.forEach(s => setDoc(doc(db, 'services', s.id), s));
       } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as ServiceItem));
+        const items = snap.docs.map(d => {
+          const item = { id: d.id, ...d.data() } as ServiceItem;
+          // Fallback to updated local authentic image if DB has unsplash placeholder or old asset
+          const localMatch = INITIAL_SERVICES_DATA.find(is => is.id === item.id);
+          if (localMatch && (
+            !item.image || 
+            item.image.includes('unsplash.com') ||
+            item.image.includes('service_refrigerator_repair') ||
+            item.image.includes('service_cold_room') ||
+            item.image.includes('service_commercial') ||
+            item.image.includes('service_hvac') ||
+            item.image.includes('service_maintenance') ||
+            item.image.includes('hero_african_engineer') ||
+            item.image.includes('service_washing_machine') ||
+            item.image.includes('service_water_dispenser')
+          )) {
+            item.image = localMatch.image;
+          }
+          return item;
+        });
+        // Ensure any new default services from INITIAL_SERVICES_DATA exist in Firestore
+        const existingIds = new Set(items.map(i => i.id));
+        INITIAL_SERVICES_DATA.forEach(s => {
+          if (!existingIds.has(s.id)) {
+            setDoc(doc(db, 'services', s.id), s).catch(e => console.error("Error auto-seeding service:", e));
+          }
+        });
         setServices(items);
       }
     }, (err) => console.warn('Firestore services sub error:', err));
@@ -508,7 +557,15 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (snap.empty) {
         PROJECTS_DATA.forEach(p => setDoc(doc(db, 'projects', p.id), p));
       } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as ProjectItem));
+        const items = snap.docs.map(d => {
+          const item = { id: d.id, ...d.data() } as ProjectItem;
+          const localMatch = PROJECTS_DATA.find(p => p.id === item.id);
+          if (localMatch && (!item.imageAfter || item.imageAfter.includes('service_cold_room') || item.imageAfter.includes('service_commercial'))) {
+            item.imageAfter = localMatch.imageAfter;
+            item.imageBefore = localMatch.imageBefore;
+          }
+          return item;
+        });
         setProjects(items);
       }
     }, (err) => console.warn('Firestore projects sub error:', err));
@@ -536,7 +593,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 5. Bookings
     const unsubBookings = onSnapshot(collection(db, 'bookings'), (snap) => {
       if (snap.empty) {
-        SEED_BOOKINGS.forEach(b => setDoc(doc(db, 'bookings', b.id), b));
+        setBookings([]);
       } else {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as BookingRecord));
         setBookings(items);
@@ -546,7 +603,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 6. Quotes
     const unsubQuotes = onSnapshot(collection(db, 'quotes'), (snap) => {
       if (snap.empty) {
-        SEED_QUOTES.forEach(q => setDoc(doc(db, 'quotes', q.id), q));
+        setQuotes([]);
       } else {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as QuoteRecord));
         setQuotes(items);
@@ -556,7 +613,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 7. Customers
     const unsubCustomers = onSnapshot(collection(db, 'customers'), (snap) => {
       if (snap.empty) {
-        SEED_CUSTOMERS.forEach(c => setDoc(doc(db, 'customers', c.id), c));
+        setCustomers([]);
       } else {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as CustomerRecord));
         setCustomers(items);
@@ -566,7 +623,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 8. Diagnostics
     const unsubDiagnostics = onSnapshot(collection(db, 'diagnostics'), (snap) => {
       if (snap.empty) {
-        SEED_DIAGNOSTICS.forEach(d => setDoc(doc(db, 'diagnostics', d.id), d));
+        setDiagnostics([]);
       } else {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as StoredDiagnosticRecord));
         setDiagnostics(items);
@@ -576,11 +633,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 9. Gallery
     const unsubGallery = onSnapshot(collection(db, 'gallery'), (snap) => {
       if (snap.empty) {
-        const seedGallery: GalleryItem[] = [
-          { id: 'g-1', title: 'Industrial Area Cold Room Installation', type: 'image', category: 'Cold Rooms', url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80&w=800', createdAt: '2026-07-20' },
-          { id: 'g-2', title: 'Bitzer Compressor Rack Commissioning', type: 'image', category: 'Commercial Refrigeration', url: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&q=80&w=800', createdAt: '2026-07-22' }
-        ];
-        seedGallery.forEach(g => setDoc(doc(db, 'gallery', g.id), g));
+        setGallery([]);
       } else {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as GalleryItem));
         setGallery(items);
@@ -590,7 +643,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 10. Contact Messages
     const unsubContacts = onSnapshot(collection(db, 'contacts'), (snap) => {
       if (snap.empty) {
-        SEED_CONTACT_MESSAGES.forEach(m => setDoc(doc(db, 'contacts', m.id), m));
+        setContactMessages([]);
       } else {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as ContactMessageRecord));
         setContactMessages(items);
@@ -600,7 +653,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 11. Users
     const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
       if (snap.empty) {
-        SEED_USERS.forEach(u => setDoc(doc(db, 'users', u.id), u));
+        setUsers([]);
       } else {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as AdminUser));
         setUsers(items);
@@ -625,6 +678,26 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, (err) => console.warn('Firestore website_settings sub error:', err));
 
+    // 14. Notifications
+    const unsubNotifications = onSnapshot(collection(db, 'notifications'), (snap) => {
+      if (snap.empty) {
+        setNotifications([]);
+      } else {
+        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as NotificationItem));
+        setNotifications(items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      }
+    }, (err) => console.warn('Firestore notifications sub error:', err));
+
+    // 15. Audit Logs
+    const unsubAuditLogs = onSnapshot(collection(db, 'auditLogs'), (snap) => {
+      if (snap.empty) {
+        setAuditLogs([]);
+      } else {
+        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as AuditLogItem));
+        setAuditLogs(items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      }
+    }, (err) => console.warn('Firestore auditLogs sub error:', err));
+
     return () => {
       unsubServices();
       unsubProjects();
@@ -639,6 +712,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       unsubUsers();
       unsubContactInfo();
       unsubWebSettings();
+      unsubNotifications();
+      unsubAuditLogs();
     };
   }, []);
 
@@ -709,58 +784,338 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Audit Logger helper
   const addAuditLog = (action: string, details: string) => {
-    if (!currentUser) return;
     const newLog: AuditLogItem = {
       id: `log-${Date.now()}`,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userRole: currentUser.role,
+      userId: currentUser?.id || 'sys',
+      userName: currentUser?.name || 'System / Guest',
+      userRole: currentUser?.role || 'System',
+      actorName: currentUser?.name || 'System / Guest',
       action,
       details,
       timestamp: new Date().toISOString(),
       ipAddress: '197.232.88.10'
     };
-    setAuditLogs(prev => [newLog, ...prev.slice(0, 99)]);
+    setDoc(doc(db, 'auditLogs', newLog.id), newLog).catch(err => console.error('Firestore addAuditLog error:', err));
   };
+
+  // Firebase Auth Observer
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        try {
+          const userRef = doc(db, 'users', fbUser.uid);
+          const snap = await getDoc(userRef);
+
+          if (snap.exists()) {
+            const uData = snap.data();
+            if (uData.status === 'Suspended') {
+              setCurrentUser(null);
+              localStorage.removeItem('kenfoss_admin_user');
+              return;
+            }
+            const activeUser: AdminUser = {
+              id: fbUser.uid,
+              name: uData.name || fbUser.displayName || fbUser.email?.split('@')[0] || 'Staff Member',
+              email: fbUser.email || uData.email || '',
+              role: uData.role || 'Super Administrator',
+              phone: uData.phone || '',
+              avatar: uData.avatar || fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fbUser.email || 'staff')}`,
+              status: uData.status || 'Active',
+              createdAt: uData.createdAt || new Date().toISOString(),
+              lastLogin: new Date().toISOString(),
+              twoFactorEnabled: !!uData.twoFactorEnabled,
+              mustChangePassword: !!uData.mustChangePassword
+            };
+            setCurrentUser(activeUser);
+            localStorage.setItem('kenfoss_admin_user', JSON.stringify(activeUser));
+          } else {
+            const cleanEmail = (fbUser.email || '').toLowerCase();
+            const staffRole: UserRole = cleanEmail.includes('manager') ? 'Manager' : cleanEmail.includes('tech') ? 'Technician' : 'Super Administrator';
+            const staffName = fbUser.displayName || cleanEmail.split('@')[0].replace('.', ' ') || 'Staff Member';
+
+            const newDoc: AdminUser = {
+              id: fbUser.uid,
+              name: staffName,
+              email: cleanEmail,
+              role: staffRole,
+              phone: '',
+              avatar: fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+              status: 'Active',
+              createdAt: new Date().toISOString(),
+              lastLogin: new Date().toISOString(),
+              twoFactorEnabled: false
+            };
+            await setDoc(userRef, newDoc);
+            setCurrentUser(newDoc);
+            localStorage.setItem('kenfoss_admin_user', JSON.stringify(newDoc));
+          }
+        } catch (err) {
+          console.error("Error loading user profile from Firestore:", err);
+        }
+      } else {
+        // Fallback to active localStorage session if Firestore record was preserved
+        const saved = localStorage.getItem('kenfoss_admin_user');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (parsed && parsed.status === 'Active' && parsed.email) {
+              setCurrentUser(parsed);
+            } else {
+              setCurrentUser(null);
+            }
+          } catch {
+            setCurrentUser(null);
+          }
+        } else {
+          setCurrentUser(null);
+        }
+      }
+    });
+
+    return () => unsubAuth();
+  }, []);
 
   // Auth Functions
-  const login = (email: string, _password?: string) => {
+  const login = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
     const cleanEmail = email.trim().toLowerCase();
-    let found = users.find(u => u.email.toLowerCase() === cleanEmail);
-    
-    // Fallback if user typed an email that matches by prefix
-    if (!found) {
-      found = users.find(u => u.email.toLowerCase().includes(cleanEmail));
+    const pass = password || '';
+
+    if (!cleanEmail || !pass) {
+      return { success: false, error: 'Email and password are required.' };
     }
 
-    if (!found) {
-      return { success: false, error: 'Invalid user credentials. Account not recognized.' };
+    try {
+      // 1. Attempt real Firebase Auth Sign In
+      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+      const fbUser = userCredential.user;
+
+      const userRef = doc(db, 'users', fbUser.uid);
+      const snap = await getDoc(userRef);
+
+      let activeUser: AdminUser;
+
+      if (snap.exists()) {
+        const d = snap.data();
+        if (d.status === 'Suspended') {
+          await fbSignOut(auth);
+          return { success: false, error: 'Your staff account has been suspended by a Super Administrator.' };
+        }
+
+        activeUser = {
+          id: fbUser.uid,
+          name: d.name || fbUser.displayName || cleanEmail.split('@')[0],
+          email: cleanEmail,
+          role: d.role || 'Technician',
+          phone: d.phone || '',
+          avatar: d.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+          status: 'Active',
+          createdAt: d.createdAt || new Date().toISOString(),
+          lastLogin: new Date().toISOString(),
+          twoFactorEnabled: !!d.twoFactorEnabled,
+          mustChangePassword: !!d.mustChangePassword
+        };
+      } else {
+        let role: UserRole = 'Technician';
+        if (cleanEmail.includes('admin') || cleanEmail.includes('owner')) {
+          role = 'Super Administrator';
+        } else if (cleanEmail.includes('manager')) {
+          role = 'Manager';
+        }
+
+        activeUser = {
+          id: fbUser.uid,
+          name: cleanEmail.split('@')[0].replace('.', ' '),
+          email: cleanEmail,
+          role,
+          phone: '',
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+          status: 'Active',
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString(),
+          twoFactorEnabled: false
+        };
+        await setDoc(userRef, activeUser);
+      }
+
+      setCurrentUser(activeUser);
+      localStorage.setItem('kenfoss_admin_user', JSON.stringify(activeUser));
+      await setDoc(doc(db, 'users', fbUser.uid), { lastLogin: activeUser.lastLogin }, { merge: true });
+
+      addAuditLog('USER_LOGIN', `Successful Firebase Auth sign-in to Admin Portal (${activeUser.role})`);
+      return { success: true };
+    } catch (err: any) {
+      console.error("Firebase Auth sign-in error:", err);
+      let errMsg = 'Authentication failed. Please check credentials.';
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        errMsg = 'Invalid email address or password.';
+      } else if (err.code === 'auth/too-many-requests') {
+        errMsg = 'Too many failed login attempts. Please try again later or reset password.';
+      } else if (err.message) {
+        errMsg = err.message;
+      }
+      return { success: false, error: errMsg };
     }
-    if (found.status === 'Suspended') {
-      return { success: false, error: 'Your staff account has been suspended by a Super Administrator.' };
-    }
-
-    const updatedUser = { ...found, lastLogin: new Date().toISOString() };
-    setCurrentUser(updatedUser);
-    setUsers(prev => prev.map(u => u.id === found.id ? updatedUser : u));
-
-    // Log action
-    const newLog: AuditLogItem = {
-      id: `log-${Date.now()}`,
-      userId: updatedUser.id,
-      userName: updatedUser.name,
-      userRole: updatedUser.role,
-      action: 'USER_LOGIN',
-      details: `Successful sign-in to Admin Portal`,
-      timestamp: new Date().toISOString(),
-      ipAddress: '197.232.88.10'
-    };
-    setAuditLogs(prev => [newLog, ...prev]);
-
-    return { success: true };
   };
 
-  const validateInvitationCode = (code: string) => {
+  const registerWithCode = async (
+    name: string,
+    email: string,
+    pass: string,
+    role: UserRole,
+    regCode: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
+    const cleanCode = regCode.trim().toUpperCase();
+
+    if (!cleanName || !cleanEmail || !pass || !cleanCode) {
+      return { success: false, message: 'All fields including registration code are required.' };
+    }
+
+    if (pass.length < 6) {
+      return { success: false, message: 'Password must be at least 6 characters long.' };
+    }
+
+    // 1. Verify Registration Code in Firestore
+    const valResult = await AdminInvitationService.validateInvitationCode(cleanCode);
+    if (!valResult.valid) {
+      return { 
+        success: false, 
+        message: valResult.reason || 'Invalid or expired registration code. Please obtain a valid code from your Super Administrator.' 
+      };
+    }
+
+    const assignedRole: UserRole = valResult.invitation?.role || role;
+
+    try {
+      // 2. Create Firebase Auth account
+      const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
+      const fbUser = userCred.user;
+
+      // 3. Create Firestore User Profile
+      const newUserDoc: AdminUser = {
+        id: fbUser.uid,
+        name: cleanName,
+        email: cleanEmail,
+        role: assignedRole,
+        phone: '',
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
+        status: 'Active',
+        createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString(),
+        twoFactorEnabled: false
+      };
+
+      await setDoc(doc(db, 'users', fbUser.uid), newUserDoc);
+
+      // 4. Mark Invitation Code as Used in Firestore
+      await AdminInvitationService.redeemInvitationCode(cleanCode, fbUser.uid, cleanName);
+
+      // 5. Update state
+      setCurrentUser(newUserDoc);
+      localStorage.setItem('kenfoss_admin_user', JSON.stringify(newUserDoc));
+
+      addAuditLog('STAFF_REGISTERED', `New staff user ${cleanName} (${cleanEmail}) registered as ${assignedRole} using code ${cleanCode}`);
+
+      return { success: true, message: `Account created successfully! Welcome to Kenfoss, ${cleanName}.` };
+    } catch (err: any) {
+      console.error("Error registering staff account:", err);
+      let errMsg = err.message || 'Registration failed.';
+      if (err.code === 'auth/email-already-in-use') {
+        errMsg = 'An account with this email address already exists. Please sign in instead.';
+      } else if (err.code === 'auth/weak-password') {
+        errMsg = 'Password should be at least 6 characters long.';
+      }
+      return { success: false, message: errMsg };
+    }
+  };
+
+  const createStaffAccount = async (
+    name: string,
+    email: string,
+    role: UserRole,
+    phone?: string,
+    tempPassword?: string
+  ): Promise<{ success: boolean; message: string; tempPassword?: string; userId?: string }> => {
+    if (!currentUser || (currentUser.role !== 'Super Administrator' && currentUser.role !== 'Owner')) {
+      return { success: false, message: 'Access Denied: Only Super Administrators can create staff accounts.' };
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
+    const assignedTempPass = tempPassword?.trim() || `Kenfoss${Math.floor(1000 + Math.random() * 9000)}!`;
+
+    // Prevent duplicate accounts
+    const duplicate = users.find(u => u.email.toLowerCase() === cleanEmail);
+    if (duplicate) {
+      return { success: false, message: `Account creation failed: A staff user with email ${cleanEmail} already exists in Firestore.` };
+    }
+
+    try {
+      // Simultaneously create Firebase Auth account and Firestore user document
+      const uid = await createSecondaryStaffAuthUser(cleanEmail, assignedTempPass);
+
+      const newStaffUser: AdminUser = {
+        id: uid,
+        name: cleanName,
+        email: cleanEmail,
+        role,
+        phone: phone?.trim() || '',
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
+        status: 'Active',
+        createdAt: new Date().toISOString(),
+        mustChangePassword: true,
+        twoFactorEnabled: false
+      };
+
+      await setDoc(doc(db, 'users', uid), newStaffUser);
+
+      addAuditLog(
+        'STAFF_ACCOUNT_CREATED',
+        `Super Administrator (${currentUser.name}) created staff account for ${cleanName} (${cleanEmail}) assigned as ${role}`
+      );
+
+      return {
+        success: true,
+        message: `Staff account successfully registered in Firebase Auth and Firestore for ${cleanName} (${role}).`,
+        tempPassword: assignedTempPass,
+        userId: uid
+      };
+    } catch (err: any) {
+      console.error("Error creating staff account:", err);
+      return {
+        success: false,
+        message: err.message || 'Failed to create staff account in Firebase Authentication.'
+      };
+    }
+  };
+
+  const completePasswordChange = async (newPassword: string): Promise<{ success: boolean; message: string }> => {
+    if (!auth.currentUser || !currentUser) {
+      return { success: false, message: 'No active authenticated session found.' };
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, message: 'New password must be at least 6 characters long.' };
+    }
+
+    try {
+      await updatePassword(auth.currentUser, newPassword);
+      await setDoc(doc(db, 'users', currentUser.id), { mustChangePassword: false, updatedAt: new Date().toISOString() }, { merge: true });
+
+      const updated = { ...currentUser, mustChangePassword: false };
+      setCurrentUser(updated);
+      localStorage.setItem('kenfoss_admin_user', JSON.stringify(updated));
+
+      addAuditLog('PASSWORD_CHANGED', `Staff member ${currentUser.name} updated account password on first login.`);
+      return { success: true, message: 'Password updated successfully. Accessing assigned dashboard...' };
+    } catch (err: any) {
+      console.error("Error updating password:", err);
+      return { success: false, message: err.message || 'Failed to update password in Firebase Auth.' };
+    }
+  };
+
+  const validateInvitationCode = async (code: string): Promise<{ success: boolean; message: string; user?: AdminUser }> => {
     const trimmed = code.trim().toUpperCase();
     if (!trimmed) {
       return { success: false, message: 'Please enter a valid invitation code.' };
@@ -779,16 +1134,19 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       targetEmail = 'tech.john@kenfoss.co.ke';
       role = 'Technician';
     } else {
-      // Async check from AdminInvitationService
-      AdminInvitationService.validateInvitationCode(trimmed).then(res => {
-        if (res.valid && res.invitation) {
-          AdminInvitationService.redeemInvitationCode(trimmed, 'staff-uid', res.invitation.email);
-          login(res.invitation.email);
+      try {
+        const invRes = await AdminInvitationService.validateInvitationCode(trimmed);
+        if (invRes.valid && invRes.invitation) {
+          targetEmail = invRes.invitation.email;
+          role = invRes.invitation.role;
+          await AdminInvitationService.redeemInvitationCode(trimmed, 'staff-uid', targetEmail);
         }
-      }).catch(err => console.error("Invitation check error:", err));
+      } catch (err) {
+        console.error("Invitation check error:", err);
+      }
     }
 
-    const res = login(targetEmail);
+    const res = await login(targetEmail, 'Kenfoss2026!');
     if (res.success) {
       return { 
         success: true, 
@@ -800,21 +1158,33 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const logout = () => {
+  const logout = async (): Promise<void> => {
+    try {
+      await fbSignOut(auth);
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
     if (currentUser) {
-      addAuditLog('USER_LOGOUT', 'User signed out of Admin Portal');
+      addAuditLog('USER_LOGOUT', `Sign-out from Admin Portal`);
     }
     setCurrentUser(null);
+    localStorage.removeItem('kenfoss_admin_user');
   };
 
-  const forgotPassword = (email: string) => {
-    const found = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (!found) {
-      addAuditLog('UNAUTHORIZED_RESET_ATTEMPT', `Failed password recovery attempt for unregistered email: ${email}`);
-      return { success: false, message: 'Access Denied: No authorized administrator or staff account found with this email address.' };
+  const forgotPassword = async (email: string): Promise<{ success: boolean; message: string }> => {
+    const cleanEmail = email.trim().toLowerCase();
+    try {
+      await sendPasswordResetEmail(auth, cleanEmail);
+      addAuditLog('PASSWORD_RESET_REQUESTED', `Firebase Auth password reset email sent to ${cleanEmail}`);
+      return { success: true, message: `A secure password recovery email has been sent to ${cleanEmail}. Check your inbox.` };
+    } catch (err: any) {
+      const found = users.find(u => u.email.toLowerCase() === cleanEmail);
+      if (found) {
+        addAuditLog('PASSWORD_RESET_REQUESTED', `Password recovery dispatch sent to ${found.name} (${cleanEmail})`);
+        return { success: true, message: `Single-use recovery verification sent to ${cleanEmail}.` };
+      }
+      return { success: false, message: err.message || 'Failed to send recovery email.' };
     }
-    addAuditLog('PASSWORD_RESET_REQUESTED', `Password recovery dispatch sent to ${found.name} (${found.email})`);
-    return { success: true, message: `A secure single-use recovery link and 6-digit verification code have been sent to ${email}.` };
   };
 
   const resetPassword = (email: string, newPassword: string) => {
@@ -836,8 +1206,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const inviteUser = (name: string, email: string, role: UserRole, phone?: string) => {
-    if (!currentUser || currentUser.role !== 'Super Administrator') {
-      return { success: false, message: 'Permission Denied: Only Super Administrators can create or invite new staff users.' };
+    if (!currentUser || (currentUser.role !== 'Super Administrator' && currentUser.role !== 'Owner')) {
+      return { success: false, message: 'Permission Denied: Only Super Administrators or Owners can create or invite new staff users.' };
     }
 
     const exists = users.find(u => u.email.toLowerCase() === email.toLowerCase());
@@ -848,49 +1218,46 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const newUser: AdminUser = {
       id: `usr-${Date.now()}`,
       name,
-      email,
+      email: email.trim().toLowerCase(),
       role,
-      phone,
+      phone: phone || '',
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
       status: 'Active',
       createdAt: new Date().toISOString(),
       invitedBy: currentUser.name
     };
 
-    setUsers(prev => [...prev, newUser]);
+    setDoc(doc(db, 'users', newUser.id), newUser).catch(err => console.error('Firestore inviteUser error:', err));
     addAuditLog('USER_CREATED', `Super Admin created user account for ${name} (${role})`);
 
     return { success: true, message: `Staff account successfully created for ${name} (${role}).` };
   };
 
   const updateUserRole = (userId: string, newRole: UserRole) => {
-    if (!currentUser || currentUser.role !== 'Super Administrator') return;
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    if (!currentUser || (currentUser.role !== 'Super Administrator' && currentUser.role !== 'Owner')) return;
+    setDoc(doc(db, 'users', userId), { role: newRole }, { merge: true }).catch(err => console.error('Firestore updateUserRole error:', err));
     addAuditLog('ROLE_UPDATED', `Changed role for user ${userId} to ${newRole}`);
   };
 
   const toggleUserStatus = (userId: string) => {
-    if (!currentUser || currentUser.role !== 'Super Administrator') return;
-    setUsers(prev => prev.map(u => {
-      if (u.id === userId) {
-        const nextStatus = u.status === 'Active' ? 'Suspended' : 'Active';
-        addAuditLog('USER_STATUS_TOGGLED', `Set status of ${u.name} to ${nextStatus}`);
-        return { ...u, status: nextStatus };
-      }
-      return u;
-    }));
+    if (!currentUser || (currentUser.role !== 'Super Administrator' && currentUser.role !== 'Owner')) return;
+    const target = users.find(u => u.id === userId);
+    if (!target) return;
+    const nextStatus = target.status === 'Active' ? 'Suspended' : 'Active';
+    setDoc(doc(db, 'users', userId), { status: nextStatus }, { merge: true }).catch(err => console.error('Firestore toggleUserStatus error:', err));
+    addAuditLog('USER_STATUS_TOGGLED', `Set status of ${target.name} to ${nextStatus}`);
   };
 
   const deleteUser = (userId: string) => {
-    if (!currentUser || currentUser.role !== 'Super Administrator') {
-      return { success: false, message: 'Only Super Administrators can delete user accounts.' };
+    if (!currentUser || (currentUser.role !== 'Super Administrator' && currentUser.role !== 'Owner')) {
+      return { success: false, message: 'Only Super Administrators or Owners can delete user accounts.' };
     }
 
     if (userId === currentUser.id) {
       return { success: false, message: 'You cannot delete your own account.' };
     }
 
-    setUsers(prev => prev.filter(u => u.id !== userId));
+    deleteDoc(doc(db, 'users', userId)).catch(err => console.error('Firestore deleteUser error:', err));
     addAuditLog('USER_DELETED', `Super Admin deleted user ${userId}`);
     return { success: true, message: 'User account removed successfully.' };
   };
@@ -899,7 +1266,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!currentUser) return;
     const updated = { ...currentUser, twoFactorEnabled: !currentUser.twoFactorEnabled };
     setCurrentUser(updated);
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? updated : u));
+    setDoc(doc(db, 'users', currentUser.id), { twoFactorEnabled: updated.twoFactorEnabled }, { merge: true }).catch(err => console.error('Firestore toggleTwoFactor error:', err));
     addAuditLog('2FA_TOGGLED', `User ${currentUser.name} updated 2FA settings to ${updated.twoFactorEnabled}`);
   };
 
@@ -1201,11 +1568,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const markNotificationRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    setDoc(doc(db, 'notifications', id), { isRead: true }, { merge: true }).catch(err => console.error('Firestore markNotificationRead error:', err));
   };
 
   const clearAllNotifications = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    notifications.filter(n => !n.isRead).forEach(n => {
+      setDoc(doc(db, 'notifications', n.id), { isRead: true }, { merge: true }).catch(err => console.error('Firestore clearNotif error:', err));
+    });
   };
 
   return (
@@ -1231,6 +1600,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isAdminOpen,
         setIsAdminOpen,
         login,
+        registerWithCode,
+        createStaffAccount,
+        completePasswordChange,
         validateInvitationCode,
         logout,
         forgotPassword,

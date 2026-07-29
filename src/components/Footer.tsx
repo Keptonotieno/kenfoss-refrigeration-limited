@@ -133,7 +133,18 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
             <div className="pt-2 border-t border-slate-800 text-[11px] space-y-1.5 text-slate-300">
               <p>Direct Line: <a href={`tel:${contactInfo.secondaryPhone || contactInfo.mainPhone}`} className="text-white font-bold hover:underline">{contactInfo.secondaryPhone || contactInfo.mainPhone}</a></p>
               <p>Email: <a href={`mailto:${contactInfo.email}`} className="text-[#00AEEF] hover:underline">{contactInfo.email}</a></p>
-              <p>Address: <span className="text-slate-200">{contactInfo.address}, {contactInfo.city}</span></p>
+              <div>
+                <span className="font-semibold text-slate-400">Address: </span>
+                <a 
+                  href="https://www.google.com/maps/dir//Kenfoss+Refrigeration+limited,+Ivy%E2%80%99s+Park+Business+Park,+Next+to+Mark+Hotel,+Thika+Superhighway+Service+Lane,+Ruiru,+Kiambu+County/@-1.1620371,36.9537816,17z/data=!4m16!1m7!3m6!1s0x182f1510aee81ec1:0xc2b97e14e1f71921!2sKenfoss+Refrigeration+limited!8m2!3d-1.1620371!4d36.9586472!16s%2Fg%2F11xp9xzg41!4m7!1m0!1m5!1m1!1s0x182f1510aee81ec1:0xc2b97e14e1f71921!2m2!1d36.9586472!2d-1.1620371?entry=ttu"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-slate-200 hover:text-[#00AEEF] underline transition-colors cursor-pointer"
+                  title="Open directions in Google Maps"
+                >
+                  <strong>Kenfoss Refrigeration Limited</strong>, Ivy's Park Business Park, Next to Mark Hotel, Thika Superhighway Service Lane, Ruiru, Kiambu County, Kenya.
+                </a>
+              </div>
               <p className="text-emerald-400 font-bold">Hours: {contactInfo.workingHours}</p>
             </div>
           </div>

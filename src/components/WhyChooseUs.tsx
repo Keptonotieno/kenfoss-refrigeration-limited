@@ -84,7 +84,7 @@ export const WhyChooseUs: React.FC = () => {
                   "Positioned as Kenya's premier refrigeration & HVAC engineering contractor — serving over 500 commercial facilities and 5,000 homes."
                 </p>
                 <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
-                  <span>Headquarters: Industrial Area, Nairobi</span>
+                  <span>Headquarters: Ivy's Park, Ruiru, Kiambu County</span>
                   <span className="text-emerald-600 dark:text-emerald-400 font-bold">Class C1 EPRA</span>
                 </div>
               </div>

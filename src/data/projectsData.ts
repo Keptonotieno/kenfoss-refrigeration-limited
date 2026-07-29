@@ -1,8 +1,9 @@
 import { ProjectItem } from '../types';
-import coldRoomImg from '../assets/images/service_cold_room_1785117713918.jpg';
-import commRefImg from '../assets/images/service_commercial_1785117738944.jpg';
-import hvacImg from '../assets/images/service_hvac_1785117727139.jpg';
-import maintImg from '../assets/images/service_maintenance_1785117752181.jpg';
+import coldRoomImg from '../assets/images/kenya_cold_room_1785251769488.jpg';
+import supermarketChillersImg from '../assets/images/kenya_supermarket_chillers_1785252529044.jpg';
+import pharmaColdchainImg from '../assets/images/kenya_pharma_coldchain_1785252543037.jpg';
+import flowerFarmChillerImg from '../assets/images/kenya_flower_farm_chiller_1785252557554.jpg';
+import coldRoomBuildImg from '../assets/images/kenya_coldroom_build_1785252517070.jpg';
 import aboutImg from '../assets/images/about_african_engineers_1785117690454.jpg';
 
 export const PROJECTS_DATA: ProjectItem[] = [
@@ -13,7 +14,7 @@ export const PROJECTS_DATA: ProjectItem[] = [
     category: 'Cold Room',
     location: 'Central Nairobi, Kenya',
     completedDate: 'March 2026',
-    imageBefore: aboutImg,
+    imageBefore: coldRoomBuildImg,
     imageAfter: coldRoomImg,
     summary: 'Design, supply, and installation of a 120-cubic-meter dual chiller and blast freezer facility for executive banqueting and meat preservation.',
     specs: [
@@ -38,8 +39,8 @@ export const PROJECTS_DATA: ProjectItem[] = [
     category: 'Supermarket',
     location: 'Westlands, Nairobi',
     completedDate: 'November 2025',
-    imageBefore: maintImg,
-    imageAfter: commRefImg,
+    imageBefore: aboutImg,
+    imageAfter: supermarketChillersImg,
     summary: 'Complete refrigeration engineering and centralized VRF air conditioning for a 2,500 sq meter retail store.',
     specs: [
       { label: 'Display Cabinets', value: '32 Units (Meat, Dairy, Produce)' },
@@ -62,8 +63,8 @@ export const PROJECTS_DATA: ProjectItem[] = [
     category: 'Industrial',
     location: 'Parklands, Nairobi',
     completedDate: 'January 2026',
-    imageBefore: maintImg,
-    imageAfter: hvacImg,
+    imageBefore: aboutImg,
+    imageAfter: pharmaColdchainImg,
     summary: 'Precision vaccine & blood plasma storage facility engineered to WHO & Ministry of Health regulations with dual solar-generator fallback.',
     specs: [
       { label: 'Temperature Tolerance', value: '±0.5°C Controlled' },
@@ -86,8 +87,8 @@ export const PROJECTS_DATA: ProjectItem[] = [
     category: 'Cold Room',
     location: 'Naivasha, Rift Valley',
     completedDate: 'February 2026',
-    imageBefore: aboutImg,
-    imageAfter: coldRoomImg,
+    imageBefore: coldRoomBuildImg,
+    imageAfter: flowerFarmChillerImg,
     summary: 'Heavy industrial pre-cooling cold rooms designed for fresh rose exports to European markets.',
     specs: [
       { label: 'Daily Export Capacity', value: '150,000 Stems / Day' },

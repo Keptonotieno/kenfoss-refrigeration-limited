@@ -83,40 +83,72 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300">
       {/* Top Corporate Bar */}
-      <div className="bg-[#002B5B] dark:bg-slate-950 text-white text-[11px] font-medium py-2 px-4 md:px-8 border-b border-blue-900/60 dark:border-slate-800 hidden md:block">
-        <div className="max-w-7xl mx-auto flex justify-between items-center tracking-tight">
-          <div className="flex items-center space-x-4 lg:space-x-6 whitespace-nowrap">
-            <a href={`tel:${contactInfo.mainPhone}`} className="flex items-center space-x-1.5 hover:text-[#00AEEF] transition-colors">
+      <div className="bg-[#002B5B] dark:bg-slate-950 text-slate-200 text-[11px] font-medium py-2 px-4 sm:px-6 lg:px-8 border-b border-blue-900/60 dark:border-slate-800 hidden md:block select-none">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 lg:gap-6">
+          {/* Left Side: Phone, Email, Location */}
+          <div className="flex items-center gap-4 lg:gap-5 min-w-0">
+            {/* Phone */}
+            <a 
+              href={`tel:${contactInfo.mainPhone}`} 
+              className="flex items-center gap-1.5 text-white hover:text-[#00AEEF] transition-colors shrink-0"
+            >
               <Phone className="w-3.5 h-3.5 text-[#FF7A00] shrink-0" />
-              <span className="font-semibold text-white">{contactInfo.mainPhone}</span>
-              <span className="text-slate-300 text-[10px] bg-blue-950/80 px-1.5 py-0.5 rounded border border-blue-800/80 ml-1">{contactInfo.city}</span>
+              <span className="font-semibold text-white tracking-wide">{contactInfo.mainPhone}</span>
+              <span className="text-slate-300 text-[10px] bg-blue-950/80 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-blue-800/80 dark:border-slate-700 font-medium">
+                {contactInfo.city.split(',')[0]}
+              </span>
             </a>
-            <a href={`mailto:${contactInfo.email}`} className="flex items-center space-x-1.5 hover:text-[#00AEEF] transition-colors">
+
+            <div className="h-3.5 w-px bg-blue-800/60 dark:bg-slate-800 shrink-0" />
+
+            {/* Email */}
+            <a 
+              href={`mailto:${contactInfo.email}`} 
+              className="flex items-center gap-1.5 text-slate-200 hover:text-[#00AEEF] transition-colors shrink-0"
+            >
               <Mail className="w-3.5 h-3.5 text-[#00AEEF] shrink-0" />
-              <span>{contactInfo.email}</span>
+              <span className="font-medium">{contactInfo.email}</span>
             </a>
-            <div className="hidden lg:flex items-center space-x-1.5 text-slate-200">
+
+            <div className="hidden xl:block h-3.5 w-px bg-blue-800/60 dark:bg-slate-800 shrink-0" />
+
+            {/* Location (with responsive truncation) */}
+            <a 
+              href="https://www.google.com/maps/dir//Kenfoss+Refrigeration+limited,+Ivy%E2%80%99s+Park+Business+Park,+Next+to+Mark+Hotel,+Thika+Superhighway+Service+Lane,+Ruiru,+Kiambu+County/@-1.1620371,36.9537816,17z/data=!4m16!1m7!3m6!1s0x182f1510aee81ec1:0xc2b97e14e1f71921!2sKenfoss+Refrigeration+limited!8m2!3d-1.1620371!4d36.9586472!16s%2Fg%2F11xp9xzg41!4m7!1m0!1m5!1m1!1s0x182f1510aee81ec1:0xc2b97e14e1f71921!2m2!1d36.9586472!2d-1.1620371?entry=ttu"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden xl:flex items-center gap-1.5 text-slate-300 hover:text-[#00AEEF] transition-colors min-w-0 cursor-pointer"
+              title="Ivy's Park Business Park, Thika Superhighway, Ruiru, Kiambu County, Kenya (Click for Google Maps)"
+            >
               <MapPin className="w-3.5 h-3.5 text-[#00AEEF] shrink-0" />
-              <span>{contactInfo.address}</span>
-            </div>
+              <span className="truncate max-w-[260px] 2xl:max-w-[380px]">
+                Ivy's Park Business Park, Thika Superhighway, Ruiru, Kiambu County
+              </span>
+            </a>
           </div>
 
-          <div className="flex items-center space-x-3.5 whitespace-nowrap shrink-0">
-            <div className="flex items-center space-x-1.5 text-emerald-400 font-medium">
-              <Clock className="w-3.5 h-3.5 animate-pulse text-[#00AEEF] shrink-0" />
+          {/* Right Side: Working Hours, Certification, Admin Button */}
+          <div className="flex items-center gap-3.5 lg:gap-4 shrink-0">
+            {/* Working Hours */}
+            <div className="flex items-center gap-1.5 text-slate-200">
+              <Clock className="w-3.5 h-3.5 text-[#00AEEF] shrink-0" />
               <span className="text-[#00AEEF] font-semibold">{contactInfo.workingHours}</span>
             </div>
-            <span className="text-blue-800 dark:text-slate-700">|</span>
-            <div className="flex items-center space-x-1 text-xs">
+
+            <div className="h-3.5 w-px bg-blue-800/60 dark:bg-slate-800 shrink-0" />
+
+            {/* Certification */}
+            <div className="hidden lg:flex items-center gap-1.5 text-slate-200">
               <ShieldCheck className="w-3.5 h-3.5 text-[#FF7A00] shrink-0" />
-              <span className="text-white font-medium">EPRA & NEMA Certified</span>
+              <span className="font-medium">EPRA & NEMA Certified</span>
             </div>
+
             {onOpenAdmin && (
               <>
-                <span className="text-blue-800 dark:text-slate-700">|</span>
+                <div className="hidden lg:block h-3.5 w-px bg-blue-800/60 dark:bg-slate-800 shrink-0" />
                 <button
                   onClick={onOpenAdmin}
-                  className="text-xs font-bold text-amber-400 hover:text-white flex items-center space-x-1 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-0.5 rounded border border-amber-500/30 transition-all cursor-pointer"
+                  className="text-[11px] font-bold text-amber-300 hover:text-white flex items-center gap-1.5 bg-amber-500/15 hover:bg-amber-500/25 px-2.5 py-0.5 rounded-lg border border-amber-500/30 transition-all cursor-pointer shadow-sm"
                   title="Access Staff Admin Portal (Authorized Staff Only)"
                 >
                   <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -308,7 +340,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
             <a href="tel:0745411923" className="flex items-center space-x-2 text-slate-800 dark:text-slate-200 font-bold p-2 bg-slate-50 dark:bg-slate-800/80 rounded-lg">
               <Phone className="w-4 h-4 text-[#FF7A00]" />
-              <span>Direct Phone: 0745 411923</span>
+              <span>Direct Phone: 0745 411 923</span>
             </a>
             <div className="flex items-center justify-between text-slate-600 dark:text-slate-400 px-2 pt-1">
               <span>Ruiru, Kiambu County</span>

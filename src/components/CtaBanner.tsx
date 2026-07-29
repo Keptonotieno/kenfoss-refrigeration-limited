@@ -33,7 +33,7 @@ export const CtaBanner: React.FC<CtaBannerProps> = ({ onOpenBooking }) => {
             className="flex items-center space-x-2 px-7 py-3.5 bg-white text-[#0057B8] hover:bg-slate-100 text-sm font-bold rounded-lg shadow-md transition-all cursor-pointer"
           >
             <Phone className="w-4 h-4 text-[#FF7A00]" />
-            <span>Call Now: 0745 411923</span>
+            <span>Call Now: 0745 411 923</span>
           </a>
 
           <button

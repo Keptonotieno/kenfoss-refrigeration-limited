@@ -13,11 +13,17 @@ import {
   Droplets,
   ArrowRight,
   Check,
+  CheckCircle2,
   Clock,
   Info,
   X,
   Phone,
-  Wrench
+  Wrench,
+  Building2,
+  AlertTriangle,
+  MessageCircle,
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
 
 interface ServicesSectionProps {
@@ -30,6 +36,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
   const [selectedServiceModal, setSelectedServiceModal] = useState<ServiceItem | null>(null);
 
   const filteredServices = (services || []).filter((service) => {
+    if (service.enabled === false) return false;
     if (activeCategory === 'all') return true;
     return service.category === activeCategory;
   });
@@ -48,6 +55,12 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
     }
   };
 
+  const getRelatedServices = (currentService: ServiceItem) => {
+    return (services || [])
+      .filter(s => s.id !== currentService.id && s.enabled !== false)
+      .slice(0, 3);
+  };
+
   return (
     <section id="services" className="py-20 bg-[#F8FAFC] dark:bg-slate-950 scroll-mt-[76px] md:scroll-mt-[112px]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -58,17 +71,17 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
             Engineering & Repair Services
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-[#1E293B] dark:text-slate-100 tracking-tight">
-            Precision Refrigeration & HVAC Engineering Solutions
+            Comprehensive Refrigeration, HVAC & Appliance Services
           </h2>
-          <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base">
-            From residential inverter fridge repairs to multi-megawatt commercial cold room facilities, Kenfoss engineers deliver world-class reliability across Kenya.
+          <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
+            From residential inverter fridge and washer repairs to commercial cold room installations, Kenfoss Refrigeration Limited offers EPRA-certified expertise across Kenya.
           </p>
         </div>
 
         {/* Category Filters */}
         <div className="flex flex-wrap justify-center gap-2 mb-10">
           {[
-            { id: 'all', label: 'All Engineering Services' },
+            { id: 'all', label: 'All Services' },
             { id: 'residential', label: 'Residential Appliance Repairs' },
             { id: 'commercial', label: 'Commercial & Supermarket' },
             { id: 'industrial', label: 'Industrial Cold Rooms & Emergency' },
@@ -141,14 +154,14 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
                   <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
                     <div className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/80 rounded-xl p-2.5 space-y-1">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500 dark:text-slate-400 font-medium">Pricing Model:</span>
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">Pricing:</span>
                         <span className="font-extrabold text-[#0057B8] dark:text-[#00AEEF] bg-blue-50 dark:bg-blue-950/80 px-2 py-0.5 rounded text-[11px]">
-                          {service.startingPrice}
+                          Official Quote by Admin
                         </span>
                       </div>
                       {service.pricingNote && (
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
-                          <span className="text-slate-400 dark:text-slate-500 font-medium">Requirement:</span>
+                          <span className="text-slate-400 dark:text-slate-500 font-medium">Estimation:</span>
                           <span className="font-semibold text-slate-700 dark:text-slate-300">{service.pricingNote}</span>
                         </div>
                       )}
@@ -160,11 +173,11 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
                         className="py-2.5 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl transition-colors flex items-center justify-center space-x-1 cursor-pointer"
                       >
                         <Info className="w-3.5 h-3.5" />
-                        <span>Specs & Details</span>
+                        <span>Full Service Details</span>
                       </button>
 
                       <button
-                        onClick={() => onOpenBooking(service.ctaLabel?.includes('Inspection') ? 'service' : 'quote', service.id)}
+                        onClick={() => onOpenBooking(service.ctaLabel?.includes('Inspection') || service.ctaLabel?.includes('Servicing') ? 'service' : 'quote', service.id)}
                         className="py-2.5 px-2.5 bg-[#FF7A00] hover:bg-[#e06c00] text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center space-x-1 shadow-sm cursor-pointer whitespace-nowrap"
                       >
                         <span>{service.ctaLabel || 'Request a Quote'}</span>
@@ -183,10 +196,10 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
 
       {/* Detailed Service Specifications Modal */}
       {selectedServiceModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
           <SEO 
-            title={`${selectedServiceModal.title} | Kenfoss Refrigeration Kenya`}
-            description={selectedServiceModal.shortDescription}
+            title={`${selectedServiceModal.title} | Kenfoss Refrigeration Limited Kenya`}
+            description={selectedServiceModal.shortDesc}
             keywords={[selectedServiceModal.title, selectedServiceModal.category, ...selectedServiceModal.features]}
             canonicalUrl={`https://kenfoss.co.ke/#service-${selectedServiceModal.id}`}
             schemaData={{
@@ -205,40 +218,71 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
               }
             }}
           />
-          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full p-6 sm:p-8 space-y-6 relative shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-3xl w-full p-5 sm:p-8 space-y-6 relative shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto my-auto">
             
             <button
               onClick={() => setSelectedServiceModal(null)}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors z-10"
             >
               <X className="w-6 h-6" />
             </button>
 
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/80 text-[#0057B8] dark:text-[#00AEEF] flex items-center justify-center font-bold">
-                <Wrench className="w-6 h-6" />
-              </div>
-              <div>
-                <span className="text-xs font-bold text-[#0057B8] dark:text-[#00AEEF] uppercase tracking-wider">
-                  {selectedServiceModal.category} Engineering
+            {/* Header with image */}
+            <div className="relative rounded-xl overflow-hidden bg-slate-900 h-48 sm:h-56 -mx-1 sm:-mx-2 -mt-1 sm:-mt-2">
+              <img 
+                src={selectedServiceModal.image} 
+                alt={selectedServiceModal.title} 
+                className="w-full h-full object-cover opacity-85"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+              
+              <div className="absolute bottom-4 left-4 right-4 text-white space-y-1">
+                <span className="bg-[#0057B8] text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-md inline-block">
+                  {selectedServiceModal.category} Engineering Service
                 </span>
-                <h3 className="text-2xl font-black text-[#1E293B] dark:text-slate-100">
+                <h3 className="text-2xl sm:text-3xl font-black text-white leading-tight">
                   {selectedServiceModal.title}
                 </h3>
               </div>
             </div>
 
-            <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
-              {selectedServiceModal.fullDesc}
-            </p>
-
-            {/* Scope Features */}
+            {/* Overview */}
             <div>
-              <h4 className="text-sm font-bold text-[#1E293B] dark:text-slate-100 mb-2">Technical Capabilities & Scope:</h4>
+              <h4 className="text-xs font-black uppercase tracking-wider text-[#0057B8] dark:text-[#00AEEF] mb-1">
+                Service Overview
+              </h4>
+              <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                {selectedServiceModal.fullDesc}
+              </p>
+            </div>
+
+            {/* Equipment Serviced */}
+            {selectedServiceModal.equipmentServiced && selectedServiceModal.equipmentServiced.length > 0 && (
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-[#0057B8] dark:text-[#00AEEF] mb-2 flex items-center space-x-1.5">
+                  <Wrench className="w-3.5 h-3.5 text-[#0057B8] dark:text-[#00AEEF]" />
+                  <span>Equipment & Models Serviced:</span>
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {selectedServiceModal.equipmentServiced.map((eq, idx) => (
+                    <span key={idx} className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-3 py-1 rounded-lg font-semibold">
+                      {eq}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Features & Scope */}
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-[#0057B8] dark:text-[#00AEEF] mb-2 flex items-center space-x-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#0057B8] dark:text-[#00AEEF]" />
+                <span>Technical Capabilities & Deliverables:</span>
+              </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {selectedServiceModal.features.map((feat, idx) => (
-                  <div key={idx} className="flex items-center space-x-2 text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700">
-                    <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                  <div key={idx} className="flex items-center space-x-2 text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700/80">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                     <span className="font-medium">{feat}</span>
                   </div>
                 ))}
@@ -246,48 +290,132 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
             </div>
 
             {/* Common Issues Handled */}
-            {selectedServiceModal.commonIssues && (
+            {selectedServiceModal.commonIssues && selectedServiceModal.commonIssues.length > 0 && (
               <div>
-                <h4 className="text-sm font-bold text-[#1E293B] dark:text-slate-100 mb-2">Common Faults Resolved On-Site:</h4>
-                <div className="flex flex-wrap gap-2">
+                <h4 className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-2 flex items-center space-x-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Common Faults Repaired On-Site:</span>
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {selectedServiceModal.commonIssues.map((issue, idx) => (
-                    <span key={idx} className="text-xs bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800/80 px-2.5 py-1 rounded-md font-medium">
-                      ⚠️ {issue}
+                    <div key={idx} className="text-xs bg-amber-50/80 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border border-amber-200/80 dark:border-amber-900/60 p-2 rounded-lg font-medium flex items-center space-x-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                      <span>{issue}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Benefits of Choosing Kenfoss */}
+            {selectedServiceModal.benefits && selectedServiceModal.benefits.length > 0 && (
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-[#0057B8] dark:text-[#00AEEF] mb-2 flex items-center space-x-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#0057B8] dark:text-[#00AEEF]" />
+                  <span>Why Choose Kenfoss for {selectedServiceModal.title}:</span>
+                </h4>
+                <div className="space-y-1.5">
+                  {selectedServiceModal.benefits.map((benefit, idx) => (
+                    <div key={idx} className="flex items-start space-x-2 text-xs text-slate-700 dark:text-slate-300">
+                      <Check className="w-4 h-4 text-[#0057B8] dark:text-[#00AEEF] flex-shrink-0 mt-0.5" />
+                      <span className="font-medium">{benefit}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Industries Served */}
+            {selectedServiceModal.industriesServed && selectedServiceModal.industriesServed.length > 0 && (
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-[#0057B8] dark:text-[#00AEEF] mb-2 flex items-center space-x-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-[#0057B8] dark:text-[#00AEEF]" />
+                  <span>Industries & Clients Served:</span>
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {selectedServiceModal.industriesServed.map((ind, idx) => (
+                    <span key={idx} className="text-[11px] bg-blue-50 dark:bg-blue-950/80 text-[#0057B8] dark:text-[#00AEEF] border border-blue-200/60 dark:border-blue-800/80 px-2.5 py-1 rounded-md font-semibold">
+                      {ind}
                     </span>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Pricing Reassurance Box */}
-            <div className="bg-blue-50/80 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/60 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            {/* Pricing & Guarantee Box */}
+            <div className="bg-blue-50/80 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/60 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
               <div>
-                <span className="text-slate-500 dark:text-slate-400 block font-medium text-[11px]">Pricing Structure:</span>
-                <span className="font-extrabold text-[#0057B8] dark:text-[#00AEEF] text-sm">{selectedServiceModal.startingPrice}</span>
+                <span className="text-slate-500 dark:text-slate-400 block font-medium text-[11px]">Pricing Model:</span>
+                <span className="font-extrabold text-[#0057B8] dark:text-[#00AEEF] text-base">{selectedServiceModal.startingPrice}</span>
+                {selectedServiceModal.pricingNote && (
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{selectedServiceModal.pricingNote}</p>
+                )}
               </div>
-              {selectedServiceModal.pricingNote && (
-                <span className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 font-semibold text-[11px] self-start sm:self-auto">
-                  {selectedServiceModal.pricingNote}
-                </span>
-              )}
+              
+              <div className="border-t sm:border-t-0 sm:border-l border-blue-200 dark:border-blue-800/80 pt-2 sm:pt-0 sm:pl-4">
+                <span className="text-slate-500 dark:text-slate-400 block font-medium text-[11px]">Kenfoss Quality Guarantee:</span>
+                <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-xs">90-Day EPRA Parts & Workmanship Warranty</span>
+              </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Service Guarantee</p>
-                <p className="text-xs font-bold text-[#0057B8] dark:text-[#00AEEF]">90 Days EPRA Warranty</p>
-              </div>
+            {/* Primary Call To Action Buttons */}
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <a
+                href={`https://wa.me/254745411923?text=Hello%20Kenfoss%2C%20I%20am%20interested%20in%20your%20${encodeURIComponent(selectedServiceModal.title)}%20service.`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center space-x-1.5 shadow-sm"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>WhatsApp Direct Support</span>
+              </a>
 
-              <div className="flex space-x-3">
+              <div className="flex flex-wrap sm:flex-nowrap gap-2">
                 <button
                   onClick={() => {
+                    const svc = selectedServiceModal;
                     setSelectedServiceModal(null);
-                    onOpenBooking('service', selectedServiceModal.id);
+                    onOpenBooking('quote', svc.id);
                   }}
-                  className="px-5 py-2.5 bg-[#FF7A00] hover:bg-[#e06c00] text-white text-xs font-bold rounded-xl shadow-md cursor-pointer"
+                  className="flex-1 sm:flex-initial py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl transition-colors cursor-pointer"
                 >
-                  Book Service Now
+                  Request Quotation
                 </button>
+
+                <button
+                  onClick={() => {
+                    const svc = selectedServiceModal;
+                    setSelectedServiceModal(null);
+                    onOpenBooking('service', svc.id);
+                  }}
+                  className="flex-1 sm:flex-initial py-2.5 px-5 bg-[#FF7A00] hover:bg-[#e06c00] text-white text-xs font-extrabold rounded-xl shadow-md cursor-pointer flex items-center justify-center space-x-1"
+                >
+                  <span>Book Service Now</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Related Services */}
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+              <h5 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+                Other Related Services
+              </h5>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {getRelatedServices(selectedServiceModal).map(rel => (
+                  <button
+                    key={rel.id}
+                    onClick={() => setSelectedServiceModal(rel)}
+                    className="p-3 bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-xl text-left border border-slate-200/80 dark:border-slate-700/80 transition-all cursor-pointer group"
+                  >
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-[#0057B8] dark:group-hover:text-[#00AEEF] line-clamp-1">
+                      {rel.title}
+                    </p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">
+                      {rel.startingPrice}
+                    </p>
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -298,3 +426,4 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
     </section>
   );
 };
+

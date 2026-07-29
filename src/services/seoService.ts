@@ -37,16 +37,16 @@ export const DEFAULT_SEO: SEOMetadata = {
     "email": "info@kenfoss.co.ke",
     "address": {
       "@type": "PostalAddress",
-      "streetAddress": "Kenfoss Engineering Hub, Ruiru By-pass",
+      "streetAddress": "Ivy's Park Business Park, Next to Mark Hotel, Thika Superhighway Service Lane",
       "addressLocality": "Ruiru",
       "addressRegion": "Kiambu County",
       "postalCode": "00232",
-      "addressCountry": "KE"
+      "addressCountry": "Kenya"
     },
     "geo": {
       "@type": "GeoCoordinates",
-      "latitude": -1.1472,
-      "longitude": 36.9602
+      "latitude": -1.1620371,
+      "longitude": 36.9586472
     },
     "openingHoursSpecification": {
       "@type": "OpeningHoursSpecification",

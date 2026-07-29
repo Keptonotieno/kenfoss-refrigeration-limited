@@ -74,15 +74,28 @@ export const ContactSection: React.FC = () => {
               {/* Physical Location */}
               <div className="space-y-1.5">
                 <p className="text-xs font-bold text-[#00AEEF] uppercase tracking-wider">Main Office & Workshop Address</p>
-                <div className="p-3 bg-slate-900/90 rounded-xl border border-slate-700/80 space-y-1 text-xs text-slate-200">
-                  <div className="flex items-start space-x-2">
-                    <MapPin className="w-4 h-4 text-[#FF7A00] flex-shrink-0 mt-0.5" />
+                <a 
+                  href={googleDirectionsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block p-4 bg-slate-900/90 hover:bg-slate-950 rounded-xl border border-slate-700/80 space-y-1 text-xs text-slate-200 transition-all cursor-pointer group hover:border-[#00AEEF]/60"
+                  title="Click to open Google Maps directions"
+                >
+                  <div className="flex items-start space-x-2.5">
+                    <MapPin className="w-5 h-5 text-[#FF7A00] shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
                     <div className="space-y-0.5">
-                      <p className="font-bold text-white">{contactInfo.address}</p>
-                      <p className="text-slate-300">{contactInfo.city}</p>
+                      <p className="font-extrabold text-white text-sm">Kenfoss Refrigeration Limited</p>
+                      <p className="text-slate-200 font-medium">Ivy's Park Business Park,</p>
+                      <p className="text-slate-300">Next to Mark Hotel,</p>
+                      <p className="text-slate-300">Thika Superhighway Service Lane,</p>
+                      <p className="text-slate-300 font-semibold text-white/90">Ruiru, Kiambu County, Kenya.</p>
+                      <p className="text-[11px] text-[#00AEEF] font-bold pt-1.5 flex items-center gap-1 group-hover:underline">
+                        <span>Get Driving Directions on Google Maps</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </p>
                     </div>
                   </div>
-                </div>
+                </a>
               </div>
 
               {/* Contact Directs & Hours */}

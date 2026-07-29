@@ -43,7 +43,7 @@ export const AiDiagnosticsManagement: React.FC = () => {
   const handleCreateDispatchFromDiag = (d: StoredDiagnosticRecord) => {
     addBooking({
       fullName: `Diagnostic Lead (${d.brand})`,
-      phone: '+254 700 000 000',
+      phone: '+254 745 411 923',
       email: 'lead@kenfoss.co.ke',
       location: d.location,
       serviceType: `${d.applianceType} Repair (${d.severity})`,

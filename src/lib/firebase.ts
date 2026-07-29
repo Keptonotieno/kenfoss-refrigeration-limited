@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp, getApps, getApp, deleteApp } from 'firebase/app';
 import { 
   getAuth, 
   GoogleAuthProvider, 
@@ -122,6 +122,24 @@ export async function saveDiagnosticToFirestore(diagnosticData: any) {
     return docRef.id;
   } catch (error) {
     console.error("Error saving diagnostic report to Firestore:", error);
+    throw error;
+  }
+}
+
+// Helper to create a staff account in Firebase Auth without logging out current Super Admin
+export async function createSecondaryStaffAuthUser(email: string, pass: string): Promise<string> {
+  const secondaryAppName = `StaffApp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+  const secondaryAuth = getAuth(secondaryApp);
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, pass);
+    const uid = userCredential.user.uid;
+    await signOut(secondaryAuth);
+    await deleteApp(secondaryApp);
+    return uid;
+  } catch (error) {
+    await deleteApp(secondaryApp).catch(() => {});
     throw error;
   }
 }

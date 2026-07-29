@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { saveBookingToFirestore } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
+import { useAdmin } from '../context/AdminContext';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   prefillDetails = ''
 }) => {
   const { user, userProfile } = useAuth();
+  const { services } = useAdmin();
   const [tab, setTab] = useState<'service' | 'quote'>(initialType as 'service' | 'quote');
   
   // Form State
@@ -37,9 +39,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [location, setLocation] = useState('Nairobi');
-  const [serviceType, setServiceType] = useState('Domestic / Commercial Refrigerator Repair');
+  const [serviceType, setServiceType] = useState('');
   const [preferredDate, setPreferredDate] = useState('');
-  const [notes, setNotes] = useState(prefillDetails);
+  const [notes, setNotes] = useState('');
   
   // Quote specific
   const [companyName, setCompanyName] = useState('');
@@ -53,15 +55,27 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   useEffect(() => {
     setTab(initialType as 'service' | 'quote');
-    if (prefillDetails) {
+    
+    // Check if prefillDetails is a service ID
+    const matchedService = (services || []).find(s => s.id === prefillDetails);
+    if (matchedService) {
+      setServiceType(matchedService.title);
+      setProjectType(matchedService.title);
+      setNotes(`Inquiry regarding: ${matchedService.title} (${matchedService.startingPrice})`);
+    } else if (prefillDetails) {
       setNotes(prefillDetails);
     }
+
+    if (!serviceType && services && services.length > 0) {
+      setServiceType(services[0].title);
+    }
+
     if (user) {
       if (!fullName && user.displayName) setFullName(user.displayName);
       if (!email && user.email) setEmail(user.email);
       if (!phone && userProfile?.phone) setPhone(userProfile.phone);
     }
-  }, [initialType, prefillDetails, isOpen, user, userProfile]);
+  }, [initialType, prefillDetails, isOpen, user, userProfile, services]);
 
   if (!isOpen) return null;
 
@@ -216,7 +230,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <input
                     type="tel"
                     required
-                    placeholder="e.g. +254 712 345 678"
+                    placeholder="e.g. 0745 411 923"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-[#0057B8]"
@@ -264,12 +278,28 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       onChange={(e) => setServiceType(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-[#0057B8]"
                     >
-                      <option value="Domestic Refrigerator Repair">Domestic Refrigerator Repair (Samsung, LG, Bosch)</option>
-                      <option value="Commercial Cold Room Maintenance">Commercial Cold Room Maintenance</option>
-                      <option value="Commercial HVAC Air Con">Commercial Air Conditioning & HVAC</option>
-                      <option value="Preventive Maintenance AMC">Preventive Maintenance Contract (AMC)</option>
-                      <option value="Washing Machine Repair">Washing Machine & Dryer Repair</option>
-                      <option value="24/7 Emergency Breakdown">24/7 URGENT Emergency Breakdown</option>
+                      {services && services.length > 0 ? (
+                        services.map(svc => (
+                          <option key={svc.id} value={svc.title}>
+                            {svc.title} ({svc.startingPrice})
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="Freezer Repair">Freezer Repair</option>
+                          <option value="Refrigerator & Freezer Repair">Refrigerator & Freezer Repair</option>
+                          <option value="Refrigerator Repair">Refrigerator Repair</option>
+                          <option value="Mini Refrigerator Repair">Mini Refrigerator Repair</option>
+                          <option value="Walk-in Cooler Repair">Walk-in Cooler Repair</option>
+                          <option value="Refrigerator Installation">Refrigerator Installation</option>
+                          <option value="Cold Room Installation">Cold Room Installation</option>
+                          <option value="Dishwasher Repair">Dishwasher Repair</option>
+                          <option value="Washing Machine Repair">Washing Machine Repair</option>
+                          <option value="Dryer Repair">Dryer Repair</option>
+                          <option value="Microwave Repair">Microwave Repair</option>
+                          <option value="Oven Repair">Oven Repair</option>
+                        </>
+                      )}
                     </select>
                   </div>
 
@@ -347,10 +377,22 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               {confirmation.message}
             </p>
 
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1 max-w-sm mx-auto text-left">
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-2 max-w-sm mx-auto text-left">
+              <div className="border-b border-slate-200 pb-2">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Engineering Workshop & Office</span>
+                <p className="font-extrabold text-slate-900 text-xs">Kenfoss Refrigeration Limited</p>
+                <a 
+                  href="https://www.google.com/maps/dir//Kenfoss+Refrigeration+limited,+Ivy%E2%80%99s+Park+Business+Park,+Next+to+Mark+Hotel,+Thika+Superhighway+Service+Lane,+Ruiru,+Kiambu+County/@-1.1620371,36.9537816,17z/data=!4m16!1m7!3m6!1s0x182f1510aee81ec1:0xc2b97e14e1f71921!2sKenfoss+Refrigeration+limited!8m2!3d-1.1620371!4d36.9586472!16s%2Fg%2F11xp9xzg41!4m7!1m0!1m5!1m1!1s0x182f1510aee81ec1:0xc2b97e14e1f71921!2m2!1d36.9586472!2d-1.1620371?entry=ttu"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-[#0057B8] hover:underline font-medium block mt-0.5"
+                >
+                  Ivy's Park Business Park, Next to Mark Hotel, Thika Superhighway Service Lane, Ruiru, Kiambu County, Kenya ↗
+                </a>
+              </div>
               <p><strong>Assigned Engineer:</strong> Kenfoss Ruiru Duty Specialist</p>
               <p><strong>Site Location:</strong> {location}</p>
-              <p><strong>Hotline Contact:</strong> 0745 411923</p>
+              <p><strong>Hotline Contact:</strong> +254 745 411 923</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">

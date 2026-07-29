@@ -180,12 +180,20 @@ export const Hero: React.FC<HeroProps> = ({
                     onChange={(e) => setSelectedQuickService(e.target.value)}
                     className="w-full bg-slate-900/90 border border-slate-700 text-white text-xs rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-[#00AEEF] outline-none"
                   >
-                    <option value="cold-room">Cold Room Design & Installation</option>
-                    <option value="refrigerator-repair">Fridge / Freezer Repair (Samsung, LG, etc.)</option>
-                    <option value="commercial-refrigeration">Commercial Hotel / Supermarket Cooling</option>
+                    <option value="cold-room-installation">Cold Room Installation & Design</option>
+                    <option value="freezer-repair">Freezer Repair (Chest / Upright)</option>
+                    <option value="refrigerator-freezer-repair">Refrigerator & Freezer Repair (Side-by-Side / Inverter)</option>
+                    <option value="refrigerator-repair">Refrigerator Repair (Single / Double Door)</option>
+                    <option value="mini-refrigerator-repair">Mini Refrigerator Repair (Minibar / Wine Chiller)</option>
+                    <option value="walk-in-cooler-repair">Walk-in Cooler Repair (Chiller Vaults)</option>
+                    <option value="refrigerator-installation">Refrigerator Installation & Plumbing</option>
+                    <option value="dishwasher-repair">Dishwasher Repair</option>
+                    <option value="washing-machine-repair">Washing Machine Repair</option>
+                    <option value="dryer-repair">Dryer Repair (Heat Pump / Condenser)</option>
+                    <option value="microwave-repair">Microwave Repair</option>
+                    <option value="oven-repair">Oven & Bakery Equipment Repair</option>
                     <option value="hvac-air-con">Commercial Air Conditioning & HVAC</option>
                     <option value="preventive-maintenance">Preventive Maintenance Contract (AMC)</option>
-                    <option value="washing-machine">Washing Machine & Laundry Repair</option>
                     <option value="emergency-breakdown">URGENT 24/7 Emergency Breakdown</option>
                   </select>
                 </div>

@@ -13,6 +13,7 @@ import {
   X, 
   FileText, 
   AlertCircle,
+  AlertTriangle,
   Clock,
   Send,
   Mail,
@@ -32,6 +33,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
     auditLogs, 
     currentUser, 
     inviteUser, 
+    createStaffAccount,
     updateUserRole, 
     toggleUserStatus, 
     deleteUser 
@@ -49,16 +51,20 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Invite modal
+  // Invite/Create modal
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'createAccount' | 'inviteCode'>('createAccount');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteName, setInviteName] = useState('');
   const [invitePhone, setInvitePhone] = useState('');
   const [inviteRole, setInviteRole] = useState<UserRole>('Technician');
+  const [tempPassword, setTempPassword] = useState('Kenfoss2026!');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [lastCreatedAccount, setLastCreatedAccount] = useState<{ name: string; email: string; role: UserRole; tempPass: string } | null>(null);
   const [lastInvitation, setLastInvitation] = useState<AdminInvitation | null>(null);
   const [invitationsList, setInvitationsList] = useState<AdminInvitation[]>([]);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const filteredUsers = users.filter(u => {
     return u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -86,30 +92,49 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
     }
   }, [activeTab]);
 
-  const handleSendInvite = async (e: React.FormEvent) => {
+  const handleCreateStaffAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsGenerating(true);
+    setFormError(null);
     setCopiedCode(false);
 
     try {
-      // Create invitation stored in Firestore
-      const invitation = await AdminInvitationService.createInvitation({
-        email: inviteEmail,
-        role: inviteRole,
-        createdBy: currentUser?.name || currentUser?.email || 'Super Administrator',
-        notes: `Staff invitation for ${inviteName || inviteEmail} (Phone: ${invitePhone || 'N/A'})`
-      });
+      if (modalMode === 'createAccount') {
+        const res = await createStaffAccount(
+          inviteName,
+          inviteEmail,
+          inviteRole,
+          invitePhone,
+          tempPassword
+        );
 
-      // Dispatch invitation email
-      await AdminInvitationService.dispatchInvitationEmail(invitation);
+        if (!res.success) {
+          setFormError(res.message);
+        } else {
+          setLastCreatedAccount({
+            name: inviteName,
+            email: inviteEmail,
+            role: inviteRole,
+            tempPass: res.tempPassword || tempPassword
+          });
+        }
+      } else {
+        // Create invitation stored in Firestore
+        const invitation = await AdminInvitationService.createInvitation({
+          email: inviteEmail,
+          role: inviteRole,
+          createdBy: currentUser?.name || currentUser?.email || 'Super Administrator',
+          notes: `Staff invitation for ${inviteName || inviteEmail} (Phone: ${invitePhone || 'N/A'})`
+        });
 
-      setLastInvitation(invitation);
-      // Also register in local context
-      inviteUser(inviteEmail, inviteRole, inviteName || 'Staff Member');
-      loadInvitations();
-    } catch (err) {
-      console.error("Error generating invitation:", err);
-      alert("Failed to generate invitation code.");
+        await AdminInvitationService.dispatchInvitationEmail(invitation);
+        setLastInvitation(invitation);
+        inviteUser(inviteName || 'Staff Member', inviteEmail, inviteRole, invitePhone);
+        loadInvitations();
+      }
+    } catch (err: any) {
+      console.error("Error processing staff request:", err);
+      setFormError(err.message || "Failed to process staff account creation.");
     } finally {
       setIsGenerating(false);
     }
@@ -490,22 +515,121 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
         </div>
       )}
 
-      {/* INVITE USER MODAL */}
+      {/* INVITE / CREATE STAFF ACCOUNT MODAL */}
       {isInviteModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 text-slate-100 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
             <button
-              onClick={() => setIsInviteModalOpen(false)}
+              onClick={() => {
+                setIsInviteModalOpen(false);
+                setLastCreatedAccount(null);
+                setLastInvitation(null);
+                setFormError(null);
+              }}
               className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-rose-500" /> Invite Restricted Staff User
+              <UserPlus className="w-5 h-5 text-rose-500" /> Create Staff Account
             </h3>
 
-            {lastInvitation ? (
+            {/* Mode Selector */}
+            {!lastCreatedAccount && !lastInvitation && (
+              <div className="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setModalMode('createAccount')}
+                  className={`py-1.5 px-3 rounded-lg font-bold cursor-pointer transition-all ${
+                    modalMode === 'createAccount'
+                      ? 'bg-rose-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Direct Account
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalMode('inviteCode')}
+                  className={`py-1.5 px-3 rounded-lg font-bold cursor-pointer transition-all ${
+                    modalMode === 'inviteCode'
+                      ? 'bg-rose-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Invitation Code
+                </button>
+              </div>
+            )}
+
+            {formError && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            {lastCreatedAccount ? (
+              <div className="space-y-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-xs">
+                <div className="flex items-center space-x-2 text-emerald-400 font-bold">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>Firebase Staff Account Created!</span>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  Account is active in Firebase Authentication and Firestore. Staff user can log in immediately.
+                </p>
+                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-slate-400 font-medium">Full Name:</span>
+                    <span className="text-white font-bold">{lastCreatedAccount.name}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-slate-400 font-medium">Sign-In Email:</span>
+                    <span className="text-blue-400 font-mono font-bold">{lastCreatedAccount.email}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-slate-400 font-medium">Assigned Role:</span>
+                    <span className="px-2 py-0.5 bg-slate-800 rounded font-bold text-slate-200">{lastCreatedAccount.role}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-slate-400 font-medium">Temporary Password:</span>
+                    <span className="font-mono text-amber-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">{lastCreatedAccount.tempPass}</span>
+                  </div>
+                  <div className="text-[10px] text-amber-400/90 pt-1 border-t border-slate-800 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Must change password on first login before dashboard access.</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 space-y-2">
+                  <button
+                    onClick={() => {
+                      const text = `Kenfoss Staff Credentials:\nEmail: ${lastCreatedAccount.email}\nTemp Password: ${lastCreatedAccount.tempPass}\nRole: ${lastCreatedAccount.role}`;
+                      navigator.clipboard.writeText(text);
+                      setCopiedCode(true);
+                      setTimeout(() => setCopiedCode(false), 2000);
+                    }}
+                    className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
+                  >
+                    {copiedCode ? <Check className="w-4 h-4" /> : <KeyRound className="w-4 h-4" />}
+                    <span>{copiedCode ? 'Credentials Copied!' : 'Copy Staff Credentials'}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setLastCreatedAccount(null);
+                      setInviteEmail('');
+                      setInviteName('');
+                      setInvitePhone('');
+                      setTempPassword('Kenfoss2026!');
+                    }}
+                    className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    Create Another Staff Account
+                  </button>
+                </div>
+              </div>
+            ) : lastInvitation ? (
               <div className="space-y-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-xs">
                 <div className="flex items-center space-x-2 text-emerald-400 font-bold">
                   <CheckCircle2 className="w-5 h-5" />
@@ -556,7 +680,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSendInvite} className="space-y-3">
+              <form onSubmit={handleCreateStaffAccount} className="space-y-3">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-300">Staff Full Name</label>
                   <input
@@ -588,7 +712,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
                     required
                     value={invitePhone}
                     onChange={(e) => setInvitePhone(e.target.value)}
-                    placeholder="+254 712 345 678"
+                    placeholder="0745 411 923"
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-rose-500"
                   />
                 </div>
@@ -600,11 +724,36 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
                     onChange={(e) => setInviteRole(e.target.value as UserRole)}
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-rose-500"
                   >
-                    <option value="Technician">Technician</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Super Administrator">Super Administrator</option>
+                    <option value="Technician">Technician (Assigned Job View)</option>
+                    <option value="Manager">Manager (Operations & RFQs)</option>
+                    <option value="Super Administrator">Super Administrator (Owner / Full Access)</option>
                   </select>
                 </div>
+
+                {modalMode === 'createAccount' && (
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-bold text-slate-300">Temporary Password</label>
+                      <button
+                        type="button"
+                        onClick={() => setTempPassword(`Kenfoss${Math.floor(1000 + Math.random() * 9000)}!`)}
+                        className="text-[10px] text-blue-400 hover:underline cursor-pointer"
+                      >
+                        Generate Random
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={tempPassword}
+                      onChange={(e) => setTempPassword(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono text-amber-400 focus:outline-none focus:border-rose-500"
+                    />
+                    <p className="text-[10px] text-slate-400">
+                      Staff member will be forced to change this password on first login.
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
                   <button
@@ -619,7 +768,13 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
                     disabled={isGenerating}
                     className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center space-x-1.5"
                   >
-                    {isGenerating ? <span>Storing...</span> : <><Send className="w-3.5 h-3.5" /><span>Generate Code & Dispatch</span></>}
+                    {isGenerating ? (
+                      <span>Creating Account...</span>
+                    ) : modalMode === 'createAccount' ? (
+                      <><UserPlus className="w-3.5 h-3.5" /><span>Create Firebase Account</span></>
+                    ) : (
+                      <><Send className="w-3.5 h-3.5" /><span>Generate Code & Dispatch</span></>
+                    )}
                   </button>
                 </div>
               </form>

@@ -42,7 +42,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
   const totalDiagnosticRequests = diagnostics.length;
   const totalRevenueEst = bookings
     .filter(b => b.status === 'Completed' || b.paymentStatus === 'Paid')
-    .reduce((sum, b) => sum + (b.totalAmount || 0), 0) + 580000; // includes previous revenue base
+    .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
 
   const recentBookings = bookings.slice(0, 5);
   const recentDiagnostics = diagnostics.slice(0, 4);
@@ -261,40 +261,48 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {recentBookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="p-3">
-                      <span className="font-mono font-bold text-blue-400 block">{b.bookingRef}</span>
-                      <span className="text-[10px] text-slate-500">{b.date}</span>
-                    </td>
-                    <td className="p-3 font-semibold text-white">
-                      <div>{b.fullName}</div>
-                      <div className="text-[10px] text-slate-400">{b.phone}</div>
-                    </td>
-                    <td className="p-3 text-slate-300 max-w-[160px] truncate">{b.serviceType}</td>
-                    <td className="p-3 text-slate-400">
-                      {b.assignedTechnicianName ? (
-                        <span className="text-slate-200 font-medium flex items-center gap-1">
-                          <Wrench className="w-3 h-3 text-blue-400" />
-                          {b.assignedTechnicianName.split(' ')[1] || b.assignedTechnicianName}
-                        </span>
-                      ) : (
-                        <span className="text-amber-400 text-[10px] italic">Unassigned</span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold inline-block ${
-                        b.status === 'New' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                        b.status === 'Assigned' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                        b.status === 'In Progress' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' :
-                        b.status === 'Completed' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                        'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                      }`}>
-                        {b.status}
-                      </span>
+                {recentBookings.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-slate-500 italic text-xs">
+                      No service bookings recorded in database.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  recentBookings.map((b) => (
+                    <tr key={b.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="p-3">
+                        <span className="font-mono font-bold text-blue-400 block">{b.bookingRef}</span>
+                        <span className="text-[10px] text-slate-500">{b.date}</span>
+                      </td>
+                      <td className="p-3 font-semibold text-white">
+                        <div>{b.fullName}</div>
+                        <div className="text-[10px] text-slate-400">{b.phone}</div>
+                      </td>
+                      <td className="p-3 text-slate-300 max-w-[160px] truncate">{b.serviceType}</td>
+                      <td className="p-3 text-slate-400">
+                        {b.assignedTechnicianName ? (
+                          <span className="text-slate-200 font-medium flex items-center gap-1">
+                            <Wrench className="w-3 h-3 text-blue-400" />
+                            {b.assignedTechnicianName.split(' ')[1] || b.assignedTechnicianName}
+                          </span>
+                        ) : (
+                          <span className="text-amber-400 text-[10px] italic">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold inline-block ${
+                          b.status === 'New' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                          b.status === 'Assigned' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                          b.status === 'In Progress' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' :
+                          b.status === 'Completed' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                          'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                        }`}>
+                          {b.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -319,25 +327,31 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
             </div>
 
             <div className="space-y-3">
-              {recentDiagnostics.map(d => (
-                <div key={d.id} className="p-3 bg-slate-950 border border-slate-800 rounded-2xl space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white">{d.brand} {d.applianceType}</span>
-                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
-                      d.severity === 'Emergency Critical' ? 'bg-rose-500/20 text-rose-400' :
-                      d.severity === 'High' ? 'bg-amber-500/20 text-amber-400' :
-                      'bg-blue-500/20 text-blue-400'
-                    }`}>
-                      {d.severity}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">{d.problemDescription}</p>
-                  <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-900">
-                    <span>{d.location}</span>
-                    <span>{new Date(d.createdAt).toLocaleDateString()}</span>
-                  </div>
+              {recentDiagnostics.length === 0 ? (
+                <div className="p-6 text-center text-slate-500 italic text-xs bg-slate-950 rounded-2xl border border-slate-800">
+                  No AI diagnostic submissions found.
                 </div>
-              ))}
+              ) : (
+                recentDiagnostics.map(d => (
+                  <div key={d.id} className="p-3 bg-slate-950 border border-slate-800 rounded-2xl space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white">{d.brand} {d.applianceType}</span>
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                        d.severity === 'Emergency Critical' ? 'bg-rose-500/20 text-rose-400' :
+                        d.severity === 'High' ? 'bg-amber-500/20 text-amber-400' :
+                        'bg-blue-500/20 text-blue-400'
+                      }`}>
+                        {d.severity}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">{d.problemDescription}</p>
+                    <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-900">
+                      <span>{d.location}</span>
+                      <span>{new Date(d.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -348,15 +362,19 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
               Recent Staff Audit Logs
             </h2>
             <div className="space-y-2">
-              {auditLogs.slice(0, 4).map(log => (
-                <div key={log.id} className="text-[11px] border-l-2 border-blue-500 pl-3 py-1 space-y-0.5">
-                  <div className="flex items-center justify-between text-slate-300">
-                    <span className="font-bold">{log.userName}</span>
-                    <span className="text-[9px] text-slate-500">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              {auditLogs.length === 0 ? (
+                <p className="p-4 text-center text-slate-500 italic text-xs">No staff audit logs recorded yet.</p>
+              ) : (
+                auditLogs.slice(0, 4).map(log => (
+                  <div key={log.id} className="text-[11px] border-l-2 border-blue-500 pl-3 py-1 space-y-0.5">
+                    <div className="flex items-center justify-between text-slate-300">
+                      <span className="font-bold">{log.userName}</span>
+                      <span className="text-[9px] text-slate-500">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <p className="text-slate-400">{log.details}</p>
                   </div>
-                  <p className="text-slate-400">{log.details}</p>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 

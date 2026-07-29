@@ -16,9 +16,9 @@ export const BlogsManagement: React.FC = () => {
     excerpt: '',
     content: '',
     author: {
-      name: currentUser?.name || 'Eng. Ken Munene',
-      role: 'Lead Refrigeration Engineer',
-      avatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'
+      name: currentUser?.name || 'Kenfoss Staff',
+      role: currentUser?.role || 'Refrigeration Engineer',
+      avatar: currentUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(currentUser?.name || 'staff')}`
     },
     date: new Date().toISOString().slice(0, 10),
     readTime: '5 min read',
@@ -41,9 +41,9 @@ export const BlogsManagement: React.FC = () => {
       excerpt: '',
       content: '',
       author: {
-        name: currentUser?.name || 'Eng. Ken Munene',
-        role: 'Lead Refrigeration Engineer',
-        avatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'
+        name: currentUser?.name || 'Kenfoss Staff',
+        role: currentUser?.role || 'Refrigeration Engineer',
+        avatar: currentUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(currentUser?.name || 'staff')}`
       },
       date: new Date().toISOString().slice(0, 10),
       readTime: '5 min read',

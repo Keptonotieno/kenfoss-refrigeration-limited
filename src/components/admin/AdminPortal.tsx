@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminLogin } from './AdminLogin';
 import { AdminHeader } from './AdminHeader';
 import { AdminSidebar, AdminTab } from './AdminSidebar';
+import { ChangePasswordModal } from './ChangePasswordModal';
 import { ShieldAlert } from 'lucide-react';
 
 import { AdminDashboardView } from './AdminDashboardView';
@@ -48,12 +49,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
 
+  // Set default tab based on role upon login
+  useEffect(() => {
+    if (currentUser?.role === 'Technician') {
+      setActiveTab('technician_jobs');
+    }
+  }, [currentUser?.role, currentUser?.id]);
+
   // Allow only authorized staff (Super Administrator, Manager, Technician)
   const isStaff = currentUser && ['Super Administrator', 'Manager', 'Technician'].includes(currentUser.role);
 
   // If not logged in or not staff, render secure login view
   if (!isAuthenticated || !currentUser || !isStaff) {
     return <AdminLogin onCancel={onCloseAdmin} />;
+  }
+
+  // Force staff to change password on first login
+  if (currentUser.mustChangePassword) {
+    return <ChangePasswordModal />;
   }
 
   const role = currentUser.role;
