@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { AdminProvider } from './context/AdminContext';
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
+import { NotificationToastContainer } from './components/NotificationToast';
 import { SEO } from './components/SEO';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
@@ -56,94 +58,99 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <AdminProvider>
-          {/* Dynamic SEO Meta Tag Injector */}
-          <SEO pageKey={isAdminPortalOpen ? 'admin' : activeTab} />
+          <ToastProvider>
+            {/* Dynamic SEO Meta Tag Injector */}
+            <SEO pageKey={isAdminPortalOpen ? 'admin' : activeTab} />
 
-          {isAdminPortalOpen ? (
-            <AdminPortal onCloseAdmin={() => setIsAdminPortalOpen(false)} />
-          ) : (
-            <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-[#1E293B] dark:text-slate-100 font-sans antialiased selection:bg-[#0057B8] selection:text-white pb-14 md:pb-0 transition-colors duration-200">
-              
-              {/* Sticky Navigation Header */}
-              <Navbar
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                onOpenBooking={handleOpenBooking}
-                onOpenAiDiagnostic={() => setAiModalOpen(true)}
-                onOpenCalculator={handleOpenCalculator}
-                onOpenAdmin={() => setIsAdminPortalOpen(true)}
-              />
-
-              {/* Main Page Sections */}
-              <main id="home" className="pt-[84px] md:pt-[116px] lg:pt-[120px] scroll-mt-[84px] md:scroll-mt-[116px] lg:scroll-mt-[120px]">
+            {isAdminPortalOpen ? (
+              <AdminPortal onCloseAdmin={() => setIsAdminPortalOpen(false)} />
+            ) : (
+              <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-[#1E293B] dark:text-slate-100 font-sans antialiased selection:bg-[#0057B8] selection:text-white pb-14 md:pb-0 transition-colors duration-200">
                 
-                {/* Hero Section */}
-                <Hero
+                {/* Sticky Navigation Header */}
+                <Navbar
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
                   onOpenBooking={handleOpenBooking}
-                  onOpenCalculator={handleOpenCalculator}
                   onOpenAiDiagnostic={() => setAiModalOpen(true)}
+                  onOpenCalculator={handleOpenCalculator}
+                  onOpenAdmin={() => setIsAdminPortalOpen(true)}
                 />
 
-                {/* Trust Statistics Bar */}
-                <TrustStats />
+                {/* Main Page Sections */}
+                <main id="home" className="pt-[84px] md:pt-[116px] lg:pt-[120px] scroll-mt-[84px] md:scroll-mt-[116px] lg:scroll-mt-[120px]">
+                  
+                  {/* Hero Section */}
+                  <Hero
+                    onOpenBooking={handleOpenBooking}
+                    onOpenCalculator={handleOpenCalculator}
+                    onOpenAiDiagnostic={() => setAiModalOpen(true)}
+                  />
 
-                {/* Services & Repair Section */}
-                <ServicesSection onOpenBooking={handleOpenBooking} />
+                  {/* Trust Statistics Bar */}
+                  <TrustStats />
 
-                {/* Cold Room Sizing & Energy Calculator */}
-                <ColdRoomCalculator onOpenBooking={handleOpenBooking} />
+                  {/* Services & Repair Section */}
+                  <ServicesSection onOpenBooking={handleOpenBooking} />
 
-                {/* Why Choose Kenfoss Split Layout */}
-                <WhyChooseUs />
+                  {/* Cold Room Sizing & Energy Calculator */}
+                  <ColdRoomCalculator onOpenBooking={handleOpenBooking} />
 
-                {/* Industries Served */}
-                <IndustriesSection onOpenBooking={handleOpenBooking} />
+                  {/* Why Choose Kenfoss Split Layout */}
+                  <WhyChooseUs />
 
-                {/* Featured Projects & Before/After Comparison */}
-                <ProjectsGallery onOpenBooking={handleOpenBooking} />
+                  {/* Industries Served */}
+                  <IndustriesSection onOpenBooking={handleOpenBooking} />
 
-                {/* OEM Partner Brands */}
-                <BrandsSection />
+                  {/* Featured Projects & Before/After Comparison */}
+                  <ProjectsGallery onOpenBooking={handleOpenBooking} />
 
-                {/* Customer Testimonials & Verified Google Reviews */}
-                <TestimonialsSection />
+                  {/* OEM Partner Brands */}
+                  <BrandsSection />
 
-                {/* Call To Action Banner */}
-                <CtaBanner onOpenBooking={handleOpenBooking} />
+                  {/* Customer Testimonials & Verified Google Reviews */}
+                  <TestimonialsSection />
 
-                {/* Knowledge Hub / Blog */}
-                <BlogSection />
+                  {/* Call To Action Banner */}
+                  <CtaBanner onOpenBooking={handleOpenBooking} />
 
-                {/* Contact & Office Locations */}
-                <ContactSection />
+                  {/* Knowledge Hub / Blog */}
+                  <BlogSection />
 
-              </main>
+                  {/* Contact & Office Locations */}
+                  <ContactSection />
 
-              {/* Corporate Footer */}
-              <Footer onOpenAdmin={() => setIsAdminPortalOpen(true)} />
+                </main>
 
-              {/* Modals & Floating Lead Generation Tools */}
-              <BookingModal
-                isOpen={bookingModalOpen}
-                onClose={() => setBookingModalOpen(false)}
-                initialType={bookingType}
-                prefillDetails={prefillDetails}
-              />
+                {/* Corporate Footer */}
+                <Footer onOpenAdmin={() => setIsAdminPortalOpen(true)} />
 
-              <AiDiagnosticModal
-                isOpen={aiModalOpen}
-                onClose={() => setAiModalOpen(false)}
-                onBookService={(prefill) => handleOpenBooking('service', prefill)}
-              />
+                {/* Modals & Floating Lead Generation Tools */}
+                <BookingModal
+                  isOpen={bookingModalOpen}
+                  onClose={() => setBookingModalOpen(false)}
+                  initialType={bookingType}
+                  prefillDetails={prefillDetails}
+                />
 
-              <AuthModal />
+                <AiDiagnosticModal
+                  isOpen={aiModalOpen}
+                  onClose={() => setAiModalOpen(false)}
+                  onBookService={(prefill) => handleOpenBooking('service', prefill)}
+                />
 
-              <FloatingWhatsApp />
+                <AuthModal />
 
-              <MobileBottomNav onOpenBooking={handleOpenBooking} />
+                <FloatingWhatsApp />
 
-            </div>
-          )}
+                <MobileBottomNav onOpenBooking={handleOpenBooking} />
+
+              </div>
+            )}
+
+            {/* Floating Toast Notification Stack */}
+            <NotificationToastContainer />
+          </ToastProvider>
         </AdminProvider>
       </AuthProvider>
     </ThemeProvider>

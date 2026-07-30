@@ -1,16 +1,20 @@
 import React from 'react';
 import { Phone, MessageSquare, Wrench } from 'lucide-react';
+import { useAdmin } from '../context/AdminContext';
 
 interface MobileBottomNavProps {
   onOpenBooking: (type?: string) => void;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenBooking }) => {
+  const { contactInfo } = useAdmin();
+  const whatsappNum = contactInfo?.whatsappNumber || '254745411923';
+
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 border-t border-slate-800 p-2 shadow-2xl">
       <div className="grid grid-cols-3 gap-2">
         <a
-          href="tel:0745411923"
+          href={`tel:${contactInfo.mainPhone}`}
           className="flex flex-col items-center justify-center py-2 bg-slate-800 text-white rounded-xl text-[10px] font-bold active:scale-95 transition-transform"
         >
           <Phone className="w-4 h-4 text-[#FF7A00] mb-0.5" />
@@ -18,7 +22,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenBooking 
         </a>
 
         <a
-          href="https://wa.me/254745411923?text=Hello%20Kenfoss%20Refrigeration,%20I%20need%20urgent%20engineering%20support."
+          href={`https://wa.me/${whatsappNum}?text=Hello%20Kenfoss%20Refrigeration,%20I%20need%20urgent%20engineering%20support.`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex flex-col items-center justify-center py-2 bg-emerald-700 text-white rounded-xl text-[10px] font-bold active:scale-95 transition-transform"

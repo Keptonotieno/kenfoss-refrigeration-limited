@@ -31,7 +31,8 @@ interface ServicesSectionProps {
 }
 
 export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking }) => {
-  const { services } = useAdmin();
+  const { services, contactInfo } = useAdmin();
+  const whatsappNum = contactInfo?.whatsappNumber || '254745411923';
   const [activeCategory, setActiveCategory] = useState<ServiceCategory>('all');
   const [selectedServiceModal, setSelectedServiceModal] = useState<ServiceItem | null>(null);
 
@@ -361,7 +362,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
             {/* Primary Call To Action Buttons */}
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <a
-                href={`https://wa.me/254745411923?text=Hello%20Kenfoss%2C%20I%20am%20interested%20in%20your%20${encodeURIComponent(selectedServiceModal.title)}%20service.`}
+                href={`https://wa.me/${whatsappNum}?text=Hello%20Kenfoss%2C%20I%20am%20interested%20in%20your%20${encodeURIComponent(selectedServiceModal.title)}%20service.`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center space-x-1.5 shadow-sm"

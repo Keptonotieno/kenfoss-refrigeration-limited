@@ -51,26 +51,38 @@ export interface TestimonialItem {
   avatar: string;
   verifiedService: string;
   date: string;
-  status?: 'Approved' | 'Pending';
+  status?: 'Approved' | 'Pending' | 'Rejected';
+  featured?: boolean;
+  email?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface BlogPost {
   id: string;
   title: string;
   slug: string;
-  category: 'Maintenance' | 'Refrigeration' | 'HVAC' | 'Cold Rooms' | 'Energy Saving';
+  category: 'Maintenance' | 'Refrigeration' | 'HVAC' | 'Cold Rooms' | 'Energy Saving' | 'Industry News' | 'Case Studies' | string;
   excerpt: string;
   content: string;
   author: {
     name: string;
     role: string;
     avatar: string;
+    email?: string;
   };
   date: string;
   readTime: string;
   image: string;
   tags: string[];
-  status?: 'Published' | 'Draft';
+  status?: 'Published' | 'Draft' | 'Archived';
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string[];
+  featured?: boolean;
+  viewsCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface DiagnosticResult {
@@ -104,7 +116,34 @@ export interface ColdRoomEstimate {
   recommendedUnits: string[];
 }
 
-export type UserRole = 'Super Administrator' | 'Manager' | 'Technician';
+export type PermissionKey =
+  | 'view_dashboard'
+  | 'manage_bookings'
+  | 'manage_quotes'
+  | 'manage_customers'
+  | 'view_diagnostics'
+  | 'technician_portal'
+  | 'manage_services'
+  | 'manage_projects'
+  | 'manage_gallery'
+  | 'manage_testimonials'
+  | 'manage_blogs'
+  | 'manage_contact_info'
+  | 'manage_website_settings'
+  | 'manage_users_roles'
+  | 'view_audit_logs';
+
+export interface RoleDefinition {
+  id: string;
+  name: string;
+  description: string;
+  isSystemRole?: boolean;
+  permissions: PermissionKey[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type UserRole = 'Super Administrator' | 'Manager' | 'Technician' | string;
 
 export interface AdminUser {
   id: string;
@@ -200,8 +239,16 @@ export interface GalleryItem {
   type: 'image' | 'video';
   category: string;
   url: string;
+  thumbnailUrl?: string;
   description?: string;
+  tags?: string[];
+  featured?: boolean;
+  location?: string;
+  client?: string;
+  fileSizeKb?: number;
+  dimensions?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ContactMessageRecord {
@@ -243,15 +290,27 @@ export interface ContactInfoSettings {
 
 export interface WebsiteSettings {
   companyName: string;
+  siteTitle: string;
   tagline: string;
   logoUrl: string;
   faviconUrl: string;
+  ogImageUrl?: string;
   primaryColor: string;
   secondaryColor: string;
   footerCopyright: string;
+  footerText: string;
+  epraNotice?: string;
   metaDescription: string;
   metaKeywords: string;
   googleAnalyticsId: string;
+  gtmContainerId?: string;
+  facebookPixelId?: string;
+  facebookUrl?: string;
+  linkedinUrl?: string;
+  twitterUrl?: string;
+  instagramUrl?: string;
+  whatsappNumber?: string;
+  enableMaintenanceMode: boolean;
 }
 
 export interface AuditLogItem {

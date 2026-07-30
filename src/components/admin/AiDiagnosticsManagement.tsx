@@ -10,11 +10,12 @@ import {
   MessageSquare, 
   Wrench, 
   MapPin, 
-  Clock 
+  Clock,
+  Trash2
 } from 'lucide-react';
 
 export const AiDiagnosticsManagement: React.FC = () => {
-  const { diagnostics, reviewDiagnosticRecord, assignTechnician, addBooking } = useAdmin();
+  const { diagnostics, reviewDiagnosticRecord, deleteDiagnosticRecord, assignTechnician, addBooking } = useAdmin();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [severityFilter, setSeverityFilter] = useState<string>('all');
@@ -159,15 +160,28 @@ export const AiDiagnosticsManagement: React.FC = () => {
             </div>
 
             <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
-              <button
-                onClick={() => {
-                  setSelectedDiag(d);
-                  setManagerNotes(d.reviewNotes || '');
-                }}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl cursor-pointer"
-              >
-                {d.reviewedBy ? 'Edit Review' : 'Add Manager Review'}
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    setSelectedDiag(d);
+                    setManagerNotes(d.reviewNotes || '');
+                  }}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl cursor-pointer"
+                >
+                  {d.reviewedBy ? 'Edit Review' : 'Add Manager Review'}
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm(`Are you sure you want to delete this diagnostic record (${d.brand} ${d.applianceType})?`)) {
+                      deleteDiagnosticRecord(d.id);
+                    }
+                  }}
+                  className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs cursor-pointer inline-flex items-center"
+                  title="Delete Diagnostic Record"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
 
               <button
                 onClick={() => handleCreateDispatchFromDiag(d)}

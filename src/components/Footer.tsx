@@ -142,7 +142,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
                   className="text-slate-200 hover:text-[#00AEEF] underline transition-colors cursor-pointer"
                   title="Open directions in Google Maps"
                 >
-                  <strong>Kenfoss Refrigeration Limited</strong>, Ivy's Park Business Park, Next to Mark Hotel, Thika Superhighway Service Lane, Ruiru, Kiambu County, Kenya.
+                  <strong>{websiteSettings.companyName || 'Kenfoss Refrigeration Limited'}</strong>, {contactInfo.address}, {contactInfo.city}.
                 </a>
               </div>
               <p className="text-emerald-400 font-bold">Hours: {contactInfo.workingHours}</p>

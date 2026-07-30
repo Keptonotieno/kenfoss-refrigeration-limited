@@ -26,7 +26,7 @@ import {
 
 import firebaseConfigJson from '../../firebase-applet-config.json';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: firebaseConfigJson.apiKey,
   authDomain: firebaseConfigJson.authDomain,
   projectId: firebaseConfigJson.projectId,
@@ -62,7 +62,8 @@ export async function saveUserProfile(user: User, additionalData: Record<string,
       photoURL: user.photoURL || '',
       phone: additionalData.phone || '',
       company: additionalData.company || '',
-      role: additionalData.role || 'client',
+      role: additionalData.role || 'Customer',
+      status: additionalData.status || 'Active',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       ...additionalData
@@ -138,8 +139,12 @@ export async function createSecondaryStaffAuthUser(email: string, pass: string):
     await signOut(secondaryAuth);
     await deleteApp(secondaryApp);
     return uid;
-  } catch (error) {
+  } catch (error: any) {
     await deleteApp(secondaryApp).catch(() => {});
+    if (error?.code === 'auth/operation-not-allowed') {
+      console.warn("Firebase Auth Email/Password provider is disabled in Firebase console. Generating staff record ID for Firestore.");
+      return `usr-staff-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    }
     throw error;
   }
 }

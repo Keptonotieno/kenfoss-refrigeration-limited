@@ -16,6 +16,7 @@ import {
 import { saveBookingToFirestore } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
+import { useToast } from '../context/ToastContext';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -31,7 +32,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   prefillDetails = ''
 }) => {
   const { user, userProfile } = useAuth();
-  const { services } = useAdmin();
+  const { services, contactInfo, websiteSettings } = useAdmin();
+  const { showToast } = useToast();
   const [tab, setTab] = useState<'service' | 'quote'>(initialType as 'service' | 'quote');
   
   // Form State
@@ -124,11 +126,28 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         refCode: ref,
         message: `Inquiry ${ref} recorded successfully & synchronized with Firestore database! A senior engineer will call ${phone} within 15 minutes.`
       });
+
+      showToast({
+        type: tab === 'service' ? 'booking' : 'quote',
+        title: tab === 'service' ? `Service Booking Received (${serviceType})` : `Commercial RFQ Received (${projectType})`,
+        message: `Thank you ${fullName || 'Valued Customer'}! Your request has been logged. An EPRA-certified engineer at Kenfoss Ruiru will review your specs and reach out on ${phone} within 15 minutes.`,
+        refCode: ref,
+        phone,
+        location
+      });
     } catch (err: any) {
       console.error("Booking error:", err);
       setConfirmation({
         refCode: ref,
         message: `Inquiry ${ref} received! A senior engineer will call ${phone} shortly.`
+      });
+
+      showToast({
+        type: tab === 'service' ? 'booking' : 'quote',
+        title: `Inquiry Received (${ref})`,
+        message: `Your request was received successfully! Kenfoss engineers will call ${phone} shortly.`,
+        refCode: ref,
+        phone
       });
     } finally {
       setLoading(false);
@@ -140,7 +159,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       ? `Hello Kenfoss Refrigeration, I booked service ${confirmation?.refCode || ''} for ${serviceType} at ${location}. Details: ${notes}`
       : `Hello Kenfoss Refrigeration, I submitted commercial RFQ ${confirmation?.refCode || ''} for ${companyName} (${projectType}). Details: ${notes}`;
 
-    window.open(`https://wa.me/254745411923?text=${encodeURIComponent(text)}`, '_blank');
+    const waNum = contactInfo?.whatsappNumber || '254745411923';
+    window.open(`https://wa.me/${waNum}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   return (
@@ -380,19 +400,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-2 max-w-sm mx-auto text-left">
               <div className="border-b border-slate-200 pb-2">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Engineering Workshop & Office</span>
-                <p className="font-extrabold text-slate-900 text-xs">Kenfoss Refrigeration Limited</p>
+                <p className="font-extrabold text-slate-900 text-xs">{websiteSettings?.companyName || 'Kenfoss Refrigeration Limited'}</p>
                 <a 
-                  href="https://www.google.com/maps/dir//Kenfoss+Refrigeration+limited,+Ivy%E2%80%99s+Park+Business+Park,+Next+to+Mark+Hotel,+Thika+Superhighway+Service+Lane,+Ruiru,+Kiambu+County/@-1.1620371,36.9537816,17z/data=!4m16!1m7!3m6!1s0x182f1510aee81ec1:0xc2b97e14e1f71921!2sKenfoss+Refrigeration+limited!8m2!3d-1.1620371!4d36.9586472!16s%2Fg%2F11xp9xzg41!4m7!1m0!1m5!1m1!1s0x182f1510aee81ec1:0xc2b97e14e1f71921!2m2!1d36.9586472!2d-1.1620371?entry=ttu"
+                  href={contactInfo.googleMapsEmbedUrl || "https://maps.google.com"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[11px] text-[#0057B8] hover:underline font-medium block mt-0.5"
                 >
-                  Ivy's Park Business Park, Next to Mark Hotel, Thika Superhighway Service Lane, Ruiru, Kiambu County, Kenya ↗
+                  {contactInfo.address}, {contactInfo.city} ↗
                 </a>
               </div>
               <p><strong>Assigned Engineer:</strong> Kenfoss Ruiru Duty Specialist</p>
               <p><strong>Site Location:</strong> {location}</p>
-              <p><strong>Hotline Contact:</strong> +254 745 411 923</p>
+              <p><strong>Hotline Contact:</strong> {contactInfo.mainPhone}</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">

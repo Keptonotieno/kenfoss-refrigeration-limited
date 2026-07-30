@@ -1,70 +1,170 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // User profiles
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSystemInitCompleted() {
+      return exists(/databases/$(database)/documents/settings/system_init) &&
+        get(/databases/$(database)/documents/settings/system_init).data.setupCompleted == true;
+    }
+
+    function isAuthTokenAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email in ['keptonromez62@gmail.com', 'keptonotieno@gmail.com'] ||
+        (request.auth.token.email != null && request.auth.token.email.matches('.*admin.*'))
+      );
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasUserDoc() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAccountActive() {
+      return isSignedIn() && (
+        !hasUserDoc() ||
+        (getUserData().status != 'Suspended' && getUserData().status != 'Disabled')
+      );
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && isAccountActive() && (
+        isAuthTokenAdmin() ||
+        (hasUserDoc() && getUserData().role in ['Super Administrator', 'Owner', 'Admin', 'admin', 'Super Admin'])
+      );
+    }
+
+    function isManager() {
+      return isSuperAdmin() || (
+        isSignedIn() && isAccountActive() && (
+          hasUserDoc() && getUserData().role in ['Manager', 'manager', 'Manager / Supervisor', 'Manager/Supervisor']
+        )
+      );
+    }
+
+    function isTechnician() {
+      return isManager() || (
+        isSignedIn() && isAccountActive() && (
+          hasUserDoc() && getUserData().role in ['Technician', 'technician', 'Senior Technician', 'Junior Technician']
+        )
+      );
+    }
+
+    function isStaff() {
+      return isTechnician() || isAuthTokenAdmin();
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 1. Users collection
     match /users/{userId} {
-      allow read, write: if true;
+      allow read: if isOwner(userId) || isStaff() || !isSystemInitCompleted();
+      allow create: if true;
+      allow update: if isOwner(userId) || isStaff() || !isSystemInitCompleted();
+      allow delete: if isStaff();
     }
-    
-    // Bookings, Quotes and Customers
+
+    // 2. Bookings
     match /bookings/{bookingId} {
-      allow read, write: if true;
+      allow read: if isStaff() || (isSignedIn() && (resource.data.userEmail == request.auth.token.email || resource.data.userId == request.auth.uid));
+      allow create: if true;
+      allow update: if isStaff() || (isSignedIn() && (resource.data.userEmail == request.auth.token.email || resource.data.userId == request.auth.uid));
+      allow delete: if isStaff();
     }
 
+    // 3. Quotes / RFQs
     match /quotes/{quoteId} {
-      allow read, write: if true;
+      allow read: if isStaff() || (isSignedIn() && (resource.data.email == request.auth.token.email || resource.data.userId == request.auth.uid));
+      allow create: if true;
+      allow update: if isStaff() || (isSignedIn() && (resource.data.email == request.auth.token.email || resource.data.userId == request.auth.uid));
+      allow delete: if isStaff();
     }
 
+    // 4. Customers
     match /customers/{customerId} {
-      allow read, write: if true;
+      allow read: if isStaff() || (isSignedIn() && (resource.data.email == request.auth.token.email || resource.data.userId == request.auth.uid));
+      allow create: if true;
+      allow update, delete: if isStaff();
     }
-    
-    // AI Diagnostics
+
+    // 5. Diagnostics
     match /diagnostics/{diagnosticId} {
-      allow read, write: if true;
+      allow read: if isStaff() || (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.email == request.auth.token.email));
+      allow create: if true;
+      allow update, delete: if isStaff();
     }
 
-    // Contact messages
+    // 6. Contact Messages
     match /contacts/{contactId} {
-      allow read, write: if true;
+      allow read: if isStaff();
+      allow create: if true;
+      allow update, delete: if isStaff();
     }
 
-    // Single-use Admin Invitations
+    // 7. Single-use Admin Invitations
     match /invitations/{invitationId} {
-      allow read, write: if true;
+      allow read, write: if isStaff();
     }
 
-    // CMS Collections (Services, Projects, Testimonials, Blogs, Gallery, Settings)
+    // 8. CMS Collections (Services, Projects, Testimonials, Blogs, Gallery)
     match /services/{serviceId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaff();
     }
 
     match /projects/{projectId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaff();
     }
 
     match /testimonials/{testimonialId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isStaff();
     }
 
     match /blogs/{blogId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaff();
     }
 
     match /gallery/{galleryId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaff();
     }
 
+    // 9. Website & Contact Settings
     match /settings/{settingId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaff() || (settingId == 'system_init' && !isSystemInitCompleted());
     }
 
+    // 10. Notifications
     match /notifications/{notificationId} {
-      allow read, write: if true;
+      allow read, update: if isStaff() || isSignedIn();
+      allow create: if true;
+      allow delete: if isStaff();
     }
 
+    // 11. System Audit Logs
     match /auditLogs/{logId} {
-      allow read, write: if true;
+      allow read: if isStaff();
+      allow create: if true;
+      allow update, delete: if isStaff();
     }
   }
 }

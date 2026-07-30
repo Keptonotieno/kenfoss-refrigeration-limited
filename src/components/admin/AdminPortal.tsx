@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminLogin } from './AdminLogin';
+import { SystemSetup } from './SystemSetup';
 import { AdminHeader } from './AdminHeader';
 import { AdminSidebar, AdminTab } from './AdminSidebar';
 import { ChangePasswordModal } from './ChangePasswordModal';
@@ -20,6 +21,7 @@ import { BlogsManagement } from './BlogsManagement';
 import { ContactInfoEditor } from './ContactInfoEditor';
 import { WebsiteSettingsEditor } from './WebsiteSettingsEditor';
 import { UserManagement } from './UserManagement';
+import { ErrorBoundary } from '../ErrorBoundary';
 
 interface AdminPortalProps {
   onCloseAdmin?: () => void;
@@ -43,7 +45,7 @@ const AccessDeniedCard: React.FC<{ role?: string; moduleName: string }> = ({ rol
 );
 
 export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
-  const { isAuthenticated, currentUser } = useAdmin();
+  const { isAuthenticated, currentUser, isSystemInitialized, refreshSystemSetupState } = useAdmin();
 
   // Active module tab
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -56,12 +58,34 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
     }
   }, [currentUser?.role, currentUser?.id]);
 
+  // If system initialization is pending (no Super Admins provisioned yet), show SystemSetup page
+  if (!isSystemInitialized) {
+    return (
+      <SystemSetup 
+        onSetupCompleted={() => {
+          refreshSystemSetupState();
+        }} 
+        onCancel={onCloseAdmin} 
+      />
+    );
+  }
+
   // Allow only authorized staff (Super Administrator, Manager, Technician)
   const isStaff = currentUser && ['Super Administrator', 'Manager', 'Technician'].includes(currentUser.role);
 
-  // If not logged in or not staff, render secure login view
-  if (!isAuthenticated || !currentUser || !isStaff) {
+  // If not logged in, render secure login view
+  if (!isAuthenticated || !currentUser) {
     return <AdminLogin onCancel={onCloseAdmin} />;
+  }
+
+  // If authenticated but user role is not staff level, block with explicit feedback
+  if (!isStaff) {
+    return (
+      <AdminLogin 
+        onCancel={onCloseAdmin} 
+        initialError={`Account '${currentUser.email}' is currently assigned the '${currentUser.role || 'Customer'}' role. Authorized staff credentials (Super Administrator, Manager, or Technician) are required to access the Admin Portal.`}
+      />
+    );
   }
 
   // Force staff to change password on first login
@@ -74,7 +98,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
   const isManager = role === 'Manager' || isSuperAdmin;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="admin-portal min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       
       {/* Top Navigation Header */}
       <AdminHeader 
@@ -117,6 +141,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
           </div>
 
           {/* Module Router with Strict Role RBAC Protection */}
+          <ErrorBoundary fallbackTitle="Admin View Exception">
           {activeTab === 'dashboard' && <AdminDashboardView setActiveTab={(tab) => setActiveTab(tab as any)} />}
           
           {activeTab === 'bookings' && (
@@ -171,15 +196,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
             isSuperAdmin ? <UserManagement initialTab="users" /> : <AccessDeniedCard role={role} moduleName="Users & Roles (RBAC)" />
           )}
 
+          {(activeTab === 'roles' || activeTab === 'rbac') && (
+            isSuperAdmin ? <UserManagement initialTab="roles" /> : <AccessDeniedCard role={role} moduleName="Role & Permission Matrix" />
+          )}
+
           {(activeTab === 'audit_logs' || activeTab === 'audit-logs') && (
             isSuperAdmin ? <UserManagement initialTab="audit" /> : <AccessDeniedCard role={role} moduleName="Security Audit Logs" />
           )}
 
           {/* Fallback to Dashboard if an unknown tab is selected */}
-          {!['dashboard', 'bookings', 'quotes', 'customers', 'diagnostics', 'technician_jobs', 'technician-portal', 'technician_portal', 'services', 'projects', 'gallery', 'testimonials', 'blogs', 'contact_info', 'contact-info', 'website_settings', 'website-settings', 'users', 'user-management', 'user_management', 'audit_logs', 'audit-logs'].includes(activeTab) && (
+          {!['dashboard', 'bookings', 'quotes', 'customers', 'diagnostics', 'technician_jobs', 'technician-portal', 'technician_portal', 'services', 'projects', 'gallery', 'testimonials', 'blogs', 'contact_info', 'contact-info', 'website_settings', 'website-settings', 'users', 'user-management', 'user_management', 'roles', 'rbac', 'audit_logs', 'audit-logs'].includes(activeTab) && (
             <AdminDashboardView setActiveTab={(tab) => setActiveTab(tab as any)} />
           )}
-
+          </ErrorBoundary>
         </main>
       </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, Clock, Moon } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 
@@ -59,6 +59,7 @@ export const FloatingWhatsApp: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [msgText, setMsgText] = useState('');
   const [kenyaTime, setKenyaTime] = useState<KenyaTimeInfo>(getKenyaTimeInfo());
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Update live clock every second
@@ -67,6 +68,24 @@ export const FloatingWhatsApp: React.FC = () => {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Close when clicking outside the chat box
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen]);
 
   const whatsappPhone = contactInfo?.whatsappNumber || '254745411923';
 
@@ -77,11 +96,14 @@ export const FloatingWhatsApp: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40">
+    <div 
+      ref={containerRef}
+      className="floating-whatsapp-container fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40 pointer-events-none flex flex-col items-end"
+    >
       
       {/* Expanded Quick Chat Box */}
       {isOpen && (
-        <div className="mb-3 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-84 sm:w-90 p-4 space-y-3 animate-in slide-in-from-bottom-3 duration-200 text-slate-800 dark:text-slate-100">
+        <div className="pointer-events-auto mb-3 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-84 sm:w-90 p-4 space-y-3 animate-in fade-in slide-in-from-bottom-3 duration-200 text-slate-800 dark:text-slate-100">
           
           {/* Header */}
           <div className="border-b border-slate-100 dark:border-slate-800 pb-3 space-y-2">
@@ -111,9 +133,13 @@ export const FloatingWhatsApp: React.FC = () => {
               </div>
 
               <button 
-                onClick={() => setIsOpen(false)}
-                className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 rounded-full transition-colors cursor-pointer"
-                aria-label="Close chat"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsOpen(false);
+                }}
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors cursor-pointer"
+                aria-label="Close WhatsApp chat"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -192,6 +218,7 @@ export const FloatingWhatsApp: React.FC = () => {
             />
 
             <button
+              type="button"
               onClick={handleSend}
               className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow flex items-center justify-center space-x-1.5 cursor-pointer transition-all"
             >
@@ -204,14 +231,20 @@ export const FloatingWhatsApp: React.FC = () => {
 
       {/* Main Trigger Button */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative group bg-emerald-600 hover:bg-emerald-500 text-white p-3.5 rounded-full shadow-2xl flex items-center justify-center transition-transform hover:scale-110 cursor-pointer"
-        aria-label="Contact on WhatsApp"
+        className="pointer-events-auto relative group bg-emerald-600 hover:bg-emerald-500 text-white p-3.5 rounded-full shadow-2xl flex items-center justify-center transition-transform hover:scale-110 cursor-pointer"
+        aria-label={isOpen ? "Close WhatsApp chat" : "Contact on WhatsApp"}
       >
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-        <MessageSquare className="w-6 h-6 relative z-10" />
+        {!isOpen && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>}
+        {isOpen ? (
+          <X className="w-6 h-6 relative z-10 transition-transform duration-200 rotate-0" />
+        ) : (
+          <MessageSquare className="w-6 h-6 relative z-10" />
+        )}
       </button>
 
     </div>
   );
 };
+

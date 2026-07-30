@@ -12,11 +12,12 @@ import {
   Building2, 
   Mail, 
   Phone, 
-  FileText
+  FileText,
+  Trash2
 } from 'lucide-react';
 
 export const QuotesManagement: React.FC = () => {
-  const { quotes, updateQuoteStatus } = useAdmin();
+  const { quotes, updateQuoteStatus, deleteQuote } = useAdmin();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedQuote, setSelectedQuote] = useState<QuoteRecord | null>(null);
@@ -138,12 +139,23 @@ export const QuotesManagement: React.FC = () => {
                       </span>
                     </td>
 
-                    <td className="p-4 text-right">
+                    <td className="p-4 text-right space-x-2">
                       <button
                         onClick={() => handleOpenDetail(q)}
                         className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs cursor-pointer"
                       >
                         Review & Quote
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete quote request ${q.rfqRef}?`)) {
+                            deleteQuote(q.id);
+                          }
+                        }}
+                        className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs cursor-pointer inline-flex items-center"
+                        title="Delete Quote Request"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </td>
 
@@ -225,20 +237,35 @@ export const QuotesManagement: React.FC = () => {
                 />
               </div>
 
-              <div className="flex justify-end space-x-2 pt-2">
+              <div className="flex justify-between items-center pt-2">
                 <button
-                  onClick={() => setSelectedQuote(null)}
-                  className="px-4 py-2 bg-slate-800 text-slate-300 font-bold text-xs rounded-xl cursor-pointer"
+                  type="button"
+                  onClick={() => {
+                    if (confirm(`Are you sure you want to permanently delete RFQ ${selectedQuote.rfqRef}?`)) {
+                      deleteQuote(selectedQuote.id);
+                      setSelectedQuote(null);
+                    }
+                  }}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center gap-1.5"
                 >
-                  Cancel
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete RFQ</span>
                 </button>
-                <button
-                  onClick={handleIssueQuote}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg flex items-center space-x-1 cursor-pointer"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Issue Quotation to Client</span>
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setSelectedQuote(null)}
+                    className="px-4 py-2 bg-slate-800 text-slate-300 font-bold text-xs rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleIssueQuote}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg flex items-center space-x-1 cursor-pointer"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Issue Quotation to Client</span>
+                  </button>
+                </div>
               </div>
 
             </div>

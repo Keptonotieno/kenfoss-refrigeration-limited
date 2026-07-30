@@ -17,10 +17,11 @@ import {
 interface AdminHeaderProps {
   onToggleSidebar?: () => void;
   isMobileSidebarOpen?: boolean;
+  onCloseAdmin?: () => void;
 }
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({ onToggleSidebar, isMobileSidebarOpen }) => {
-  const { currentUser, logout, notifications, markNotificationRead, clearAllNotifications, toggleTwoFactor } = useAdmin();
+  const { currentUser, logout, notifications, markNotificationRead, clearAllNotifications, deleteNotification, toggleTwoFactor } = useAdmin();
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
 
@@ -132,19 +133,30 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onToggleSidebar, isMob
                   notifications.map(n => (
                     <div
                       key={n.id}
-                      onClick={() => markNotificationRead(n.id)}
-                      className={`p-3 text-xs space-y-0.5 cursor-pointer hover:bg-slate-800/60 transition-colors ${
+                      className={`p-3 text-xs space-y-0.5 hover:bg-slate-800/60 transition-colors flex items-start justify-between gap-2 ${
                         !n.isRead ? 'bg-blue-950/20' : ''
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-200">{n.title}</span>
-                        {!n.isRead && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                      <div className="flex-1 cursor-pointer" onClick={() => markNotificationRead(n.id)}>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-200">{n.title}</span>
+                          {!n.isRead && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                        </div>
+                        <p className="text-slate-400 text-[11px] leading-snug">{n.message}</p>
+                        <span className="text-[9px] text-slate-500 block pt-1">
+                          {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
                       </div>
-                      <p className="text-slate-400 text-[11px] leading-snug">{n.message}</p>
-                      <span className="text-[9px] text-slate-500 block pt-1">
-                        {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(n.id);
+                        }}
+                        className="p-1 text-slate-500 hover:text-rose-400 rounded cursor-pointer"
+                        title="Delete notification"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   ))
                 )}

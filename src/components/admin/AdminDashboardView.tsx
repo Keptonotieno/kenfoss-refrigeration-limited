@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAdmin } from '../../context/AdminContext';
+import { ProjectItem, ServiceItem, TestimonialItem, ServiceCategory } from '../../types';
 import { 
   Users, 
   CalendarCheck, 
@@ -9,12 +10,23 @@ import {
   Cpu, 
   TrendingUp, 
   DollarSign, 
-  Plus, 
-  AlertTriangle, 
-  ArrowRight,
   ShieldAlert,
   Wrench,
-  UserPlus
+  UserPlus,
+  Edit3,
+  ToggleLeft,
+  ToggleRight,
+  FolderGit2,
+  Building2,
+  Save,
+  X,
+  Phone,
+  Mail,
+  MapPin,
+  Sparkles,
+  ArrowRight,
+  Star,
+  Globe
 } from 'lucide-react';
 import { AdminTab } from './AdminSidebar';
 
@@ -30,8 +42,32 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
     diagnostics, 
     auditLogs, 
     currentUser,
-    users
+    projects,
+    updateProject,
+    services,
+    updateService,
+    testimonials,
+    approveTestimonial,
+    contactInfo,
+    updateContactInfo,
+    websiteSettings,
+    updateWebsiteSettings
   } = useAdmin();
+
+  // Edit Mode state
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
+
+  // Inline modal states
+  const [editingProject, setEditingProject] = useState<ProjectItem | null>(null);
+  const [editingBranding, setEditingBranding] = useState<boolean>(false);
+  const [editingService, setEditingService] = useState<ServiceItem | null>(null);
+  const [editingTestimonial, setEditingTestimonial] = useState<TestimonialItem | null>(null);
+
+  // Form states
+  const [brandingForm, setBrandingForm] = useState(contactInfo);
+  const [projectForm, setProjectForm] = useState<Partial<ProjectItem>>({});
+  const [serviceForm, setServiceForm] = useState<Partial<ServiceItem>>({});
+  const [testimonialForm, setTestimonialForm] = useState<Partial<TestimonialItem>>({});
 
   // Calculate Metrics
   const totalCustomers = customers.length;
@@ -47,10 +83,68 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
   const recentBookings = bookings.slice(0, 5);
   const recentDiagnostics = diagnostics.slice(0, 4);
 
+  // Open Project Edit
+  const handleOpenProjectEdit = (p: ProjectItem) => {
+    setEditingProject(p);
+    setProjectForm(p);
+  };
+
+  // Save Project
+  const handleSaveProject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingProject && projectForm.title) {
+      updateProject({ ...editingProject, ...projectForm } as ProjectItem);
+      setEditingProject(null);
+    }
+  };
+
+  // Open Branding Edit
+  const handleOpenBrandingEdit = () => {
+    setBrandingForm(contactInfo);
+    setEditingBranding(true);
+  };
+
+  // Save Branding
+  const handleSaveBranding = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateContactInfo(brandingForm);
+    setEditingBranding(false);
+  };
+
+  // Open Service Edit
+  const handleOpenServiceEdit = (s: ServiceItem) => {
+    setEditingService(s);
+    setServiceForm(s);
+  };
+
+  // Save Service
+  const handleSaveService = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingService && serviceForm.title) {
+      updateService({ ...editingService, ...serviceForm } as ServiceItem);
+      setEditingService(null);
+    }
+  };
+
+  // Open Testimonial Edit
+  const handleOpenTestimonialEdit = (t: TestimonialItem) => {
+    setEditingTestimonial(t);
+    setTestimonialForm(t);
+  };
+
+  // Save Testimonial
+  const handleSaveTestimonial = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingTestimonial) {
+      approveTestimonial(editingTestimonial.id);
+      setEditingTestimonial(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       
-      {/* Welcome Banner */}
+      {/* Welcome Banner with Edit Mode Toggle Switch */}
       <div className="bg-gradient-to-r from-[#002B5B] via-[#0057B8] to-blue-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-2 max-w-2xl relative z-10">
           <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs font-extrabold text-blue-200 border border-white/20">
@@ -65,8 +159,26 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
           </p>
         </div>
 
-        {/* Quick Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5 relative z-10">
+        {/* Action Controls & Edit Mode Toggle */}
+        <div className="flex flex-wrap items-center gap-3 relative z-10">
+          
+          {/* EDIT MODE TOGGLE SWITCH */}
+          <button
+            onClick={() => setIsEditMode(!isEditMode)}
+            className={`px-4 py-2.5 rounded-2xl font-black text-xs shadow-lg flex items-center space-x-2 transition-all cursor-pointer border ${
+              isEditMode 
+                ? 'bg-amber-500 text-slate-950 border-amber-400 ring-2 ring-amber-400/50 scale-105' 
+                : 'bg-slate-900/80 hover:bg-slate-800 text-amber-400 border-amber-500/30'
+            }`}
+          >
+            {isEditMode ? (
+              <ToggleRight className="w-5 h-5 text-slate-950 animate-pulse" />
+            ) : (
+              <ToggleLeft className="w-5 h-5 text-amber-400" />
+            )}
+            <span>Edit Mode: {isEditMode ? 'ON' : 'OFF'}</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('bookings')}
             className="px-4 py-2.5 bg-white text-[#0057B8] font-bold text-xs rounded-xl hover:bg-blue-50 shadow-md flex items-center space-x-1.5 cursor-pointer transition-transform hover:scale-105"
@@ -87,6 +199,85 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
         </div>
       </div>
 
+      {/* Edit Mode Notification Banner */}
+      {isEditMode && (
+        <div className="bg-amber-500/10 border-2 border-dashed border-amber-500/50 rounded-2xl p-4 flex items-center justify-between text-amber-300 text-xs font-bold animate-in fade-in">
+          <div className="flex items-center space-x-2">
+            <Sparkles className="w-5 h-5 text-amber-400 animate-spin" />
+            <span>
+              <strong>Edit Mode Enabled:</strong> Click directly on any element below (Branding Section, Projects Gallery, Services, Testimonials) to open its inline editing form and save changes directly to Firestore.
+            </span>
+          </div>
+          <button
+            onClick={() => setIsEditMode(false)}
+            className="px-3 py-1 bg-amber-500 text-slate-950 font-black rounded-lg text-[11px] cursor-pointer"
+          >
+            Done Editing
+          </button>
+        </div>
+      )}
+
+      {/* EDITABLE BRANDING & CONTACT INFO SECTION */}
+      <div 
+        onClick={() => isEditMode && handleOpenBrandingEdit()}
+        className={`bg-slate-900 border rounded-3xl p-6 transition-all ${
+          isEditMode 
+            ? 'border-2 border-dashed border-amber-500/80 cursor-pointer hover:bg-slate-800/80 shadow-lg shadow-amber-500/10 relative' 
+            : 'border-slate-800'
+        }`}
+      >
+        {isEditMode && (
+          <div className="absolute top-4 right-4 bg-amber-500 text-slate-950 text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
+            <Edit3 className="w-3 h-3" />
+            <span>Click to Edit Branding & Contact</span>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+          <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-[#00AEEF]" />
+            Company Branding & Contact Settings
+          </h2>
+          {!isEditMode && (
+            <button
+              onClick={handleOpenBrandingEdit}
+              className="text-xs text-blue-400 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Edit Branding</span>
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs text-slate-300">
+          <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800/80 space-y-1">
+            <span className="text-[10px] text-slate-500 uppercase font-black">Company Name</span>
+            <p className="font-bold text-white text-sm">{websiteSettings.companyName}</p>
+          </div>
+          <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800/80 space-y-1">
+            <span className="text-[10px] text-slate-500 uppercase font-black">Main Phone</span>
+            <p className="font-bold text-emerald-400 flex items-center gap-1">
+              <Phone className="w-3.5 h-3.5" />
+              {contactInfo.mainPhone}
+            </p>
+          </div>
+          <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800/80 space-y-1">
+            <span className="text-[10px] text-slate-500 uppercase font-black">Primary Email</span>
+            <p className="font-bold text-cyan-400 flex items-center gap-1 truncate">
+              <Mail className="w-3.5 h-3.5" />
+              {contactInfo.email}
+            </p>
+          </div>
+          <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800/80 space-y-1">
+            <span className="text-[10px] text-slate-500 uppercase font-black">Headquarters</span>
+            <p className="font-bold text-slate-200 flex items-center gap-1 truncate">
+              <MapPin className="w-3.5 h-3.5 text-rose-400" />
+              {contactInfo.address}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* KPI METRICS GRID */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
@@ -104,7 +295,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
           <div className="mt-3 flex items-baseline justify-between">
             <span className="text-2xl font-black text-white">{totalCustomers}</span>
             <span className="text-[10px] font-bold text-emerald-400 flex items-center">
-              <TrendingUp className="w-3 h-3 mr-0.5" /> +12% MoM
+              <TrendingUp className="w-3 h-3 mr-0.5" /> Live Accounts
             </span>
           </div>
         </div>
@@ -194,21 +385,26 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
           </div>
         </div>
 
-        {/* Website Visitors */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        {/* Live System Inquiries */}
+        <div 
+          onClick={() => setActiveTab('quotes')}
+          className="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-blue-500/50 transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Website Visitors</span>
-            <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl">
+            <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Total Inquiries</span>
+            <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl group-hover:bg-indigo-500 group-hover:text-white transition-colors">
               <TrendingUp className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-white">14,280</span>
-            <span className="text-[10px] font-bold text-indigo-400">Monthly Unique</span>
+            <span className="text-2xl font-black text-white">
+              {bookings.length + quotes.length + diagnostics.length}
+            </span>
+            <span className="text-[10px] font-bold text-indigo-400">Live Web Submissions</span>
           </div>
         </div>
 
-        {/* Revenue Placeholder */}
+        {/* Revenue */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">YTD Revenue</span>
@@ -224,6 +420,74 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
           </div>
         </div>
 
+      </div>
+
+      {/* EDITABLE PROJECT GALLERY ITEMS SECTION */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <FolderGit2 className="w-5 h-5 text-[#00AEEF]" />
+              Projects Showcase Gallery
+              {isEditMode && <span className="text-amber-400 text-xs font-bold">(Click item to edit inline)</span>}
+            </h2>
+            <p className="text-xs text-slate-400">Commercial projects and cold room installations fetched directly from Firestore</p>
+          </div>
+          <button
+            onClick={() => setActiveTab('projects')}
+            className="text-xs font-bold text-[#00AEEF] hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            <span>Manage All Projects</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {projects.slice(0, 3).map(p => (
+            <div
+              key={p.id}
+              onClick={() => isEditMode && handleOpenProjectEdit(p)}
+              className={`bg-slate-950 border rounded-2xl overflow-hidden transition-all flex flex-col justify-between ${
+                isEditMode 
+                  ? 'border-2 border-dashed border-amber-500/80 cursor-pointer hover:border-amber-400 shadow-lg hover:bg-slate-900 relative' 
+                  : 'border-slate-800 hover:border-blue-500/40'
+              }`}
+            >
+              {isEditMode && (
+                <div className="absolute top-2 right-2 bg-amber-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full z-10 flex items-center gap-1">
+                  <Edit3 className="w-3 h-3" />
+                  <span>Edit Record</span>
+                </div>
+              )}
+              <div className="relative h-36 bg-slate-900">
+                <img src={p.imageAfter} alt={p.title} className="w-full h-full object-cover" />
+                <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded text-[9px] font-black uppercase bg-slate-950/90 text-cyan-400">
+                  {p.category}
+                </span>
+              </div>
+              <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-white text-xs leading-snug line-clamp-1">{p.title}</h4>
+                  <p className="text-[11px] text-slate-400 line-clamp-2 mt-1">{p.summary}</p>
+                </div>
+                <div className="text-[10px] text-slate-500 flex items-center justify-between border-t border-slate-900 pt-2">
+                  <span>Client: {p.client}</span>
+                  {!isEditMode && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenProjectEdit(p);
+                      }}
+                      className="text-blue-400 hover:underline font-bold"
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* RECENT BOOKINGS & DIAGNOSTIC SUBMISSIONS */}
@@ -382,6 +646,472 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
 
       </div>
 
+      {/* EDITABLE SERVICES & TESTIMONIALS SECTION */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        {/* Services Showcase */}
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <Wrench className="w-4 h-4 text-emerald-400" />
+              Active Services
+              {isEditMode && <span className="text-amber-400 text-xs font-bold">(Click to edit)</span>}
+            </h2>
+            <button onClick={() => setActiveTab('services')} className="text-xs text-blue-400 hover:underline">
+              Manage Services
+            </button>
+          </div>
+          <div className="space-y-2">
+            {services.slice(0, 3).map(s => (
+              <div
+                key={s.id}
+                onClick={() => isEditMode && handleOpenServiceEdit(s)}
+                className={`p-3 bg-slate-950 border rounded-2xl flex items-center justify-between gap-3 ${
+                  isEditMode 
+                    ? 'border-2 border-dashed border-amber-500/80 cursor-pointer hover:border-amber-400' 
+                    : 'border-slate-800'
+                }`}
+              >
+                <div className="flex items-center space-x-3 truncate">
+                  <img src={s.image} alt={s.title} className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                  <div className="truncate">
+                    <h4 className="font-bold text-white text-xs truncate">{s.title}</h4>
+                    <p className="text-[10px] text-slate-400 truncate">{s.category} • {s.startingPrice}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceEdit(s);
+                  }}
+                  className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Testimonials */}
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+              Client Testimonials
+              {isEditMode && <span className="text-amber-400 text-xs font-bold">(Click to edit)</span>}
+            </h2>
+            <button onClick={() => setActiveTab('testimonials')} className="text-xs text-blue-400 hover:underline">
+              Manage Testimonials
+            </button>
+          </div>
+          <div className="space-y-2">
+            {testimonials.slice(0, 3).map(t => (
+              <div
+                key={t.id}
+                onClick={() => isEditMode && handleOpenTestimonialEdit(t)}
+                className={`p-3 bg-slate-950 border rounded-2xl flex items-center justify-between gap-3 ${
+                  isEditMode 
+                    ? 'border-2 border-dashed border-amber-500/80 cursor-pointer hover:border-amber-400' 
+                    : 'border-slate-800'
+                }`}
+              >
+                <div className="truncate">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-white text-xs truncate">{t.name}</h4>
+                    <span className="text-[10px] text-slate-400">({t.company})</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 line-clamp-1 italic mt-0.5">"{t.comment}"</p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenTestimonialEdit(t);
+                  }}
+                  className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs shrink-0"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+
+      {/* MODAL: EDIT BRANDING & CONTACT INFO */}
+      {editingBranding && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <form onSubmit={handleSaveBranding} className="bg-slate-900 border border-slate-800 text-slate-100 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl relative my-8">
+            <button
+              type="button"
+              onClick={() => setEditingBranding(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-amber-400" />
+              Edit Company Branding & Contact Info
+            </h3>
+
+            <div className="space-y-3 text-xs">
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">City / Primary Region</label>
+                <input
+                  type="text"
+                  required
+                  value={brandingForm.city || ''}
+                  onChange={(e) => setBrandingForm({ ...brandingForm, city: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-300">Main Phone</label>
+                  <input
+                    type="text"
+                    required
+                    value={brandingForm.mainPhone || ''}
+                    onChange={(e) => setBrandingForm({ ...brandingForm, mainPhone: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-300">Secondary Phone</label>
+                  <input
+                    type="text"
+                    value={brandingForm.secondaryPhone || ''}
+                    onChange={(e) => setBrandingForm({ ...brandingForm, secondaryPhone: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">Primary Email</label>
+                <input
+                  type="email"
+                  required
+                  value={brandingForm.email || ''}
+                  onChange={(e) => setBrandingForm({ ...brandingForm, email: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">Physical Address / HQ</label>
+                <input
+                  type="text"
+                  required
+                  value={brandingForm.address || ''}
+                  onChange={(e) => setBrandingForm({ ...brandingForm, address: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">Operating Hours</label>
+                <input
+                  type="text"
+                  required
+                  value={brandingForm.workingHours || ''}
+                  onChange={(e) => setBrandingForm({ ...brandingForm, workingHours: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setEditingBranding(false)}
+                className="px-4 py-2 bg-slate-800 text-slate-300 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-amber-500 text-slate-950 font-extrabold text-xs rounded-xl cursor-pointer hover:bg-amber-400 flex items-center gap-1.5"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save to Firestore</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL: EDIT PROJECT RECORD */}
+      {editingProject && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <form onSubmit={handleSaveProject} className="bg-slate-900 border border-slate-800 text-slate-100 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl relative my-8">
+            <button
+              type="button"
+              onClick={() => setEditingProject(null)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <FolderGit2 className="w-5 h-5 text-amber-400" />
+              Edit Project Record Inline
+            </h3>
+
+            <div className="space-y-3 text-xs">
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">Project Title</label>
+                <input
+                  type="text"
+                  required
+                  value={projectForm.title || ''}
+                  onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-300">Client</label>
+                  <input
+                    type="text"
+                    required
+                    value={projectForm.client || ''}
+                    onChange={(e) => setProjectForm({ ...projectForm, client: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-300">Category</label>
+                  <select
+                    value={projectForm.category || 'Cold Room'}
+                    onChange={(e) => setProjectForm({ ...projectForm, category: e.target.value as any })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="Cold Room">Cold Room</option>
+                    <option value="HVAC">HVAC</option>
+                    <option value="Supermarket">Supermarket</option>
+                    <option value="Appliance Repair">Appliance Repair</option>
+                    <option value="Industrial">Industrial</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">Image URL</label>
+                <input
+                  type="url"
+                  required
+                  value={projectForm.imageAfter || ''}
+                  onChange={(e) => setProjectForm({ ...projectForm, imageAfter: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">Summary</label>
+                <textarea
+                  rows={2}
+                  required
+                  value={projectForm.summary || ''}
+                  onChange={(e) => setProjectForm({ ...projectForm, summary: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setEditingProject(null)}
+                className="px-4 py-2 bg-slate-800 text-slate-300 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-amber-500 text-slate-950 font-extrabold text-xs rounded-xl cursor-pointer hover:bg-amber-400 flex items-center gap-1.5"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save Project</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL: EDIT SERVICE RECORD */}
+      {editingService && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <form onSubmit={handleSaveService} className="bg-slate-900 border border-slate-800 text-slate-100 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl relative my-8">
+            <button
+              type="button"
+              onClick={() => setEditingService(null)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-amber-400" />
+              Edit Service Record Inline
+            </h3>
+
+            <div className="space-y-3 text-xs">
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">Service Title</label>
+                <input
+                  type="text"
+                  required
+                  value={serviceForm.title || ''}
+                  onChange={(e) => setServiceForm({ ...serviceForm, title: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-300">Category</label>
+                  <input
+                    type="text"
+                    required
+                    value={serviceForm.category || ''}
+                    onChange={(e) => setServiceForm({ ...serviceForm, category: e.target.value as ServiceCategory })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-300">Estimated Price</label>
+                  <input
+                    type="text"
+                    required
+                    value={serviceForm.startingPrice || ''}
+                    onChange={(e) => setServiceForm({ ...serviceForm, startingPrice: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">Image URL</label>
+                <input
+                  type="url"
+                  required
+                  value={serviceForm.image || ''}
+                  onChange={(e) => setServiceForm({ ...serviceForm, image: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">Description</label>
+                <textarea
+                  rows={2}
+                  required
+                  value={serviceForm.shortDesc || ''}
+                  onChange={(e) => setServiceForm({ ...serviceForm, shortDesc: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setEditingService(null)}
+                className="px-4 py-2 bg-slate-800 text-slate-300 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-amber-500 text-slate-950 font-extrabold text-xs rounded-xl cursor-pointer hover:bg-amber-400 flex items-center gap-1.5"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save Service</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL: EDIT TESTIMONIAL RECORD */}
+      {editingTestimonial && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <form onSubmit={handleSaveTestimonial} className="bg-slate-900 border border-slate-800 text-slate-100 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl relative my-8">
+            <button
+              type="button"
+              onClick={() => setEditingTestimonial(null)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
+              Edit Testimonial Record Inline
+            </h3>
+
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-300">Client Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={testimonialForm.name || ''}
+                    onChange={(e) => setTestimonialForm({ ...testimonialForm, name: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-300">Company / Location</label>
+                  <input
+                    type="text"
+                    required
+                    value={testimonialForm.company || ''}
+                    onChange={(e) => setTestimonialForm({ ...testimonialForm, company: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">Testimonial Comment</label>
+                <textarea
+                  rows={3}
+                  required
+                  value={testimonialForm.comment || ''}
+                  onChange={(e) => setTestimonialForm({ ...testimonialForm, comment: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setEditingTestimonial(null)}
+                className="px-4 py-2 bg-slate-800 text-slate-300 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-amber-500 text-slate-950 font-extrabold text-xs rounded-xl cursor-pointer hover:bg-amber-400 flex items-center gap-1.5"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save Testimonial</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
     </div>
   );
 };
+

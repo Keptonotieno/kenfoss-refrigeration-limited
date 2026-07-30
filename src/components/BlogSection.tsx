@@ -9,9 +9,9 @@ export const BlogSection: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeArticle, setActiveArticle] = useState<BlogPost | null>(null);
 
-  const categories = ['all', 'Energy Saving', 'Refrigeration', 'Maintenance'];
-
   const publishedBlogs = (blogs || []).filter(b => b.status === 'Published');
+
+  const categories = Array.from(new Set(['all', ...publishedBlogs.map(b => b.category).filter(Boolean)]));
 
   const filteredPosts = publishedBlogs.filter((post) => {
     if (selectedCategory === 'all') return true;
@@ -168,8 +168,42 @@ export const BlogSection: React.FC = () => {
               <img src={activeArticle.image} alt={activeArticle.title} className="w-full h-full object-cover" />
             </div>
 
-            <div className="prose prose-slate dark:prose-invert max-w-none text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line font-normal">
-              {activeArticle.content}
+            <div className="prose prose-slate dark:prose-invert max-w-none text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed space-y-3 font-normal">
+              {activeArticle.content.split('\n\n').map((paragraph, pIdx) => {
+                if (paragraph.startsWith('## ')) {
+                  return <h3 key={pIdx} className="text-lg font-black text-slate-900 dark:text-white pt-2 border-b border-slate-100 dark:border-slate-800 pb-1">{paragraph.replace('## ', '')}</h3>;
+                }
+                if (paragraph.startsWith('### ')) {
+                  return <h4 key={pIdx} className="text-base font-bold text-slate-800 dark:text-slate-100 pt-1">{paragraph.replace('### ', '')}</h4>;
+                }
+                if (paragraph.startsWith('> ')) {
+                  return (
+                    <blockquote key={pIdx} className="p-3 bg-blue-50/80 dark:bg-blue-950/40 border-l-4 border-[#0057B8] rounded-r-xl text-slate-700 dark:text-blue-200 text-xs italic font-medium">
+                      {paragraph.replace('> ', '')}
+                    </blockquote>
+                  );
+                }
+                if (paragraph.startsWith('- ') || paragraph.startsWith('* ')) {
+                  const items = paragraph.split('\n').map(item => item.replace(/^[-*]\s+/, ''));
+                  return (
+                    <ul key={pIdx} className="list-disc list-inside space-y-1 pl-2 text-slate-700 dark:text-slate-300">
+                      {items.map((it, i) => <li key={i}>{it}</li>)}
+                    </ul>
+                  );
+                }
+                if (paragraph.startsWith('```')) {
+                  return (
+                    <pre key={pIdx} className="p-3 bg-slate-950 text-emerald-400 font-mono text-[11px] rounded-xl overflow-x-auto border border-slate-800">
+                      {paragraph.replace(/```[a-z]*/g, '').trim()}
+                    </pre>
+                  );
+                }
+                return (
+                  <p key={pIdx} className="whitespace-pre-line leading-relaxed">
+                    {paragraph}
+                  </p>
+                );
+              })}
             </div>
 
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">

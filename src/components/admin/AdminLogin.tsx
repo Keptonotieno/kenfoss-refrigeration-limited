@@ -1,51 +1,115 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAdmin } from '../../context/AdminContext';
-import { UserRole } from '../../types';
+import { AdminInvitationService, AdminInvitation } from '../../services/adminService';
 import { 
   Mail, 
   KeyRound, 
   ShieldCheck, 
   AlertCircle, 
   ArrowRight, 
-  UserPlus, 
   Building2,
   X,
   CheckCircle2,
-  User,
-  Ticket
+  Lock,
+  UserPlus,
+  User as UserIcon,
+  Phone
 } from 'lucide-react';
 
 interface AdminLoginProps {
   onClose?: () => void;
   onCancel?: () => void;
+  initialError?: string;
 }
 
-export const AdminLogin: React.FC<AdminLoginProps> = ({ onClose, onCancel }) => {
-  const { login, registerWithCode, forgotPassword } = useAdmin();
+export const AdminLogin: React.FC<AdminLoginProps> = ({ onClose, onCancel, initialError }) => {
+  const { login, forgotPassword, loginWithInvitationCode } = useAdmin();
   const dismiss = onClose || onCancel;
 
-  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
+  const [mode, setMode] = useState<'signin' | 'forgot' | 'redeem'>('signin');
 
   // Sign In State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
 
-  // Sign Up State
-  const [signUpName, setSignUpName] = useState('');
-  const [signUpEmail, setSignUpEmail] = useState('');
-  const [signUpRole, setSignUpRole] = useState<UserRole>('Technician');
-  const [regCode, setRegCode] = useState('');
-  const [signUpPass, setSignUpPass] = useState('');
-  const [signUpConfirmPass, setSignUpConfirmPass] = useState('');
-
   // Forgot Password State
   const [resetEmail, setResetEmail] = useState('');
 
+  // Invitation Code State
+  const [invitationCode, setInvitationCode] = useState('');
+  const [validatedInvitation, setValidatedInvitation] = useState<AdminInvitation | null>(null);
+
   // Status State
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError || null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Auto-detect invitation code from URL query parameter
+  useEffect(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const codeFromUrl = urlParams.get('invite') || urlParams.get('code');
+      if (codeFromUrl) {
+        setInvitationCode(codeFromUrl.toUpperCase());
+        setMode('redeem');
+        handleValidateCode(codeFromUrl.toUpperCase());
+      }
+    } catch (e) {
+      console.error('Error parsing URL params:', e);
+    }
+  }, []);
+
+  const handleValidateCode = async (codeToTest?: string) => {
+    const targetCode = codeToTest || invitationCode;
+    if (!targetCode) {
+      setError('Please enter a single-use invitation code.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    try {
+      const res = await AdminInvitationService.validateInvitationCode(targetCode);
+      if (!res.valid || !res.invitation) {
+        setError(res.reason || 'Invalid or expired invitation code.');
+        setValidatedInvitation(null);
+      } else {
+        setValidatedInvitation(res.invitation);
+        setSuccessMsg(`Valid invitation code! Linked Role: ${res.invitation.role} (${res.invitation.email}).`);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Validation error occurred.');
+      setValidatedInvitation(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRedeemSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!invitationCode) return;
+
+    setIsLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    try {
+      const res = await loginWithInvitationCode(invitationCode);
+      if (res.success) {
+        setSuccessMsg(res.message);
+        if (dismiss) setTimeout(dismiss, 600);
+      } else {
+        setError(res.message);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Invitation redemption failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSignInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,42 +132,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onClose, onCancel }) => 
       }
     } catch (err: any) {
       setError(err.message || 'Login error occurred.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSignUpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccessMsg(null);
-
-    if (!signUpName || !signUpEmail || !regCode || !signUpPass || !signUpConfirmPass) {
-      setError('Please fill in all required fields including registration code.');
-      return;
-    }
-
-    if (signUpPass.length < 6) {
-      setError('Password must be at least 6 characters long.');
-      return;
-    }
-
-    if (signUpPass !== signUpConfirmPass) {
-      setError('Passwords do not match. Please re-enter.');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const res = await registerWithCode(signUpName, signUpEmail, signUpPass, signUpRole, regCode);
-      if (!res.success) {
-        setError(res.message);
-      } else {
-        setSuccessMsg(res.message);
-        if (dismiss) setTimeout(dismiss, 600);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Account registration failed.');
     } finally {
       setIsLoading(false);
     }
@@ -160,37 +188,17 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onClose, onCancel }) => 
             Kenfoss Admin Portal
           </h1>
           <p className="text-xs text-slate-400">
-            Secure Management System for Authorized Staff
+            Enterprise Management System for Authorized Staff
           </p>
         </div>
 
-        {/* Tab Switcher (Sign In vs Sign Up) */}
-        {mode !== 'forgot' && (
-          <div className="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-2xl border border-slate-800 text-xs font-bold">
-            <button
-              type="button"
-              onClick={() => { setMode('signin'); setError(null); setSuccessMsg(null); }}
-              className={`py-2 rounded-xl transition-all cursor-pointer ${
-                mode === 'signin'
-                  ? 'bg-[#0057B8] text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => { setMode('signup'); setError(null); setSuccessMsg(null); }}
-              className={`py-2 rounded-xl transition-all cursor-pointer ${
-                mode === 'signup'
-                  ? 'bg-[#0057B8] text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Create Staff Account
-            </button>
-          </div>
-        )}
+        {/* Security Notice: Restricted Public Registration */}
+        <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs flex items-start space-x-2.5">
+          <Lock className="w-4 h-4 text-[#00AEEF] shrink-0 mt-0.5" />
+          <p className="leading-relaxed">
+            <strong className="text-white">Restricted Access:</strong> Staff account creation (Manager & Technician) is managed exclusively by the Super Administrator inside the Staff Management module. Self-registration is disabled.
+          </p>
+        </div>
 
         {/* Alert Messages */}
         {error && (
@@ -221,7 +229,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onClose, onCancel }) => 
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@kenfoss.co.ke"
+                  placeholder="admin@kenfoss.co.ke"
                   className="w-full pl-10 pr-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-[#0057B8] transition-colors"
                 />
               </div>
@@ -279,132 +287,104 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onClose, onCancel }) => 
                 <span>Authenticating...</span>
               ) : (
                 <>
-                  <span>Sign In</span>
+                  <span>Sign In to Admin Portal</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
+
+            <div className="pt-2 border-t border-slate-800/80 text-center">
+              <button
+                type="button"
+                onClick={() => { setError(null); setSuccessMsg(null); setMode('redeem'); }}
+                className="text-xs text-[#00AEEF] hover:underline cursor-pointer font-medium flex items-center justify-center gap-1.5 mx-auto"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Have a single-use staff invitation code? Redeem Code</span>
+              </button>
+            </div>
           </form>
         )}
 
-        {/* SIGN UP VIEW (Create Staff Account) */}
-        {mode === 'signup' && (
-          <form onSubmit={handleSignUpSubmit} className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
-                Staff Full Name
-              </label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-500" />
-                <input
-                  type="text"
-                  required
-                  value={signUpName}
-                  onChange={(e) => setSignUpName(e.target.value)}
-                  placeholder="e.g. Samuel Ochieng"
-                  className="w-full pl-10 pr-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-[#0057B8]"
-                />
+        {/* REDEEM INVITATION CODE VIEW */}
+        {mode === 'redeem' && (
+          <div className="space-y-4">
+            <div className="text-center space-y-1">
+              <div className="w-10 h-10 bg-amber-500/10 text-amber-400 rounded-2xl flex items-center justify-center mx-auto mb-1 border border-amber-500/20">
+                <KeyRound className="w-5 h-5" />
               </div>
+              <h3 className="text-base font-black text-white">Accept Staff Invitation</h3>
+              <p className="text-xs text-slate-400">
+                Enter the 8-character single-use invitation code provided by Super Admin.
+              </p>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
-                Staff Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-500" />
-                <input
-                  type="email"
-                  required
-                  value={signUpEmail}
-                  onChange={(e) => setSignUpEmail(e.target.value)}
-                  placeholder="name@kenfoss.co.ke"
-                  className="w-full pl-10 pr-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-[#0057B8]"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
+            <form onSubmit={handleRedeemSubmit} className="space-y-3">
               <div className="space-y-1">
                 <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
-                  Assigned Role
+                  Invitation Code (e.g. KEN-A3X9K12L)
                 </label>
-                <select
-                  value={signUpRole}
-                  onChange={(e) => setSignUpRole(e.target.value as UserRole)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-[#0057B8]"
-                >
-                  <option value="Technician">Technician</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Super Administrator">Super Admin / Owner</option>
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
-                  Registration Code
-                </label>
-                <div className="relative">
-                  <Ticket className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-500" />
+                <div className="flex gap-2">
                   <input
                     type="text"
                     required
-                    value={regCode}
-                    onChange={(e) => setRegCode(e.target.value.toUpperCase())}
+                    value={invitationCode}
+                    onChange={(e) => setInvitationCode(e.target.value.toUpperCase())}
                     placeholder="KEN-XXXXXXXX"
-                    className="w-full pl-8 pr-2.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono text-amber-400 uppercase focus:outline-none focus:border-[#0057B8]"
+                    className="flex-1 px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono text-amber-400 focus:outline-none focus:border-[#0057B8]"
                   />
+                  <button
+                    type="button"
+                    onClick={() => handleValidateCode()}
+                    disabled={isLoading || !invitationCode}
+                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white rounded-xl transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                  >
+                    Validate
+                  </button>
                 </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={signUpPass}
-                  onChange={(e) => setSignUpPass(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-[#0057B8]"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
-                  Confirm Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={signUpConfirmPass}
-                  onChange={(e) => setSignUpConfirmPass(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-[#0057B8]"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-2.5 bg-[#0057B8] hover:bg-blue-600 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center space-x-2 cursor-pointer mt-2"
-            >
-              {isLoading ? (
-                <span>Registering Account...</span>
-              ) : (
-                <>
-                  <UserPlus className="w-4 h-4" />
-                  <span>Create Staff Account</span>
-                </>
+              {validatedInvitation && (
+                <div className="p-3 bg-slate-950 border border-slate-800 rounded-2xl space-y-1.5 text-xs">
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-slate-400">Target Email:</span>
+                    <span className="text-blue-400 font-mono font-bold">{validatedInvitation.email}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-slate-400">Assigned Role:</span>
+                    <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 font-bold rounded">{validatedInvitation.role}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-slate-400">Expires At:</span>
+                    <span className="text-slate-300 font-mono text-[10px]">{new Date(validatedInvitation.expiresAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
               )}
-            </button>
-          </form>
+
+              <button
+                type="submit"
+                disabled={isLoading || !invitationCode}
+                className="w-full py-2.5 bg-[#0057B8] hover:bg-blue-600 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <span>Activating Account...</span>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4" />
+                    <span>Redeem Code & Activate Access</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setError(null); setSuccessMsg(null); setMode('signin'); }}
+                className="w-full text-center text-xs text-slate-400 hover:text-white pt-2 cursor-pointer transition-colors"
+              >
+                ← Back to Staff Sign In
+              </button>
+            </form>
+          </div>
         )}
 
         {/* FORGOT PASSWORD VIEW */}

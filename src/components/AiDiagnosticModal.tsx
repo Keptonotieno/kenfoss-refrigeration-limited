@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { DiagnosticResult } from '../types';
 import { saveDiagnosticToFirestore } from '../lib/firebase';
+import { useAdmin } from '../context/AdminContext';
 
 interface AiDiagnosticModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export const AiDiagnosticModal: React.FC<AiDiagnosticModalProps> = ({
   onClose,
   onBookService
 }) => {
+  const { contactInfo } = useAdmin();
   const [applianceType, setApplianceType] = useState('Refrigerator');
   const [brand, setBrand] = useState('Samsung');
   const [modelNumber, setModelNumber] = useState('');
@@ -98,7 +100,7 @@ export const AiDiagnosticModal: React.FC<AiDiagnosticModalProps> = ({
         setErrorMsg(data.error || 'Failed to generate diagnostic analysis. Please try again.');
       }
     } catch (err) {
-      setErrorMsg('Connection error. Please call +254 745 411 923 directly.');
+      setErrorMsg(`Connection error. Please call ${contactInfo.mainPhone} directly.`);
     } finally {
       setLoading(false);
     }

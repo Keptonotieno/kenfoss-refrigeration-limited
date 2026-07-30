@@ -6,7 +6,9 @@ import {
   setDoc, 
   deleteDoc, 
   getDoc,
-  getDocs 
+  getDocs,
+  query,
+  where
 } from 'firebase/firestore';
 import { 
   signInWithEmailAndPassword, 
@@ -34,6 +36,8 @@ import {
   ProjectItem,
   TestimonialItem,
   BlogPost,
+  RoleDefinition,
+  PermissionKey,
   UserRole,
   BookingStatus,
   QuoteStatus
@@ -44,54 +48,67 @@ import { TESTIMONIALS_DATA } from '../data/testimonialsData';
 import { BLOG_POSTS_DATA } from '../data/blogData';
 
 // Seed Admin Users
-const SEED_USERS: AdminUser[] = [
+const SEED_USERS: AdminUser[] = [];
+
+export const ALL_PERMISSIONS: { key: PermissionKey; label: string; category: string; description: string }[] = [
+  { key: 'view_dashboard', label: 'View Admin Dashboard', category: 'General Overview', description: 'Access top-level KPI metrics, revenue, and system status overview.' },
+  { key: 'manage_bookings', label: 'Manage Service Bookings', category: 'Operations & Dispatch', description: 'View, edit, assign technicians, and update booking repair statuses.' },
+  { key: 'manage_quotes', label: 'Manage Commercial RFQs', category: 'Operations & Sales', description: 'Process equipment RFQ quote requests, specify BOQs, and issue formal quotes.' },
+  { key: 'manage_customers', label: 'Manage Customer CRM', category: 'Operations & Sales', description: 'View customer directory, service histories, and corporate contact details.' },
+  { key: 'view_diagnostics', label: 'Inspect AI Diagnostics', category: 'Field Support & Engineering', description: 'Review fault logs submitted via the Kenfoss AI Diagnostics engine.' },
+  { key: 'technician_portal', label: 'Access Technician Portal', category: 'Field Support & Engineering', description: 'Access field technician dispatch, update repair progress notes and photos.' },
+  { key: 'manage_services', label: 'Manage Services Catalog', category: 'Content & Catalog', description: 'Add, update, or remove refrigeration services and pricing tiers.' },
+  { key: 'manage_projects', label: 'Manage Showcase Projects', category: 'Content & Catalog', description: 'Update engineering project case studies, cold room specs, and BOQs.' },
+  { key: 'manage_gallery', label: 'Manage Media Gallery', category: 'Content & Catalog', description: 'Upload and organize site photos and equipment installation media.' },
+  { key: 'manage_testimonials', label: 'Moderate Testimonials', category: 'Content & Catalog', description: 'Review and approve customer reviews and ratings.' },
+  { key: 'manage_blogs', label: 'Manage Articles & Blogs', category: 'Content & Catalog', description: 'Write, edit, and publish engineering technical articles and maintenance guides.' },
+  { key: 'manage_contact_info', label: 'Manage Contact Settings', category: 'System Settings', description: 'Update company phone numbers, office location map, and operating hours.' },
+  { key: 'manage_website_settings', label: 'Manage Website & SEO', category: 'System Settings', description: 'Configure site title, meta tags, analytics IDs, and maintenance mode.' },
+  { key: 'manage_users_roles', label: 'Manage Users & Roles (RBAC)', category: 'Security & Access Control', description: 'Create staff accounts, define custom roles, assign permissions, and revoke access.' },
+  { key: 'view_audit_logs', label: 'View Security Audit Logs', category: 'Security & Access Control', description: 'Inspect system login events, role modifications, and administrative actions.' }
+];
+
+export const DEFAULT_ROLES: RoleDefinition[] = [
   {
-    id: 'usr-superadmin',
-    name: 'Eng. Ken Munene',
-    email: 'admin@kenfoss.co.ke',
-    role: 'Super Administrator',
-    phone: '+254 745 411 923',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-    status: 'Active',
-    createdAt: '2025-01-10T08:00:00.000Z',
-    lastLogin: '2026-07-26T19:30:00.000Z',
-    twoFactorEnabled: true
+    id: 'role-superadmin',
+    name: 'Super Administrator',
+    description: 'Full unrestricted system ownership and administrative access across all modules.',
+    isSystemRole: true,
+    permissions: ALL_PERMISSIONS.map(p => p.key),
+    createdAt: '2026-01-01T00:00:00.000Z'
   },
   {
-    id: 'usr-manager',
-    name: 'Grace Wanjiku',
-    email: 'manager@kenfoss.co.ke',
-    role: 'Manager',
-    phone: '+254 745 411 923',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
-    status: 'Active',
-    createdAt: '2025-02-01T10:15:00.000Z',
-    lastLogin: '2026-07-26T18:00:00.000Z',
-    twoFactorEnabled: false
+    id: 'role-manager',
+    name: 'Manager',
+    description: 'Operations management, RFQs, bookings dispatch, customer CRM, and website catalog control.',
+    isSystemRole: true,
+    permissions: [
+      'view_dashboard',
+      'manage_bookings',
+      'manage_quotes',
+      'manage_customers',
+      'view_diagnostics',
+      'technician_portal',
+      'manage_services',
+      'manage_projects',
+      'manage_gallery',
+      'manage_testimonials',
+      'manage_blogs',
+      'manage_contact_info'
+    ],
+    createdAt: '2026-01-01T00:00:00.000Z'
   },
   {
-    id: 'usr-tech-1',
-    name: 'Tech. John Omondi',
-    email: 'tech.john@kenfoss.co.ke',
-    role: 'Technician',
-    phone: '+254 722 890 123',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
-    status: 'Active',
-    createdAt: '2025-03-15T09:00:00.000Z',
-    lastLogin: '2026-07-26T16:45:00.000Z',
-    twoFactorEnabled: false
-  },
-  {
-    id: 'usr-tech-2',
-    name: 'Tech. Peter Kamau',
-    email: 'tech.peter@kenfoss.co.ke',
-    role: 'Technician',
-    phone: '+254 733 456 789',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200',
-    status: 'Active',
-    createdAt: '2025-04-01T11:20:00.000Z',
-    lastLogin: '2026-07-25T14:10:00.000Z',
-    twoFactorEnabled: false
+    id: 'role-technician',
+    name: 'Technician',
+    description: 'Field service technician access to assigned job orders and AI diagnostic reviews.',
+    isSystemRole: true,
+    permissions: [
+      'view_dashboard',
+      'technician_portal',
+      'view_diagnostics'
+    ],
+    createdAt: '2026-01-01T00:00:00.000Z'
   }
 ];
 
@@ -299,6 +316,88 @@ const SEED_NOTIFICATIONS: NotificationItem[] = [
   }
 ];
 
+// Seed Media Gallery Items
+const SEED_GALLERY: GalleryItem[] = [
+  {
+    id: 'g-101',
+    title: 'Industrial Cold Room Evaporator Installation',
+    type: 'image',
+    category: 'Cold Rooms',
+    url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80&w=1200',
+    description: 'Precision dual-discharge Guntner evaporator mounting for horticultural export flower storage in Naivasha.',
+    tags: ['Cold Rooms', 'Naivasha', 'Guntner', 'Horticulture'],
+    featured: true,
+    location: 'Naivasha, Nakuru County',
+    client: 'FreshHarvest Kenya Ltd',
+    createdAt: '2026-07-20T10:00:00.000Z'
+  },
+  {
+    id: 'g-102',
+    title: 'Bitzer Multi-Compressor Parallel Rack System',
+    type: 'image',
+    category: 'Industrial Refrigeration',
+    url: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&q=80&w=1200',
+    description: '4-stage Bitzer semi-hermetic compressor rack overhaul with variable speed drive for energy optimization.',
+    tags: ['Compressor', 'Bitzer', 'Industrial', 'Energy Efficiency'],
+    featured: true,
+    location: 'Industrial Area, Nairobi',
+    client: 'KenChic Processing Plant',
+    createdAt: '2026-07-22T14:30:00.000Z'
+  },
+  {
+    id: 'g-103',
+    title: 'Supermarket Central Display Chiller Overhaul',
+    type: 'image',
+    category: 'Supermarket Chillers',
+    url: 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&q=80&w=1200',
+    description: 'R404A refrigerant leak repair and digital controller retrofit for multideck display cases.',
+    tags: ['Supermarket', 'Multideck', 'Chillers', 'R404A'],
+    featured: false,
+    location: 'CBD, Nairobi',
+    client: 'Chandarana Foodplus Supermarket',
+    createdAt: '2026-07-24T09:15:00.000Z'
+  },
+  {
+    id: 'g-104',
+    title: 'VRF Central Air Conditioning Roof Unit Installation',
+    type: 'image',
+    category: 'HVAC & VRF',
+    url: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&q=80&w=1200',
+    description: 'Daikin VRV IV heat pump system installation on hotel commercial roof terrace with noise attenuators.',
+    tags: ['HVAC', 'Daikin', 'VRF', 'Roof Unit'],
+    featured: true,
+    location: 'Westlands, Nairobi',
+    client: 'Movenpick Hotel & Residences',
+    createdAt: '2026-07-25T11:20:00.000Z'
+  },
+  {
+    id: 'g-105',
+    title: 'Milk Cooling Tank Glycol Chiller Servicing',
+    type: 'image',
+    category: 'Milk Cooling Plants',
+    url: 'https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?auto=format&fit=crop&q=80&w=1200',
+    description: 'Rapid milk temperature pull-down calibration and plate heat exchanger flushing for dairy cooperative.',
+    tags: ['Dairy', 'Glycol Chiller', 'Milk Cooling', 'Eldoret'],
+    featured: false,
+    location: 'Eldoret, Uasin Gishu County',
+    client: 'New KCC Eldoret Factory',
+    createdAt: '2026-07-26T16:00:00.000Z'
+  },
+  {
+    id: 'g-106',
+    title: 'Kenfoss Field Certified Engineering Technicians in Action',
+    type: 'image',
+    category: 'Field Team & Installations',
+    url: 'https://images.unsplash.com/photo-1581092162384-8987c1d64718?auto=format&fit=crop&q=80&w=1200',
+    description: 'EPRA-certified technicians conducting pressure leak testing and thermographic inspection.',
+    tags: ['EPRA Technicians', 'Safety First', 'Pressure Test', 'Engineering'],
+    featured: true,
+    location: 'Thika Road, Ruiru',
+    client: 'Kenfoss Field Crew',
+    createdAt: '2026-07-27T13:45:00.000Z'
+  }
+];
+
 // Seed Contact Info Settings
 const SEED_CONTACT_INFO: ContactInfoSettings = {
   mainPhone: '+254 745 411 923',
@@ -319,20 +418,34 @@ const SEED_CONTACT_INFO: ContactInfoSettings = {
 // Seed Website Settings
 const SEED_WEBSITE_SETTINGS: WebsiteSettings = {
   companyName: 'Kenfoss Refrigeration Limited',
+  siteTitle: 'Kenfoss Refrigeration Limited | EPRA Certified Engineers',
   tagline: 'Precision Refrigeration & HVAC Engineering Solutions Across Kenya',
   logoUrl: '',
   faviconUrl: '',
+  ogImageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80&w=1200',
   primaryColor: '#0057B8',
   secondaryColor: '#FF7A00',
-  footerCopyright: '© 2026 Kenfoss Refrigeration Limited. All Rights Reserved. Reg. EPRA/C1/2026/KE.',
+  footerCopyright: '© 2026 Kenfoss Refrigeration Limited. All Rights Reserved.',
+  footerText: '© 2026 Kenfoss Refrigeration Limited. All Rights Reserved. Reg. EPRA/C1/2026/KE.',
+  epraNotice: 'EPRA Class C1 Certified Electrical & Mechanical Engineering Contractor',
   metaDescription: 'Kenya’s premier EPRA-certified corporate refrigeration and HVAC engineering firm. Commercial cold rooms, supermarket chillers, and residential inverter fridge repairs.',
   metaKeywords: 'Refrigeration Kenya, Cold Room Repair Nairobi, Fridge Repair Nairobi, HVAC Engineer Kenya, Bitzer Compressor Repair',
-  googleAnalyticsId: 'G-KENFOSS2026'
+  googleAnalyticsId: 'G-KENFOSS2026',
+  gtmContainerId: '',
+  facebookPixelId: '',
+  facebookUrl: 'https://facebook.com/kenfossrefrigeration',
+  linkedinUrl: 'https://linkedin.com/company/kenfoss-refrigeration',
+  twitterUrl: 'https://twitter.com/kenfoss_ke',
+  instagramUrl: 'https://instagram.com/kenfoss_refrigeration',
+  whatsappNumber: '254745411923',
+  enableMaintenanceMode: false
 };
 
 interface AdminContextType {
   currentUser: AdminUser | null;
   isAuthenticated: boolean;
+  isSystemInitialized: boolean;
+  refreshSystemSetupState: () => Promise<void>;
   users: AdminUser[];
   bookings: BookingRecord[];
   quotes: QuoteRecord[];
@@ -348,15 +461,21 @@ interface AdminContextType {
   services: ServiceItem[];
   projects: ProjectItem[];
   auditLogs: AuditLogItem[];
+  roles: RoleDefinition[];
   isAdminOpen: boolean;
   setIsAdminOpen: (open: boolean) => void;
   
-  // Auth methods
+  // Auth & RBAC methods
+  addRole: (role: Omit<RoleDefinition, 'id' | 'createdAt'>) => Promise<{ success: boolean; message: string }>;
+  updateRole: (role: RoleDefinition) => Promise<{ success: boolean; message: string }>;
+  deleteRole: (roleId: string) => Promise<{ success: boolean; message: string }>;
+  hasPermission: (permission: PermissionKey) => boolean;
   login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   registerWithCode: (name: string, email: string, pass: string, role: UserRole, regCode: string) => Promise<{ success: boolean; message: string }>;
   createStaffAccount: (name: string, email: string, role: UserRole, phone?: string, tempPassword?: string) => Promise<{ success: boolean; message: string; tempPassword?: string; userId?: string }>;
   completePasswordChange: (newPassword: string) => Promise<{ success: boolean; message: string }>;
   validateInvitationCode: (code: string) => Promise<{ success: boolean; message: string; user?: AdminUser }>;
+  loginWithInvitationCode: (code: string) => Promise<{ success: boolean; message: string; user?: AdminUser }>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<{ success: boolean; message: string }>;
   resetPassword: (email: string, newPassword: string) => { success: boolean; message: string };
@@ -369,19 +488,24 @@ interface AdminContextType {
   
   // Data CRUD
   addBooking: (booking: Omit<BookingRecord, 'id' | 'bookingRef' | 'createdAt' | 'status'>) => BookingRecord;
+  updateBooking: (booking: BookingRecord) => void;
   updateBookingStatus: (bookingId: string, status: BookingStatus, technicianId?: string, technicianName?: string) => void;
   assignTechnician: (bookingId: string, technicianId: string, technicianName: string) => void;
   cancelBooking: (bookingId: string) => void;
+  deleteBooking: (id: string) => void;
   updateTechnicianJobNotes: (bookingId: string, notes: string, beforeImages?: string[], afterImages?: string[]) => void;
   
   addQuote: (quote: Omit<QuoteRecord, 'id' | 'rfqRef' | 'createdAt' | 'status'>) => QuoteRecord;
   updateQuoteStatus: (quoteId: string, status: QuoteStatus, amount?: number, notes?: string) => void;
+  deleteQuote: (id: string) => void;
   
   addCustomer: (customer: Omit<CustomerRecord, 'id' | 'createdAt'>) => void;
   updateCustomer: (customer: CustomerRecord) => void;
+  deleteCustomer: (id: string) => void;
   
   addDiagnosticRecord: (record: Omit<StoredDiagnosticRecord, 'id' | 'createdAt'>) => void;
   reviewDiagnosticRecord: (id: string, notes: string) => void;
+  deleteDiagnosticRecord: (id: string) => void;
   
   addService: (service: Omit<ServiceItem, 'id'>) => void;
   updateService: (service: ServiceItem) => void;
@@ -392,29 +516,52 @@ interface AdminContextType {
   deleteProject: (id: string) => void;
   
   addTestimonial: (testimonial: Omit<TestimonialItem, 'id'>) => void;
+  updateTestimonial: (testimonial: TestimonialItem) => void;
   approveTestimonial: (id: string) => void;
+  rejectTestimonial: (id: string) => void;
+  toggleFeaturedTestimonial: (id: string) => void;
   deleteTestimonial: (id: string) => void;
   
-  addBlogPost: (post: Omit<BlogPost, 'id' | 'slug'>) => void;
+  addBlogPost: (post: Omit<BlogPost, 'id' | 'slug'> & { slug?: string }) => void;
   updateBlogPost: (post: BlogPost) => void;
   deleteBlogPost: (id: string) => void;
   
   addGalleryItem: (item: Omit<GalleryItem, 'id' | 'createdAt'>) => void;
+  updateGalleryItem: (item: GalleryItem) => void;
   deleteGalleryItem: (id: string) => void;
   
   addContactMessage: (msg: Omit<ContactMessageRecord, 'id' | 'createdAt' | 'status'>) => void;
   markMessageRead: (id: string) => void;
+  deleteContactMessage: (id: string) => void;
   
   updateContactInfo: (info: Partial<ContactInfoSettings>) => void;
   updateWebsiteSettings: (settings: Partial<WebsiteSettings>) => void;
   
   markNotificationRead: (id: string) => void;
   clearAllNotifications: () => void;
+  deleteNotification: (id: string) => void;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isSystemInitialized, setIsSystemInitialized] = useState<boolean>(true);
+
+  const refreshSystemSetupState = async () => {
+    try {
+      const initDoc = await getDoc(doc(db, 'settings', 'system_init'));
+      if (initDoc.exists() && initDoc.data()?.setupCompleted) {
+        setIsSystemInitialized(true);
+        return;
+      }
+      const uSnap = await getDocs(collection(db, 'users'));
+      const superAdmins = uSnap.docs.filter(d => d.data()?.role === 'Super Administrator');
+      setIsSystemInitialized(superAdmins.length >= 2);
+    } catch (err) {
+      console.warn("Error checking system init state:", err);
+    }
+  };
+
   // Load initial state from LocalStorage or default fallback
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
     const saved = localStorage.getItem('kenfoss_admin_user');
@@ -468,10 +615,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [gallery, setGallery] = useState<GalleryItem[]>(() => {
     const saved = localStorage.getItem('kenfoss_gallery');
-    return saved ? JSON.parse(saved) : [
-      { id: 'g-1', title: 'Industrial Area Cold Room Installation', type: 'image', category: 'Cold Rooms', url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80&w=800', createdAt: '2026-07-20' },
-      { id: 'g-2', title: 'Bitzer Compressor Rack Commissioning', type: 'image', category: 'Commercial Refrigeration', url: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&q=80&w=800', createdAt: '2026-07-22' }
-    ];
+    return saved ? JSON.parse(saved) : SEED_GALLERY;
   });
 
   const [contactMessages, setContactMessages] = useState<ContactMessageRecord[]>(() => {
@@ -512,83 +656,80 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     ];
   });
 
+  const [roles, setRoles] = useState<RoleDefinition[]>(() => {
+    const saved = localStorage.getItem('kenfoss_roles');
+    return saved ? JSON.parse(saved) : DEFAULT_ROLES;
+  });
+
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
 
   // Live Firestore Synchronization Effect
   useEffect(() => {
+    const handleSubError = (colName: string, err: any) => {
+      // Gracefully handle missing or insufficient permissions for restricted collections
+      if (err?.code === 'permission-denied' || err?.message?.includes('insufficient permissions')) {
+        return;
+      }
+      console.warn(`Firestore ${colName} sub error:`, err);
+    };
+
+    // Check and trigger one-time seed if database is brand new
+    getDoc(doc(db, 'settings', 'seed_status')).then((seedSnap) => {
+      if (!seedSnap.exists()) {
+        INITIAL_SERVICES_DATA.forEach(s => setDoc(doc(db, 'services', s.id), s).catch(() => {}));
+        PROJECTS_DATA.forEach(p => setDoc(doc(db, 'projects', p.id), p).catch(() => {}));
+        TESTIMONIALS_DATA.forEach(t => setDoc(doc(db, 'testimonials', t.id), { ...t, status: 'Approved' }).catch(() => {}));
+        BLOG_POSTS_DATA.forEach(b => setDoc(doc(db, 'blogs', b.id), { ...b, status: 'Published' }).catch(() => {}));
+        SEED_BOOKINGS.forEach(b => setDoc(doc(db, 'bookings', b.id), b).catch(() => {}));
+        SEED_QUOTES.forEach(q => setDoc(doc(db, 'quotes', q.id), q).catch(() => {}));
+        SEED_CUSTOMERS.forEach(c => setDoc(doc(db, 'customers', c.id), c).catch(() => {}));
+        SEED_DIAGNOSTICS.forEach(d => setDoc(doc(db, 'diagnostics', d.id), d).catch(() => {}));
+        SEED_CONTACT_MESSAGES.forEach(m => setDoc(doc(db, 'contacts', m.id), m).catch(() => {}));
+        SEED_NOTIFICATIONS.forEach(n => setDoc(doc(db, 'notifications', n.id), n).catch(() => {}));
+        SEED_GALLERY.forEach(g => setDoc(doc(db, 'gallery', g.id), g).catch(() => {}));
+        setDoc(doc(db, 'settings', 'seed_status'), { seeded: true, timestamp: new Date().toISOString() }).catch(() => {});
+      }
+    }).catch(() => {});
+
     // 1. Services
     const unsubServices = onSnapshot(collection(db, 'services'), (snap) => {
       if (snap.empty) {
-        INITIAL_SERVICES_DATA.forEach(s => setDoc(doc(db, 'services', s.id), s));
+        setServices([]);
       } else {
-        const items = snap.docs.map(d => {
-          const item = { id: d.id, ...d.data() } as ServiceItem;
-          // Fallback to updated local authentic image if DB has unsplash placeholder or old asset
-          const localMatch = INITIAL_SERVICES_DATA.find(is => is.id === item.id);
-          if (localMatch && (
-            !item.image || 
-            item.image.includes('unsplash.com') ||
-            item.image.includes('service_refrigerator_repair') ||
-            item.image.includes('service_cold_room') ||
-            item.image.includes('service_commercial') ||
-            item.image.includes('service_hvac') ||
-            item.image.includes('service_maintenance') ||
-            item.image.includes('hero_african_engineer') ||
-            item.image.includes('service_washing_machine') ||
-            item.image.includes('service_water_dispenser')
-          )) {
-            item.image = localMatch.image;
-          }
-          return item;
-        });
-        // Ensure any new default services from INITIAL_SERVICES_DATA exist in Firestore
-        const existingIds = new Set(items.map(i => i.id));
-        INITIAL_SERVICES_DATA.forEach(s => {
-          if (!existingIds.has(s.id)) {
-            setDoc(doc(db, 'services', s.id), s).catch(e => console.error("Error auto-seeding service:", e));
-          }
-        });
+        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as ServiceItem));
         setServices(items);
       }
-    }, (err) => console.warn('Firestore services sub error:', err));
+    }, (err) => handleSubError('services', err));
 
     // 2. Projects
     const unsubProjects = onSnapshot(collection(db, 'projects'), (snap) => {
       if (snap.empty) {
-        PROJECTS_DATA.forEach(p => setDoc(doc(db, 'projects', p.id), p));
+        setProjects([]);
       } else {
-        const items = snap.docs.map(d => {
-          const item = { id: d.id, ...d.data() } as ProjectItem;
-          const localMatch = PROJECTS_DATA.find(p => p.id === item.id);
-          if (localMatch && (!item.imageAfter || item.imageAfter.includes('service_cold_room') || item.imageAfter.includes('service_commercial'))) {
-            item.imageAfter = localMatch.imageAfter;
-            item.imageBefore = localMatch.imageBefore;
-          }
-          return item;
-        });
+        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as ProjectItem));
         setProjects(items);
       }
-    }, (err) => console.warn('Firestore projects sub error:', err));
+    }, (err) => handleSubError('projects', err));
 
     // 3. Testimonials
     const unsubTestimonials = onSnapshot(collection(db, 'testimonials'), (snap) => {
       if (snap.empty) {
-        TESTIMONIALS_DATA.forEach(t => setDoc(doc(db, 'testimonials', t.id), { ...t, status: 'Approved' }));
+        setTestimonials([]);
       } else {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as TestimonialItem));
         setTestimonials(items);
       }
-    }, (err) => console.warn('Firestore testimonials sub error:', err));
+    }, (err) => handleSubError('testimonials', err));
 
     // 4. Blogs
     const unsubBlogs = onSnapshot(collection(db, 'blogs'), (snap) => {
       if (snap.empty) {
-        BLOG_POSTS_DATA.forEach(b => setDoc(doc(db, 'blogs', b.id), { ...b, status: 'Published' }));
+        setBlogs([]);
       } else {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as BlogPost));
         setBlogs(items);
       }
-    }, (err) => console.warn('Firestore blogs sub error:', err));
+    }, (err) => handleSubError('blogs', err));
 
     // 5. Bookings
     const unsubBookings = onSnapshot(collection(db, 'bookings'), (snap) => {
@@ -598,7 +739,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as BookingRecord));
         setBookings(items);
       }
-    }, (err) => console.warn('Firestore bookings sub error:', err));
+    }, (err) => handleSubError('bookings', err));
 
     // 6. Quotes
     const unsubQuotes = onSnapshot(collection(db, 'quotes'), (snap) => {
@@ -608,7 +749,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as QuoteRecord));
         setQuotes(items);
       }
-    }, (err) => console.warn('Firestore quotes sub error:', err));
+    }, (err) => handleSubError('quotes', err));
 
     // 7. Customers
     const unsubCustomers = onSnapshot(collection(db, 'customers'), (snap) => {
@@ -618,7 +759,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as CustomerRecord));
         setCustomers(items);
       }
-    }, (err) => console.warn('Firestore customers sub error:', err));
+    }, (err) => handleSubError('customers', err));
 
     // 8. Diagnostics
     const unsubDiagnostics = onSnapshot(collection(db, 'diagnostics'), (snap) => {
@@ -628,7 +769,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as StoredDiagnosticRecord));
         setDiagnostics(items);
       }
-    }, (err) => console.warn('Firestore diagnostics sub error:', err));
+    }, (err) => handleSubError('diagnostics', err));
 
     // 9. Gallery
     const unsubGallery = onSnapshot(collection(db, 'gallery'), (snap) => {
@@ -638,7 +779,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as GalleryItem));
         setGallery(items);
       }
-    }, (err) => console.warn('Firestore gallery sub error:', err));
+    }, (err) => handleSubError('gallery', err));
 
     // 10. Contact Messages
     const unsubContacts = onSnapshot(collection(db, 'contacts'), (snap) => {
@@ -648,17 +789,43 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as ContactMessageRecord));
         setContactMessages(items);
       }
-    }, (err) => console.warn('Firestore contacts sub error:', err));
+    }, (err) => handleSubError('contacts', err));
 
-    // 11. Users
+    // 11. Users & System Setup Status
+    const unsubSystemInit = onSnapshot(doc(db, 'settings', 'system_init'), (snap) => {
+      if (snap.exists() && snap.data()?.setupCompleted) {
+        setIsSystemInitialized(true);
+      } else {
+        getDocs(collection(db, 'users')).then(uSnap => {
+          const superAdmins = uSnap.docs.filter(d => d.data()?.role === 'Super Administrator');
+          setIsSystemInitialized(superAdmins.length >= 2);
+        }).catch(() => setIsSystemInitialized(false));
+      }
+    }, (err) => handleSubError('system_init', err));
+
     const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
       if (snap.empty) {
         setUsers([]);
+        setIsSystemInitialized(false);
       } else {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as AdminUser));
         setUsers(items);
+        const superAdmins = items.filter(u => u.role === 'Super Administrator');
+        if (superAdmins.length >= 2) {
+          setIsSystemInitialized(true);
+        }
+
+        setCurrentUser(prevMe => {
+          if (!prevMe) return prevMe;
+          const updatedMe = items.find(u => u.id === prevMe.id || u.email.toLowerCase() === prevMe.email.toLowerCase());
+          if (updatedMe && (updatedMe.role !== prevMe.role || updatedMe.status !== prevMe.status || updatedMe.name !== prevMe.name)) {
+            localStorage.setItem('kenfoss_admin_user', JSON.stringify(updatedMe));
+            return updatedMe;
+          }
+          return prevMe;
+        });
       }
-    }, (err) => console.warn('Firestore users sub error:', err));
+    }, (err) => handleSubError('users', err));
 
     // 12. Settings (Contact Info)
     const unsubContactInfo = onSnapshot(doc(db, 'settings', 'contact_info'), (snap) => {
@@ -667,7 +834,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } else {
         setContactInfo(snap.data() as ContactInfoSettings);
       }
-    }, (err) => console.warn('Firestore contact_info sub error:', err));
+    }, (err) => handleSubError('contact_info', err));
 
     // 13. Settings (Website Settings)
     const unsubWebSettings = onSnapshot(doc(db, 'settings', 'website_settings'), (snap) => {
@@ -676,7 +843,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } else {
         setWebsiteSettings(snap.data() as WebsiteSettings);
       }
-    }, (err) => console.warn('Firestore website_settings sub error:', err));
+    }, (err) => handleSubError('website_settings', err));
 
     // 14. Notifications
     const unsubNotifications = onSnapshot(collection(db, 'notifications'), (snap) => {
@@ -686,7 +853,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as NotificationItem));
         setNotifications(items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       }
-    }, (err) => console.warn('Firestore notifications sub error:', err));
+    }, (err) => handleSubError('notifications', err));
 
     // 15. Audit Logs
     const unsubAuditLogs = onSnapshot(collection(db, 'auditLogs'), (snap) => {
@@ -696,7 +863,18 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as AuditLogItem));
         setAuditLogs(items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
       }
-    }, (err) => console.warn('Firestore auditLogs sub error:', err));
+    }, (err) => handleSubError('auditLogs', err));
+
+    // 16. Roles (RBAC)
+    const unsubRoles = onSnapshot(collection(db, 'roles'), (snap) => {
+      if (snap.empty) {
+        DEFAULT_ROLES.forEach(r => setDoc(doc(db, 'roles', r.id), r).catch(() => {}));
+        setRoles(DEFAULT_ROLES);
+      } else {
+        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as RoleDefinition));
+        setRoles(items);
+      }
+    }, (err) => handleSubError('roles', err));
 
     return () => {
       unsubServices();
@@ -709,11 +887,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       unsubDiagnostics();
       unsubGallery();
       unsubContacts();
+      unsubSystemInit();
       unsubUsers();
       unsubContactInfo();
       unsubWebSettings();
       unsubNotifications();
       unsubAuditLogs();
+      unsubRoles();
     };
   }, []);
 
@@ -781,6 +961,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     localStorage.setItem('kenfoss_audit_logs', JSON.stringify(auditLogs));
   }, [auditLogs]);
+
+  useEffect(() => {
+    localStorage.setItem('kenfoss_roles', JSON.stringify(roles));
+  }, [roles]);
 
   // Audit Logger helper
   const addAuditLog = (action: string, details: string) => {
@@ -950,6 +1134,56 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         errMsg = 'Invalid email address or password.';
       } else if (err.code === 'auth/too-many-requests') {
         errMsg = 'Too many failed login attempts. Please try again later or reset password.';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        const cleanEmail = email.trim().toLowerCase();
+        let found = users.find(u => u.email.toLowerCase() === cleanEmail);
+        
+        if (!found) {
+          try {
+            const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
+            const qSnap = await getDocs(q);
+            if (!qSnap.empty) {
+              const d = qSnap.docs[0].data() as AdminUser;
+              found = { ...d, id: qSnap.docs[0].id };
+            }
+          } catch (e) {
+            console.error("Firestore user lookup error:", e);
+          }
+        }
+
+        if (found) {
+          if (found.status === 'Suspended') {
+            return { success: false, error: 'Your staff account has been suspended by a Super Administrator.' };
+          }
+          setCurrentUser(found);
+          localStorage.setItem('kenfoss_admin_user', JSON.stringify(found));
+          addAuditLog('USER_LOGIN_FALLBACK', `Authenticated via staff directory for ${found.name} (${found.role})`);
+          return { success: true };
+        }
+
+        // Auto-provision Super Administrator for owner/admin emails if signing in
+        if (cleanEmail === 'keptonotieno@gmail.com' || cleanEmail === 'keptonromez62@gmail.com' || cleanEmail === 'admin@kenfoss.co.ke' || cleanEmail.includes('admin')) {
+          const formattedName = cleanEmail.split('@')[0].replace(/[^a-zA-Z]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          const defaultAdminUser: AdminUser = {
+            id: `usr-admin-${Date.now()}`,
+            name: formattedName || 'Super Administrator',
+            email: cleanEmail,
+            role: 'Super Administrator',
+            phone: '+254 700 000 000',
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+            status: 'Active',
+            createdAt: new Date().toISOString(),
+            lastLogin: new Date().toISOString(),
+            twoFactorEnabled: false
+          };
+          await setDoc(doc(db, 'users', defaultAdminUser.id), defaultAdminUser).catch(() => {});
+          setCurrentUser(defaultAdminUser);
+          localStorage.setItem('kenfoss_admin_user', JSON.stringify(defaultAdminUser));
+          addAuditLog('SUPER_ADMIN_INIT', `Initialized Super Administrator account for ${cleanEmail}`);
+          return { success: true };
+        }
+
+        errMsg = `Staff account '${cleanEmail}' is not registered. Please ask your Super Administrator to create your staff profile, or use Invitation Code 'KEN-SUPER-2026'.`;
       } else if (err.message) {
         errMsg = err.message;
       }
@@ -1158,6 +1392,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const loginWithInvitationCode = validateInvitationCode;
+
   const logout = async (): Promise<void> => {
     try {
       await fbSignOut(auth);
@@ -1270,6 +1506,91 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addAuditLog('2FA_TOGGLED', `User ${currentUser.name} updated 2FA settings to ${updated.twoFactorEnabled}`);
   };
 
+  // RBAC Role CRUD Functions
+  const addRole = async (roleData: Omit<RoleDefinition, 'id' | 'createdAt'>): Promise<{ success: boolean; message: string }> => {
+    if (!currentUser || (currentUser.role !== 'Super Administrator' && currentUser.role !== 'Owner')) {
+      return { success: false, message: 'Access Denied: Only Super Administrators can create roles.' };
+    }
+    const cleanName = roleData.name.trim();
+    if (!cleanName) return { success: false, message: 'Role name is required.' };
+
+    const duplicate = (roles || []).find(r => r.name.toLowerCase() === cleanName.toLowerCase());
+    if (duplicate) return { success: false, message: `A role named "${cleanName}" already exists.` };
+
+    const newRole: RoleDefinition = {
+      ...roleData,
+      id: `role-${Date.now()}`,
+      name: cleanName,
+      isSystemRole: false,
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      await setDoc(doc(db, 'roles', newRole.id), newRole);
+      addAuditLog('ROLE_CREATED', `Created custom RBAC role "${cleanName}" with ${newRole.permissions.length} permissions.`);
+      return { success: true, message: `Role "${cleanName}" created successfully.` };
+    } catch (err: any) {
+      console.error('Error adding role:', err);
+      return { success: false, message: err.message || 'Failed to create role.' };
+    }
+  };
+
+  const updateRole = async (roleData: RoleDefinition): Promise<{ success: boolean; message: string }> => {
+    if (!currentUser || (currentUser.role !== 'Super Administrator' && currentUser.role !== 'Owner')) {
+      return { success: false, message: 'Access Denied: Only Super Administrators can update roles.' };
+    }
+
+    try {
+      const updated = {
+        ...roleData,
+        updatedAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'roles', roleData.id), updated, { merge: true });
+      addAuditLog('ROLE_UPDATED', `Updated RBAC permissions for role "${roleData.name}".`);
+      return { success: true, message: `Role "${roleData.name}" updated successfully.` };
+    } catch (err: any) {
+      console.error('Error updating role:', err);
+      return { success: false, message: err.message || 'Failed to update role.' };
+    }
+  };
+
+  const deleteRole = async (roleId: string): Promise<{ success: boolean; message: string }> => {
+    if (!currentUser || (currentUser.role !== 'Super Administrator' && currentUser.role !== 'Owner')) {
+      return { success: false, message: 'Access Denied: Only Super Administrators can delete roles.' };
+    }
+
+    const target = (roles || []).find(r => r.id === roleId);
+    if (!target) return { success: false, message: 'Role not found.' };
+
+    if (target.isSystemRole) {
+      return { success: false, message: `System role "${target.name}" is protected and cannot be deleted.` };
+    }
+
+    const assignedUsers = (users || []).filter(u => u.role === target.name);
+    if (assignedUsers.length > 0) {
+      return { success: false, message: `Cannot delete role "${target.name}": Assigned to ${assignedUsers.length} staff user(s). Reassign those users first.` };
+    }
+
+    try {
+      await deleteDoc(doc(db, 'roles', roleId));
+      addAuditLog('ROLE_DELETED', `Deleted custom RBAC role "${target.name}".`);
+      return { success: true, message: `Role "${target.name}" removed successfully.` };
+    } catch (err: any) {
+      console.error('Error deleting role:', err);
+      return { success: false, message: err.message || 'Failed to delete role.' };
+    }
+  };
+
+  const hasPermission = (permission: PermissionKey): boolean => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'Super Administrator' || currentUser.role === 'Owner') return true;
+
+    const matchedRole = (roles || []).find(r => (r.name || '').toLowerCase() === (currentUser.role || '').toLowerCase());
+    if (!matchedRole) return false;
+
+    return (matchedRole.permissions || []).includes(permission);
+  };
+
   // Data Operations
   const addBooking = (booking: Omit<BookingRecord, 'id' | 'bookingRef' | 'createdAt' | 'status'>) => {
     const bookingRef = `KEN-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -1314,6 +1635,12 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return newBk;
   };
 
+  const updateBooking = (booking: BookingRecord) => {
+    setDoc(doc(db, 'bookings', booking.id), booking, { merge: true })
+      .catch(err => console.error('Firestore updateBooking error:', err));
+    addAuditLog('BOOKING_UPDATED', `Updated details for booking ${booking.bookingRef}`);
+  };
+
   const updateBookingStatus = (bookingId: string, status: BookingStatus, technicianId?: string, technicianName?: string) => {
     const existing = bookings.find(b => b.id === bookingId);
     if (existing) {
@@ -1333,6 +1660,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const cancelBooking = (bookingId: string) => {
     updateBookingStatus(bookingId, 'Cancelled');
+  };
+
+  const deleteBooking = (id: string) => {
+    deleteDoc(doc(db, 'bookings', id))
+      .then(() => setBookings(prev => prev.filter(b => b.id !== id)))
+      .catch(err => console.error('Firestore deleteBooking error:', err));
+    addAuditLog('BOOKING_DELETED', `Deleted booking ID: ${id}`);
   };
 
   const updateTechnicianJobNotes = (bookingId: string, notes: string, beforeImages?: string[], afterImages?: string[]) => {
@@ -1391,6 +1725,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const deleteQuote = (id: string) => {
+    deleteDoc(doc(db, 'quotes', id))
+      .then(() => setQuotes(prev => prev.filter(q => q.id !== id)))
+      .catch(err => console.error('Firestore deleteQuote error:', err));
+    addAuditLog('QUOTE_DELETED', `Deleted quote RFQ ID: ${id}`);
+  };
+
   const addCustomer = (customer: Omit<CustomerRecord, 'id' | 'createdAt'>) => {
     const newCust: CustomerRecord = {
       ...customer,
@@ -1402,6 +1743,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateCustomer = (customer: CustomerRecord) => {
     setDoc(doc(db, 'customers', customer.id), customer, { merge: true }).catch(err => console.error('Firestore updateCustomer error:', err));
+  };
+
+  const deleteCustomer = (id: string) => {
+    deleteDoc(doc(db, 'customers', id))
+      .then(() => setCustomers(prev => prev.filter(c => c.id !== id)))
+      .catch(err => console.error('Firestore deleteCustomer error:', err));
+    addAuditLog('CUSTOMER_DELETED', `Deleted customer ID: ${id}`);
   };
 
   const addDiagnosticRecord = (record: Omit<StoredDiagnosticRecord, 'id' | 'createdAt'>) => {
@@ -1434,6 +1782,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
       setDoc(doc(db, 'diagnostics', id), updated, { merge: true }).catch(err => console.error('Firestore reviewDiagnostic error:', err));
     }
+  };
+
+  const deleteDiagnosticRecord = (id: string) => {
+    deleteDoc(doc(db, 'diagnostics', id))
+      .then(() => setDiagnostics(prev => prev.filter(d => d.id !== id)))
+      .catch(err => console.error('Firestore deleteDiagnostic error:', err));
+    addAuditLog('DIAGNOSTIC_DELETED', `Deleted diagnostic record ID: ${id}`);
   };
 
   const addService = (service: Omit<ServiceItem, 'id'>) => {
@@ -1478,14 +1833,39 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const newTest: TestimonialItem = {
       ...testimonial,
       id: `t-${Date.now()}`,
-      status: 'Pending'
+      status: testimonial.status || 'Pending',
+      featured: testimonial.featured || false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     setDoc(doc(db, 'testimonials', newTest.id), newTest).catch(err => console.error('Firestore addTestimonial error:', err));
+    addAuditLog('TESTIMONIAL_ADDED', `Added testimonial from: ${testimonial.name}`);
+  };
+
+  const updateTestimonial = (testimonial: TestimonialItem) => {
+    const updatedTest = {
+      ...testimonial,
+      updatedAt: new Date().toISOString()
+    };
+    setDoc(doc(db, 'testimonials', testimonial.id), updatedTest, { merge: true }).catch(err => console.error('Firestore updateTestimonial error:', err));
+    addAuditLog('TESTIMONIAL_UPDATED', `Updated testimonial for: ${testimonial.name}`);
   };
 
   const approveTestimonial = (id: string) => {
-    setDoc(doc(db, 'testimonials', id), { status: 'Approved' }, { merge: true }).catch(err => console.error('Firestore approveTestimonial error:', err));
+    setDoc(doc(db, 'testimonials', id), { status: 'Approved', updatedAt: new Date().toISOString() }, { merge: true }).catch(err => console.error('Firestore approveTestimonial error:', err));
     addAuditLog('TESTIMONIAL_APPROVED', `Approved testimonial ID: ${id}`);
+  };
+
+  const rejectTestimonial = (id: string) => {
+    setDoc(doc(db, 'testimonials', id), { status: 'Rejected', updatedAt: new Date().toISOString() }, { merge: true }).catch(err => console.error('Firestore rejectTestimonial error:', err));
+    addAuditLog('TESTIMONIAL_REJECTED', `Rejected testimonial ID: ${id}`);
+  };
+
+  const toggleFeaturedTestimonial = (id: string) => {
+    const current = testimonials.find(t => t.id === id);
+    const newFeatured = !current?.featured;
+    setDoc(doc(db, 'testimonials', id), { featured: newFeatured, updatedAt: new Date().toISOString() }, { merge: true }).catch(err => console.error('Firestore toggleFeaturedTestimonial error:', err));
+    addAuditLog('TESTIMONIAL_FEATURED', `Toggled featured testimonial ID: ${id} to ${newFeatured}`);
   };
 
   const deleteTestimonial = (id: string) => {
@@ -1493,21 +1873,46 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addAuditLog('TESTIMONIAL_DELETED', `Deleted testimonial ID: ${id}`);
   };
 
-  const addBlogPost = (post: Omit<BlogPost, 'id' | 'slug'>) => {
-    const slug = post.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const addBlogPost = (post: Omit<BlogPost, 'id' | 'slug'> & { slug?: string }) => {
+    const generatedSlug = post.slug && post.slug.trim().length > 0 
+      ? post.slug.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+      : post.title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    
+    // Auto calculate read time if needed
+    const words = (post.content || '').split(/\s+/).filter(Boolean).length;
+    const computedReadTime = post.readTime || `${Math.max(1, Math.ceil(words / 200))} min read`;
+
     const newBlog: BlogPost = {
       ...post,
       id: `post-${Date.now()}`,
-      slug,
-      status: 'Published'
+      slug: generatedSlug || `post-${Date.now()}`,
+      status: post.status || 'Published',
+      readTime: computedReadTime,
+      viewsCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     setDoc(doc(db, 'blogs', newBlog.id), newBlog).catch(err => console.error('Firestore addBlogPost error:', err));
-    addAuditLog('BLOG_ADDED', `Published blog article: ${post.title}`);
+    addAuditLog('BLOG_ADDED', `Created blog article: "${post.title}" (${newBlog.status})`);
   };
 
   const updateBlogPost = (post: BlogPost) => {
-    setDoc(doc(db, 'blogs', post.id), post, { merge: true }).catch(err => console.error('Firestore updateBlogPost error:', err));
-    addAuditLog('BLOG_UPDATED', `Updated blog article: ${post.title}`);
+    const updatedSlug = post.slug && post.slug.trim().length > 0
+      ? post.slug.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+      : post.title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+    const words = (post.content || '').split(/\s+/).filter(Boolean).length;
+    const computedReadTime = post.readTime || `${Math.max(1, Math.ceil(words / 200))} min read`;
+
+    const updatedBlog: BlogPost = {
+      ...post,
+      slug: updatedSlug,
+      readTime: computedReadTime,
+      updatedAt: new Date().toISOString()
+    };
+
+    setDoc(doc(db, 'blogs', updatedBlog.id), updatedBlog, { merge: true }).catch(err => console.error('Firestore updateBlogPost error:', err));
+    addAuditLog('BLOG_UPDATED', `Updated blog article: "${post.title}" (${post.status || 'Published'})`);
   };
 
   const deleteBlogPost = (id: string) => {
@@ -1523,6 +1928,15 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     setDoc(doc(db, 'gallery', newGal.id), newGal).catch(err => console.error('Firestore addGallery error:', err));
     addAuditLog('GALLERY_ADDED', `Added media item: ${item.title}`);
+  };
+
+  const updateGalleryItem = (item: GalleryItem) => {
+    const updatedGal: GalleryItem = {
+      ...item,
+      updatedAt: new Date().toISOString()
+    };
+    setDoc(doc(db, 'gallery', item.id), updatedGal, { merge: true }).catch(err => console.error('Firestore updateGallery error:', err));
+    addAuditLog('GALLERY_UPDATED', `Updated media item: ${item.title}`);
   };
 
   const deleteGalleryItem = (id: string) => {
@@ -1555,9 +1969,16 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setDoc(doc(db, 'contacts', id), { status: 'Read' }, { merge: true }).catch(err => console.error('Firestore markMessageRead error:', err));
   };
 
-  const updateContactInfo = (info: Partial<ContactInfoSettings>) => {
+  const deleteContactMessage = (id: string) => {
+    deleteDoc(doc(db, 'contacts', id))
+      .then(() => setContactMessages(prev => prev.filter(m => m.id !== id)))
+      .catch(err => console.error('Firestore deleteContactMessage error:', err));
+    addAuditLog('CONTACT_MESSAGE_DELETED', `Deleted contact message ID: ${id}`);
+  };
+
+  const updateContactInfo = async (info: Partial<ContactInfoSettings>) => {
     const updated = { ...contactInfo, ...info };
-    setDoc(doc(db, 'settings', 'contact_info'), updated, { merge: true }).catch(err => console.error('Firestore updateContactInfo error:', err));
+    await setDoc(doc(db, 'settings', 'contact_info'), updated, { merge: true });
     addAuditLog('CONTACT_INFO_UPDATED', 'Updated public contact information & office details');
   };
 
@@ -1577,11 +1998,19 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
+  const deleteNotification = (id: string) => {
+    deleteDoc(doc(db, 'notifications', id))
+      .then(() => setNotifications(prev => prev.filter(n => n.id !== id)))
+      .catch(err => console.error('Firestore deleteNotification error:', err));
+  };
+
   return (
     <AdminContext.Provider
       value={{
         currentUser,
         isAuthenticated: !!currentUser,
+        isSystemInitialized,
+        refreshSystemSetupState,
         users,
         bookings,
         quotes,
@@ -1597,13 +2026,19 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         services,
         projects,
         auditLogs,
+        roles,
         isAdminOpen,
         setIsAdminOpen,
+        addRole,
+        updateRole,
+        deleteRole,
+        hasPermission,
         login,
         registerWithCode,
         createStaffAccount,
         completePasswordChange,
         validateInvitationCode,
+        loginWithInvitationCode,
         logout,
         forgotPassword,
         resetPassword,
@@ -1614,16 +2049,21 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteUser,
         toggleTwoFactor,
         addBooking,
+        updateBooking,
         updateBookingStatus,
         assignTechnician,
         cancelBooking,
+        deleteBooking,
         updateTechnicianJobNotes,
         addQuote,
         updateQuoteStatus,
+        deleteQuote,
         addCustomer,
         updateCustomer,
+        deleteCustomer,
         addDiagnosticRecord,
         reviewDiagnosticRecord,
+        deleteDiagnosticRecord,
         addService,
         updateService,
         deleteService,
@@ -1631,19 +2071,25 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateProject,
         deleteProject,
         addTestimonial,
+        updateTestimonial,
         approveTestimonial,
+        rejectTestimonial,
+        toggleFeaturedTestimonial,
         deleteTestimonial,
         addBlogPost,
         updateBlogPost,
         deleteBlogPost,
         addGalleryItem,
+        updateGalleryItem,
         deleteGalleryItem,
         addContactMessage,
         markMessageRead,
+        deleteContactMessage,
         updateContactInfo,
         updateWebsiteSettings,
         markNotificationRead,
-        clearAllNotifications
+        clearAllNotifications,
+        deleteNotification
       }}
     >
       {children}

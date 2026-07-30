@@ -1,53 +1,92 @@
 {
   "entities": {
     "users": {
-      "title": "Users",
-      "description": "User profiles and account settings",
+      "title": "Users & Staff Profiles",
+      "description": "User profiles, staff roles, and account security status",
       "type": "object",
       "properties": {
         "email": { "type": "string" },
+        "name": { "type": "string" },
         "displayName": { "type": "string" },
         "photoURL": { "type": "string" },
+        "avatar": { "type": "string" },
         "phone": { "type": "string" },
         "company": { "type": "string" },
-        "role": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "role": { "type": "string", "enum": ["Super Administrator", "Manager", "Technician", "Customer"] },
+        "status": { "type": "string", "enum": ["Active", "Suspended", "Disabled"] },
+        "twoFactorEnabled": { "type": "boolean" },
+        "mustChangePassword": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLogin": { "type": "string", "format": "date-time" }
       },
-      "required": ["email"]
+      "required": ["email", "role"]
     },
     "bookings": {
-      "title": "Bookings & Quotes",
-      "description": "Service bookings and quotation requests",
+      "title": "Service Bookings",
+      "description": "Service repair bookings and technician dispatch requests",
       "type": "object",
       "properties": {
-        "userId": { "type": "string" },
-        "userName": { "type": "string" },
-        "userEmail": { "type": "string" },
+        "bookingRef": { "type": "string" },
+        "fullName": { "type": "string" },
         "phone": { "type": "string" },
-        "type": { "type": "string" },
-        "serviceType": { "type": "string" },
-        "equipmentDetails": { "type": "string" },
-        "preferredDate": { "type": "string" },
+        "email": { "type": "string" },
         "location": { "type": "string" },
+        "serviceType": { "type": "string" },
+        "date": { "type": "string" },
+        "timeSlot": { "type": "string" },
+        "notes": { "type": "string" },
         "status": { "type": "string" },
+        "assignedTechnicianId": { "type": "string" },
+        "assignedTechnicianName": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["type", "userEmail"]
+      "required": ["bookingRef", "email", "serviceType"]
+    },
+    "quotes": {
+      "title": "Project Quotations",
+      "description": "Commercial cold room and turnkey project estimates",
+      "type": "object",
+      "properties": {
+        "rfqRef": { "type": "string" },
+        "companyName": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "projectType": { "type": "string" },
+        "specs": { "type": "string" },
+        "status": { "type": "string" },
+        "quoteAmount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["rfqRef", "email", "projectType"]
+    },
+    "customers": {
+      "title": "Customer CRM Records",
+      "description": "Client directory and order history",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "location": { "type": "string" },
+        "customerType": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email"]
     },
     "diagnostics": {
-      "title": "AI Diagnostics",
+      "title": "AI HVAC Diagnostics",
       "description": "Saved AI HVAC & refrigeration diagnostic reports",
       "type": "object",
       "properties": {
-        "userId": { "type": "string" },
-        "equipmentType": { "type": "string" },
+        "applianceType": { "type": "string" },
+        "brand": { "type": "string" },
         "symptoms": { "type": "string" },
-        "diagnosis": { "type": "string" },
-        "urgency": { "type": "string" },
-        "recommendedAction": { "type": "string" },
+        "diagnosisSummary": { "type": "string" },
+        "severity": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["equipmentType", "symptoms"]
+      "required": ["applianceType"]
     },
     "contacts": {
       "title": "Contact Inquiries",
@@ -64,8 +103,8 @@
       "required": ["name", "email", "message"]
     },
     "invitations": {
-      "title": "Admin Staff Invitations",
-      "description": "Unique single-use invitation codes for staff account creation",
+      "title": "Staff Invitations",
+      "description": "Internal staff account single-use invitations",
       "type": "object",
       "properties": {
         "code": { "type": "string" },
@@ -73,13 +112,24 @@
         "role": { "type": "string" },
         "createdBy": { "type": "string" },
         "status": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "expiresAt": { "type": "string", "format": "date-time" },
-        "usedBy": { "type": "string" },
-        "usedAt": { "type": "string", "format": "date-time" },
-        "notes": { "type": "string" }
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["code", "email", "role", "createdBy", "status"]
+      "required": ["code", "email", "role"]
+    },
+    "auditLogs": {
+      "title": "System Audit Logs",
+      "description": "Security audit log stream for authentication and admin actions",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "actorName": { "type": "string" },
+        "userRole": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "ipAddress": { "type": "string" }
+      },
+      "required": ["action", "actorName", "timestamp"]
     }
   }
 }

@@ -13,9 +13,11 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { saveContactToFirestore } from '../lib/firebase';
+import { useToast } from '../context/ToastContext';
 
 export const ContactSection: React.FC = () => {
-  const { contactInfo } = useAdmin();
+  const { contactInfo, websiteSettings } = useAdmin();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -31,13 +33,22 @@ export const ContactSection: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const refCode = `INQ-${Math.floor(100000 + Math.random() * 900000)}`;
     try {
-      await saveContactToFirestore(formData);
+      await saveContactToFirestore({ ...formData, refCode });
     } catch (err) {
       console.error("Firestore contact save error:", err);
     } finally {
       setLoading(false);
       setSubmitted(true);
+      showToast({
+        type: 'contact',
+        title: `Inquiry Received (${formData.subject})`,
+        message: `Thank you ${formData.name || 'Valued Customer'}! Your message has been received by Kenfoss Refrigeration. Our support team will contact ${formData.phone} shortly.`,
+        refCode,
+        phone: formData.phone,
+        location: formData.location
+      });
     }
   };
 
@@ -84,11 +95,9 @@ export const ContactSection: React.FC = () => {
                   <div className="flex items-start space-x-2.5">
                     <MapPin className="w-5 h-5 text-[#FF7A00] shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
                     <div className="space-y-0.5">
-                      <p className="font-extrabold text-white text-sm">Kenfoss Refrigeration Limited</p>
-                      <p className="text-slate-200 font-medium">Ivy's Park Business Park,</p>
-                      <p className="text-slate-300">Next to Mark Hotel,</p>
-                      <p className="text-slate-300">Thika Superhighway Service Lane,</p>
-                      <p className="text-slate-300 font-semibold text-white/90">Ruiru, Kiambu County, Kenya.</p>
+                      <p className="font-extrabold text-white text-sm">{websiteSettings?.companyName || 'Kenfoss Refrigeration Limited'}</p>
+                      <p className="text-slate-200 font-medium">{contactInfo.address}</p>
+                      <p className="text-slate-300 font-semibold text-white/90">{contactInfo.city}</p>
                       <p className="text-[11px] text-[#00AEEF] font-bold pt-1.5 flex items-center gap-1 group-hover:underline">
                         <span>Get Driving Directions on Google Maps</span>
                         <ExternalLink className="w-3 h-3" />
@@ -162,7 +171,7 @@ export const ContactSection: React.FC = () => {
               <div className="w-full h-52 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 relative">
                 <iframe
                   title="Kenfoss Refrigeration Location Map"
-                  src="https://maps.google.com/maps?q=-1.1620371,36.9586472+(Kenfoss+Refrigeration+Limited)&t=&z=16&ie=UTF8&iwloc=B&output=embed"
+                  src={contactInfo.googleMapsEmbedUrl || "https://maps.google.com/maps?q=-1.1620371,36.9586472+(Kenfoss+Refrigeration+Limited)&t=&z=16&ie=UTF8&iwloc=B&output=embed"}
                   width="100%"
                   height="100%"
                   style={{ border: 0 }}

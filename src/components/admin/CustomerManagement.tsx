@@ -13,11 +13,12 @@ import {
   History, 
   X, 
   Edit, 
-  Save 
+  Save,
+  Trash2
 } from 'lucide-react';
 
 export const CustomerManagement: React.FC = () => {
-  const { customers, addCustomer, updateCustomer, bookings } = useAdmin();
+  const { customers, addCustomer, updateCustomer, deleteCustomer, bookings } = useAdmin();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
@@ -153,12 +154,26 @@ export const CustomerManagement: React.FC = () => {
                     </span>
                   </div>
 
-                  <button
-                    onClick={() => handleOpenEditModal(c)}
-                    className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center space-x-1">
+                    <button
+                      onClick={() => handleOpenEditModal(c)}
+                      className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+                      title="Edit Client"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to delete client ${c.name}?`)) {
+                          deleteCustomer(c.id);
+                        }
+                      }}
+                      className="p-1.5 text-rose-400 hover:text-rose-300 rounded-lg hover:bg-rose-500/20"
+                      title="Delete Client"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5 text-xs text-slate-300">

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAdmin } from '../context/AdminContext';
 import heroRefrigerationImg from '../assets/images/refrigeration_hero_bg_1785179699828.jpg';
 import kenyanEngineersImg from '../assets/images/kenyan_engineers_refrigeration_1785180429060.jpg';
 import { 
@@ -26,6 +27,8 @@ export const Hero: React.FC<HeroProps> = ({
   onOpenCalculator,
   onOpenAiDiagnostic
 }) => {
+  const { contactInfo } = useAdmin();
+  const whatsappNum = contactInfo?.whatsappNumber || '254745411923';
   const [selectedQuickService, setSelectedQuickService] = useState('cold-room');
   const [selectedCounty, setSelectedCounty] = useState('Nairobi');
 
@@ -99,7 +102,7 @@ export const Hero: React.FC<HeroProps> = ({
               </button>
 
               <a
-                href="https://wa.me/254745411923?text=Hello%20Kenfoss%20Refrigeration,%20I%20need%20urgent%20engineering%20assistance."
+                href={`https://wa.me/${whatsappNum}?text=Hello%20Kenfoss%20Refrigeration,%20I%20need%20urgent%20engineering%20assistance.`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center space-x-2 px-5 sm:px-6 py-3.5 bg-white/5 border border-white/20 hover:border-white/50 text-white text-sm sm:text-base font-bold rounded-lg transition-all cursor-pointer backdrop-blur-xs"

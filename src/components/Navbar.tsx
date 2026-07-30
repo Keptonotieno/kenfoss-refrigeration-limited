@@ -39,7 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const { theme, toggleTheme } = useTheme();
   const { user, openAuthModal } = useAuth();
-  const { contactInfo } = useAdmin();
+  const { contactInfo, websiteSettings } = useAdmin();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -173,16 +173,26 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => handleNavClick('home')}
             className="flex items-center space-x-3 text-left group cursor-pointer shrink-0"
           >
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#0057B8] to-[#00AEEF] flex items-center justify-center text-white shadow-md shadow-blue-500/15 group-hover:scale-105 transition-transform font-black text-xl">
-              K
-            </div>
+            {websiteSettings?.logoUrl ? (
+              <img 
+                src={websiteSettings.logoUrl} 
+                alt={websiteSettings.companyName || 'Kenfoss Logo'} 
+                className="h-10 max-w-[160px] object-contain"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#0057B8] to-[#00AEEF] flex items-center justify-center text-white shadow-md shadow-blue-500/15 group-hover:scale-105 transition-transform font-black text-xl">
+                {websiteSettings?.companyName ? websiteSettings.companyName.charAt(0) : 'K'}
+              </div>
+            )}
             <div className="flex flex-col">
               <div className="flex items-center space-x-1">
-                <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-[#0057B8] dark:text-[#00AEEF] leading-none">KENFOSS</span>
+                <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-[#0057B8] dark:text-[#00AEEF] leading-none">
+                  {websiteSettings?.companyName ? websiteSettings.companyName.split(' ')[0].toUpperCase() : 'KENFOSS'}
+                </span>
                 <span className="text-[10px] bg-[#FF7A00] text-white font-extrabold px-1.5 py-0.5 rounded tracking-wider uppercase">KE</span>
               </div>
               <p className="text-[9px] sm:text-[10px] font-semibold text-[#64748B] dark:text-slate-400 tracking-[0.08em] uppercase mt-0.5">
-                Refrigeration Engineering
+                {websiteSettings?.tagline ? websiteSettings.tagline.slice(0, 32) : 'Refrigeration Engineering'}
               </p>
             </div>
           </button>
