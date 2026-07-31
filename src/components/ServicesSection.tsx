@@ -26,6 +26,49 @@ import {
   ExternalLink
 } from 'lucide-react';
 
+import freezerRepairImg from '../assets/images/kenya_freezer_repair_1785251736978.jpg';
+import fridgeRepairNewImg from '../assets/images/kenya_fridge_repair_1785251752515.jpg';
+import coldRoomNewImg from '../assets/images/kenya_cold_room_1785251769488.jpg';
+import microwaveImg from '../assets/images/kenya_microwave_repair_1785251865437.jpg';
+import ovenImg from '../assets/images/kenya_oven_repair_1785251880547.jpg';
+import dishwasherImg from '../assets/images/kenya_dishwasher_repair_1785251896358.jpg';
+import dryerImg from '../assets/images/kenya_dryer_repair_1785251910813.jpg';
+import singleDoorFridgeImg from '../assets/images/kenya_single_door_fridge_1785252155392.jpg';
+import miniFridgeImg from '../assets/images/kenya_mini_fridge_repair_1785252169253.jpg';
+import fridgeInstallImg from '../assets/images/kenya_fridge_install_1785252502002.jpg';
+import coldRoomBuildImg from '../assets/images/kenya_coldroom_build_1785252517070.jpg';
+import hvacAcImg from '../assets/images/kenya_hvac_ac_1785253019004.jpg';
+import preventiveMaintImg from '../assets/images/kenya_preventive_maint_1785253033702.jpg';
+import emergencyRepairImg from '../assets/images/kenya_emergency_repair_1785253048831.jpg';
+import waterIceServicingImg from '../assets/images/kenya_water_ice_servicing_1785253063233.jpg';
+import washerRepairImg from '../assets/images/kenya_washer_repair_1785253077335.jpg';
+
+const SERVICE_IMAGE_MAP: Record<string, string> = {
+  'freezer-repair': freezerRepairImg,
+  'refrigerator-freezer-repair': fridgeRepairNewImg,
+  'refrigerator-repair': singleDoorFridgeImg,
+  'mini-refrigerator-repair': miniFridgeImg,
+  'walk-in-cooler-repair': coldRoomNewImg,
+  'refrigerator-installation': fridgeInstallImg,
+  'cold-room-installation': coldRoomBuildImg,
+  'dishwasher-repair': dishwasherImg,
+  'washing-machine-repair': washerRepairImg,
+  'dryer-repair': dryerImg,
+  'microwave-repair': microwaveImg,
+  'oven-repair': ovenImg,
+  'hvac-air-con': hvacAcImg,
+  'preventive-maintenance': preventiveMaintImg,
+  'emergency-breakdown': emergencyRepairImg,
+  'water-dispenser-ice-machine': waterIceServicingImg,
+};
+
+const getServiceImage = (service: ServiceItem): string => {
+  if (service.image && !service.image.includes('unsplash.com') && (service.image.startsWith('data:image') || service.image.startsWith('blob:'))) {
+    return service.image;
+  }
+  return SERVICE_IMAGE_MAP[service.id] || service.image || fridgeRepairNewImg;
+};
+
 interface ServicesSectionProps {
   onOpenBooking: (type?: string, serviceId?: string) => void;
 }
@@ -113,7 +156,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
                 {/* Image Header with Badge */}
                 <div className="relative h-48 overflow-hidden bg-slate-900">
                   <img
-                    src={service.image}
+                    src={getServiceImage(service)}
                     alt={service.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
                   />
@@ -231,7 +274,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
             {/* Header with image */}
             <div className="relative rounded-xl overflow-hidden bg-slate-900 h-48 sm:h-56 -mx-1 sm:-mx-2 -mt-1 sm:-mt-2">
               <img 
-                src={selectedServiceModal.image} 
+                src={getServiceImage(selectedServiceModal)} 
                 alt={selectedServiceModal.title} 
                 className="w-full h-full object-cover opacity-85"
               />

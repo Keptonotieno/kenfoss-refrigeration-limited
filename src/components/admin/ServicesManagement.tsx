@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAdmin } from '../../context/AdminContext';
 import { ServiceItem, ServiceCategory } from '../../types';
-import { Briefcase, Plus, Search, Edit, Trash2, X, Check } from 'lucide-react';
+import { Briefcase, Plus, Search, Edit, Trash2, X, Check, Upload } from 'lucide-react';
 
 export const ServicesManagement: React.FC = () => {
   const { services, addService, updateService, deleteService } = useAdmin();
@@ -9,6 +9,7 @@ export const ServicesManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<ServiceItem | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<Omit<ServiceItem, 'id'>>({
     title: '',
@@ -24,6 +25,21 @@ export const ServicesManagement: React.FC = () => {
   });
 
   const [featuresText, setFeaturesText] = useState('24/7 Rapid Response\nEPRA Certified Engineers\nGenuine OEM Spare Parts');
+
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, image: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const filteredServices = services.filter(s => {
     return s.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -228,15 +244,37 @@ export const ServicesManagement: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-300">Service Image URL</label>
-                <input
-                  type="url"
-                  required
-                  value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500"
-                />
+                <label className="text-xs font-bold text-slate-300">Service Image (URL or Local Disk File)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={formData.image}
+                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                    placeholder="https://... or upload image"
+                    className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer border border-slate-700 shrink-0"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Browse...</span>
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageFileUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                </div>
+                {formData.image && (
+                  <div className="mt-2 h-20 w-32 rounded-lg overflow-hidden border border-slate-800 bg-slate-950 relative">
+                    <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">

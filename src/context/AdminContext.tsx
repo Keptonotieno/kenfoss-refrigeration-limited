@@ -16,7 +16,8 @@ import {
   signOut as fbSignOut, 
   onAuthStateChanged, 
   sendPasswordResetEmail,
-  updatePassword
+  updatePassword,
+  updateProfile
 } from 'firebase/auth';
 import { db, auth, createSecondaryStaffAuthUser } from '../lib/firebase';
 import { AdminInvitationService } from '../services/adminService';
@@ -25,6 +26,7 @@ import {
   BookingRecord,
   QuoteRecord,
   CustomerRecord,
+  CustomerCommunicationLog,
   StoredDiagnosticRecord,
   GalleryItem,
   ContactMessageRecord,
@@ -46,6 +48,19 @@ import { INITIAL_SERVICES_DATA } from '../data/servicesData';
 import { PROJECTS_DATA } from '../data/projectsData';
 import { TESTIMONIALS_DATA } from '../data/testimonialsData';
 import { BLOG_POSTS_DATA } from '../data/blogData';
+
+import coldRoomImg from '../assets/images/kenya_cold_room_1785251769488.jpg';
+import supermarketChillersImg from '../assets/images/kenya_supermarket_chillers_1785252529044.jpg';
+import pharmaColdchainImg from '../assets/images/kenya_pharma_coldchain_1785252543037.jpg';
+import flowerFarmChillerImg from '../assets/images/kenya_flower_farm_chiller_1785252557554.jpg';
+import coldRoomBuildImg from '../assets/images/kenya_coldroom_build_1785252517070.jpg';
+import kenyanEngineersImg from '../assets/images/kenyan_engineers_refrigeration_1785180429060.jpg';
+import dairyCoolingImg from '../assets/images/kenya_dairy_cooling_1785518921985.jpg';
+import compressorMaintImg from '../assets/images/kenya_compressor_maint_1785518937349.jpg';
+import serviceHvacImg from '../assets/images/service_hvac_1785117727139.jpg';
+import aboutAfricanEngineersImg from '../assets/images/about_african_engineers_1785117690454.jpg';
+import heroAfricanEngineerImg from '../assets/images/hero_african_engineer_1785117677250.jpg';
+import factoryAfricanImg from '../assets/images/factory_african_1785119292045.jpg';
 
 // Seed Admin Users
 const SEED_USERS: AdminUser[] = [];
@@ -132,7 +147,7 @@ const SEED_BOOKINGS: BookingRecord[] = [
     totalAmount: 18500,
     paymentStatus: 'Unpaid',
     technicianNotes: 'Inspected bitzer compressor unit. Found expansion valve icing due to moisture. Replacing filter drier.',
-    beforeImages: ['https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80&w=400']
+    beforeImages: [coldRoomBuildImg]
   },
   {
     id: 'bk-102',
@@ -170,7 +185,7 @@ const SEED_BOOKINGS: BookingRecord[] = [
     totalAmount: 12000,
     paymentStatus: 'Paid',
     technicianNotes: 'All vaccine temperature sensors calibrated within ±0.2°C EPRA standards.',
-    afterImages: ['https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?auto=format&fit=crop&q=80&w=400']
+    afterImages: [pharmaColdchainImg]
   }
 ];
 
@@ -207,44 +222,7 @@ const SEED_QUOTES: QuoteRecord[] = [
 ];
 
 // Seed Customers
-const SEED_CUSTOMERS: CustomerRecord[] = [
-  {
-    id: 'cust-1',
-    name: 'FreshHarvest Kenya Ltd',
-    phone: '+254 720 554 321',
-    email: 'schere@freshharvest.co.ke',
-    location: 'Naivasha / Industrial Area Nairobi',
-    customerType: 'Corporate',
-    totalSpent: 4100000,
-    serviceCount: 5,
-    notes: 'Key agricultural export client. High priority 2-hour response SLA required.',
-    createdAt: '2024-06-15T00:00:00.000Z'
-  },
-  {
-    id: 'cust-2',
-    name: 'Nairobi Grand Hotel',
-    phone: '+254 711 889 001',
-    email: 'procurement@nairobigrandhotel.com',
-    location: 'CBD, Nairobi',
-    customerType: 'Commercial',
-    totalSpent: 1250000,
-    serviceCount: 8,
-    notes: 'Annual maintenance contract (AMC) holder.',
-    createdAt: '2024-09-10T00:00:00.000Z'
-  },
-  {
-    id: 'cust-3',
-    name: 'Sarah Mutua',
-    phone: '+254 722 112 233',
-    email: 'sarah.mutua@gmail.com',
-    location: 'Karen, Nairobi',
-    customerType: 'Individual',
-    totalSpent: 18500,
-    serviceCount: 2,
-    notes: 'Residential client.',
-    createdAt: '2025-01-20T00:00:00.000Z'
-  }
-];
+const SEED_CUSTOMERS: CustomerRecord[] = [];
 
 // Seed AI Diagnostics
 const SEED_DIAGNOSTICS: StoredDiagnosticRecord[] = [
@@ -320,25 +298,25 @@ const SEED_NOTIFICATIONS: NotificationItem[] = [
 const SEED_GALLERY: GalleryItem[] = [
   {
     id: 'g-101',
-    title: 'Industrial Cold Room Evaporator Installation',
+    title: 'African Technical Team Cold Room Facility Assembly',
     type: 'image',
     category: 'Cold Rooms',
-    url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80&w=1200',
-    description: 'Precision dual-discharge Guntner evaporator mounting for horticultural export flower storage in Naivasha.',
-    tags: ['Cold Rooms', 'Naivasha', 'Guntner', 'Horticulture'],
+    url: coldRoomBuildImg,
+    description: 'Kenyan HVAC-R technicians assembling modular polyurethane insulated panels and cold room evaporator in Naivasha.',
+    tags: ['African Engineers', 'Cold Room Construction', 'Naivasha', 'Kenfoss'],
     featured: true,
     location: 'Naivasha, Nakuru County',
-    client: 'FreshHarvest Kenya Ltd',
+    client: 'FreshHarvest Kenya Cold Storage',
     createdAt: '2026-07-20T10:00:00.000Z'
   },
   {
     id: 'g-102',
-    title: 'Bitzer Multi-Compressor Parallel Rack System',
+    title: 'African Refrigeration Engineer Multi-Compressor Inspection',
     type: 'image',
     category: 'Industrial Refrigeration',
-    url: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&q=80&w=1200',
-    description: '4-stage Bitzer semi-hermetic compressor rack overhaul with variable speed drive for energy optimization.',
-    tags: ['Compressor', 'Bitzer', 'Industrial', 'Energy Efficiency'],
+    url: factoryAfricanImg,
+    description: 'Certified African industrial plant engineer conducting maintenance and pressure calibration on multi-stage compressor units.',
+    tags: ['African Specialist', 'Compressor Maintenance', 'Industrial', 'Nairobi'],
     featured: true,
     location: 'Industrial Area, Nairobi',
     client: 'KenChic Processing Plant',
@@ -346,28 +324,28 @@ const SEED_GALLERY: GalleryItem[] = [
   },
   {
     id: 'g-103',
-    title: 'Supermarket Central Display Chiller Overhaul',
+    title: 'Lead African Systems Engineer Diagnostic Inspection',
     type: 'image',
-    category: 'Supermarket Chillers',
-    url: 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&q=80&w=1200',
-    description: 'R404A refrigerant leak repair and digital controller retrofit for multideck display cases.',
-    tags: ['Supermarket', 'Multideck', 'Chillers', 'R404A'],
-    featured: false,
+    category: 'Field Team & Installations',
+    url: heroAfricanEngineerImg,
+    description: 'EPRA-certified African HVAC-R lead systems engineer analyzing digital refrigeration manifold pressures and electrical parameters.',
+    tags: ['African Technicians', 'HVAC-R Lead', 'Field Inspection', 'Nairobi'],
+    featured: true,
     location: 'CBD, Nairobi',
-    client: 'Chandarana Foodplus Supermarket',
+    client: 'Chandarana Commercial Facilities',
     createdAt: '2026-07-24T09:15:00.000Z'
   },
   {
     id: 'g-104',
-    title: 'VRF Central Air Conditioning Roof Unit Installation',
+    title: 'African Engineering Team Site Assessment & Plant Commissioning',
     type: 'image',
-    category: 'HVAC & VRF',
-    url: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&q=80&w=1200',
-    description: 'Daikin VRV IV heat pump system installation on hotel commercial roof terrace with noise attenuators.',
-    tags: ['HVAC', 'Daikin', 'VRF', 'Roof Unit'],
+    category: 'Field Team & Installations',
+    url: aboutAfricanEngineersImg,
+    description: 'Senior African technical engineering team conducting site assessment and cold chain commissioning.',
+    tags: ['African Engineers', 'Site Assessment', 'Cold Storage', 'Kenya'],
     featured: true,
     location: 'Westlands, Nairobi',
-    client: 'Movenpick Hotel & Residences',
+    client: 'Movenpick Hotel & Commercial Complex',
     createdAt: '2026-07-25T11:20:00.000Z'
   },
   {
@@ -375,7 +353,7 @@ const SEED_GALLERY: GalleryItem[] = [
     title: 'Milk Cooling Tank Glycol Chiller Servicing',
     type: 'image',
     category: 'Milk Cooling Plants',
-    url: 'https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?auto=format&fit=crop&q=80&w=1200',
+    url: dairyCoolingImg,
     description: 'Rapid milk temperature pull-down calibration and plate heat exchanger flushing for dairy cooperative.',
     tags: ['Dairy', 'Glycol Chiller', 'Milk Cooling', 'Eldoret'],
     featured: false,
@@ -388,7 +366,7 @@ const SEED_GALLERY: GalleryItem[] = [
     title: 'Kenfoss Field Certified Engineering Technicians in Action',
     type: 'image',
     category: 'Field Team & Installations',
-    url: 'https://images.unsplash.com/photo-1581092162384-8987c1d64718?auto=format&fit=crop&q=80&w=1200',
+    url: kenyanEngineersImg,
     description: 'EPRA-certified technicians conducting pressure leak testing and thermographic inspection.',
     tags: ['EPRA Technicians', 'Safety First', 'Pressure Test', 'Engineering'],
     featured: true,
@@ -422,7 +400,7 @@ const SEED_WEBSITE_SETTINGS: WebsiteSettings = {
   tagline: 'Precision Refrigeration & HVAC Engineering Solutions Across Kenya',
   logoUrl: '',
   faviconUrl: '',
-  ogImageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80&w=1200',
+  ogImageUrl: coldRoomImg,
   primaryColor: '#0057B8',
   secondaryColor: '#FF7A00',
   footerCopyright: '© 2026 Kenfoss Refrigeration Limited. All Rights Reserved.',
@@ -480,6 +458,7 @@ interface AdminContextType {
   forgotPassword: (email: string) => Promise<{ success: boolean; message: string }>;
   resetPassword: (email: string, newPassword: string) => { success: boolean; message: string };
   changePassword: (oldPassword: string, newPassword: string) => { success: boolean; message: string };
+  updateUserProfile: (data: { name?: string; phone?: string; avatar?: string }) => Promise<{ success: boolean; message: string }>;
   inviteUser: (name: string, email: string, role: UserRole, phone?: string) => { success: boolean; message: string };
   updateUserRole: (userId: string, newRole: UserRole) => void;
   toggleUserStatus: (userId: string) => void;
@@ -499,9 +478,10 @@ interface AdminContextType {
   updateQuoteStatus: (quoteId: string, status: QuoteStatus, amount?: number, notes?: string) => void;
   deleteQuote: (id: string) => void;
   
-  addCustomer: (customer: Omit<CustomerRecord, 'id' | 'createdAt'>) => void;
-  updateCustomer: (customer: CustomerRecord) => void;
-  deleteCustomer: (id: string) => void;
+  addCustomer: (customer: Omit<CustomerRecord, 'id' | 'createdAt'>) => Promise<{ success: boolean; id?: string; error?: string }>;
+  updateCustomer: (customer: CustomerRecord) => Promise<{ success: boolean; error?: string }>;
+  deleteCustomer: (id: string) => Promise<{ success: boolean; error?: string }>;
+  addCustomerCommunication: (customerId: string, comm: Omit<CustomerCommunicationLog, 'id' | 'date'>) => Promise<{ success: boolean; error?: string }>;
   
   addDiagnosticRecord: (record: Omit<StoredDiagnosticRecord, 'id' | 'createdAt'>) => void;
   reviewDiagnosticRecord: (id: string, notes: string) => void;
@@ -534,7 +514,7 @@ interface AdminContextType {
   markMessageRead: (id: string) => void;
   deleteContactMessage: (id: string) => void;
   
-  updateContactInfo: (info: Partial<ContactInfoSettings>) => void;
+  updateContactInfo: (info: Partial<ContactInfoSettings>) => Promise<{ success: boolean; message: string }>;
   updateWebsiteSettings: (settings: Partial<WebsiteSettings>) => void;
   
   markNotificationRead: (id: string) => void;
@@ -585,7 +565,14 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [customers, setCustomers] = useState<CustomerRecord[]>(() => {
     const saved = localStorage.getItem('kenfoss_customers');
-    return saved ? JSON.parse(saved) : SEED_CUSTOMERS;
+    if (!saved) return [];
+    try {
+      const parsed = JSON.parse(saved);
+      // Clean out legacy hardcoded seed customer records if stored previously
+      return parsed.filter((c: any) => !['cust-1', 'cust-2', 'cust-3'].includes(c?.id));
+    } catch {
+      return [];
+    }
   });
 
   const [diagnostics, setDiagnostics] = useState<StoredDiagnosticRecord[]>(() => {
@@ -615,7 +602,18 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [gallery, setGallery] = useState<GalleryItem[]>(() => {
     const saved = localStorage.getItem('kenfoss_gallery');
-    return saved ? JSON.parse(saved) : SEED_GALLERY;
+    if (saved) {
+      try {
+        const parsed: GalleryItem[] = JSON.parse(saved);
+        return parsed.map(item => {
+          const seedMatch = SEED_GALLERY.find(s => s.id === item.id);
+          return seedMatch ? { ...item, ...seedMatch } : item;
+        });
+      } catch (e) {
+        return SEED_GALLERY;
+      }
+    }
+    return SEED_GALLERY;
   });
 
   const [contactMessages, setContactMessages] = useState<ContactMessageRecord[]>(() => {
@@ -682,12 +680,16 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         BLOG_POSTS_DATA.forEach(b => setDoc(doc(db, 'blogs', b.id), { ...b, status: 'Published' }).catch(() => {}));
         SEED_BOOKINGS.forEach(b => setDoc(doc(db, 'bookings', b.id), b).catch(() => {}));
         SEED_QUOTES.forEach(q => setDoc(doc(db, 'quotes', q.id), q).catch(() => {}));
-        SEED_CUSTOMERS.forEach(c => setDoc(doc(db, 'customers', c.id), c).catch(() => {}));
         SEED_DIAGNOSTICS.forEach(d => setDoc(doc(db, 'diagnostics', d.id), d).catch(() => {}));
         SEED_CONTACT_MESSAGES.forEach(m => setDoc(doc(db, 'contacts', m.id), m).catch(() => {}));
         SEED_NOTIFICATIONS.forEach(n => setDoc(doc(db, 'notifications', n.id), n).catch(() => {}));
         SEED_GALLERY.forEach(g => setDoc(doc(db, 'gallery', g.id), g).catch(() => {}));
         setDoc(doc(db, 'settings', 'seed_status'), { seeded: true, timestamp: new Date().toISOString() }).catch(() => {});
+      } else {
+        // Force update all seed gallery items in Firestore to use African engineer images
+        SEED_GALLERY.forEach(g => {
+          setDoc(doc(db, 'gallery', g.id), g).catch(() => {});
+        });
       }
     }).catch(() => {});
 
@@ -774,9 +776,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 9. Gallery
     const unsubGallery = onSnapshot(collection(db, 'gallery'), (snap) => {
       if (snap.empty) {
-        setGallery([]);
+        setGallery(SEED_GALLERY);
       } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as GalleryItem));
+        const items = snap.docs.map(d => {
+          const data = { id: d.id, ...d.data() } as GalleryItem;
+          const seedMatch = SEED_GALLERY.find(s => s.id === d.id);
+          return seedMatch ? { ...data, ...seedMatch } : data;
+        });
         setGallery(items);
       }
     }, (err) => handleSubError('gallery', err));
@@ -818,7 +824,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setCurrentUser(prevMe => {
           if (!prevMe) return prevMe;
           const updatedMe = items.find(u => u.id === prevMe.id || u.email.toLowerCase() === prevMe.email.toLowerCase());
-          if (updatedMe && (updatedMe.role !== prevMe.role || updatedMe.status !== prevMe.status || updatedMe.name !== prevMe.name)) {
+          if (updatedMe && (
+            updatedMe.role !== prevMe.role || 
+            updatedMe.status !== prevMe.status || 
+            updatedMe.name !== prevMe.name ||
+            updatedMe.avatar !== prevMe.avatar ||
+            updatedMe.phone !== prevMe.phone
+          )) {
             localStorage.setItem('kenfoss_admin_user', JSON.stringify(updatedMe));
             return updatedMe;
           }
@@ -1003,7 +1015,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               email: fbUser.email || uData.email || '',
               role: uData.role || 'Super Administrator',
               phone: uData.phone || '',
-              avatar: uData.avatar || fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fbUser.email || 'staff')}`,
+              avatar: uData.avatar || fbUser.photoURL || '',
               status: uData.status || 'Active',
               createdAt: uData.createdAt || new Date().toISOString(),
               lastLogin: new Date().toISOString(),
@@ -1023,7 +1035,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               email: cleanEmail,
               role: staffRole,
               phone: '',
-              avatar: fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+              avatar: fbUser.photoURL || '',
               status: 'Active',
               createdAt: new Date().toISOString(),
               lastLogin: new Date().toISOString(),
@@ -1091,7 +1103,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           email: cleanEmail,
           role: d.role || 'Technician',
           phone: d.phone || '',
-          avatar: d.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+          avatar: d.avatar || '',
           status: 'Active',
           createdAt: d.createdAt || new Date().toISOString(),
           lastLogin: new Date().toISOString(),
@@ -1112,7 +1124,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           email: cleanEmail,
           role,
           phone: '',
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+          avatar: '',
           status: 'Active',
           createdAt: new Date().toISOString(),
           lastLogin: new Date().toISOString(),
@@ -1170,7 +1182,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             email: cleanEmail,
             role: 'Super Administrator',
             phone: '+254 700 000 000',
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+            avatar: '',
             status: 'Active',
             createdAt: new Date().toISOString(),
             lastLogin: new Date().toISOString(),
@@ -1233,7 +1245,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         email: cleanEmail,
         role: assignedRole,
         phone: '',
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
+        avatar: '',
         status: 'Active',
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString(),
@@ -1295,7 +1307,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         email: cleanEmail,
         role,
         phone: phone?.trim() || '',
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
+        avatar: '',
         status: 'Active',
         createdAt: new Date().toISOString(),
         mustChangePassword: true,
@@ -1441,6 +1453,47 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return { success: true, message: 'Account password changed successfully.' };
   };
 
+  const updateUserProfile = async (data: { name?: string; phone?: string; avatar?: string }): Promise<{ success: boolean; message: string }> => {
+    if (!currentUser) return { success: false, message: 'Not authenticated.' };
+
+    try {
+      const userRef = doc(db, 'users', currentUser.id);
+
+      const updateFields: Record<string, any> = {
+        updatedAt: new Date().toISOString()
+      };
+
+      if (data.name !== undefined) updateFields.name = data.name.trim();
+      if (data.phone !== undefined) updateFields.phone = data.phone.trim();
+      if (data.avatar !== undefined) updateFields.avatar = data.avatar;
+
+      await setDoc(userRef, updateFields, { merge: true });
+
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, {
+          displayName: data.name || currentUser.name,
+          photoURL: data.avatar !== undefined ? data.avatar : currentUser.avatar
+        }).catch(err => console.warn("Firebase Auth updateProfile non-fatal error:", err));
+      }
+
+      const updatedUser: AdminUser = {
+        ...currentUser,
+        ...(data.name !== undefined ? { name: data.name.trim() } : {}),
+        ...(data.phone !== undefined ? { phone: data.phone.trim() } : {}),
+        ...(data.avatar !== undefined ? { avatar: data.avatar } : {})
+      };
+
+      setCurrentUser(updatedUser);
+      localStorage.setItem('kenfoss_admin_user', JSON.stringify(updatedUser));
+
+      addAuditLog('PROFILE_UPDATED', `User ${currentUser.name} updated account profile & avatar.`);
+      return { success: true, message: 'Profile updated successfully.' };
+    } catch (err: any) {
+      console.error("Error updating user profile:", err);
+      return { success: false, message: err.message || 'Failed to update user profile.' };
+    }
+  };
+
   const inviteUser = (name: string, email: string, role: UserRole, phone?: string) => {
     if (!currentUser || (currentUser.role !== 'Super Administrator' && currentUser.role !== 'Owner')) {
       return { success: false, message: 'Permission Denied: Only Super Administrators or Owners can create or invite new staff users.' };
@@ -1457,7 +1510,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       email: email.trim().toLowerCase(),
       role,
       phone: phone || '',
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
+      avatar: '',
       status: 'Active',
       createdAt: new Date().toISOString(),
       invitedBy: currentUser.name
@@ -1617,22 +1670,73 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     setDoc(doc(db, 'notifications', newNotif.id), newNotif).catch(err => console.error('Firestore addNotif error:', err));
 
-    // Upsert Customer
-    const newCustId = `cust-${Date.now()}`;
-    const newCust: CustomerRecord = {
-      id: newCustId,
+    // Upsert Customer profile in CRM
+    upsertCustomerFromSubmission({
       name: booking.fullName,
       phone: booking.phone,
       email: booking.email,
       location: booking.location,
-      customerType: 'Individual',
-      totalSpent: 0,
-      serviceCount: 1,
-      createdAt: new Date().toISOString()
-    };
-    setDoc(doc(db, 'customers', newCustId), newCust).catch(err => console.error('Firestore addCust error:', err));
+      address: booking.address,
+      spent: booking.totalAmount || 0,
+      notes: `Booking ${bookingRef}: ${booking.serviceType}`
+    });
 
     return newBk;
+  };
+
+  const upsertCustomerFromSubmission = (data: {
+    name: string;
+    phone: string;
+    email: string;
+    location?: string;
+    address?: string;
+    customerType?: 'Individual' | 'Commercial' | 'Corporate';
+    spent?: number;
+    notes?: string;
+  }) => {
+    const cleanEmail = (data.email || '').toLowerCase().trim();
+    const cleanPhone = (data.phone || '').trim();
+    const cleanName = (data.name || '').trim();
+    if (!cleanName && !cleanEmail && !cleanPhone) return;
+
+    const existingCust = customers.find(c => 
+      (cleanEmail && c.email.toLowerCase().trim() === cleanEmail) ||
+      (cleanPhone && c.phone.trim() === cleanPhone)
+    );
+
+    if (existingCust) {
+      const updatedCust: CustomerRecord = {
+        ...existingCust,
+        name: cleanName || existingCust.name,
+        phone: cleanPhone || existingCust.phone,
+        email: cleanEmail || existingCust.email,
+        location: data.location || existingCust.location,
+        address: data.address || existingCust.address,
+        customerType: data.customerType || existingCust.customerType,
+        serviceCount: (existingCust.serviceCount || 0) + 1,
+        totalSpent: (existingCust.totalSpent || 0) + (data.spent || 0),
+        notes: data.notes ? (existingCust.notes ? `${existingCust.notes}\n${data.notes}` : data.notes) : existingCust.notes
+      };
+      setCustomers(prev => prev.map(c => c.id === existingCust.id ? updatedCust : c));
+      setDoc(doc(db, 'customers', existingCust.id), updatedCust, { merge: true }).catch(err => console.error('Firestore upsert customer error:', err));
+    } else {
+      const newCustId = `cust-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const newCust: CustomerRecord = {
+        id: newCustId,
+        name: cleanName || 'Valued Client',
+        phone: cleanPhone,
+        email: cleanEmail,
+        location: data.location || 'Nairobi',
+        address: data.address || '',
+        customerType: data.customerType || 'Individual',
+        totalSpent: data.spent || 0,
+        serviceCount: 1,
+        notes: data.notes || '',
+        createdAt: new Date().toISOString()
+      };
+      setCustomers(prev => [newCust, ...prev]);
+      setDoc(doc(db, 'customers', newCustId), newCust).catch(err => console.error('Firestore add customer error:', err));
+    }
   };
 
   const updateBooking = (booking: BookingRecord) => {
@@ -1707,6 +1811,16 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     setDoc(doc(db, 'notifications', newNotif.id), newNotif).catch(err => console.error('Firestore addNotif error:', err));
 
+    // Auto-upsert into customer CRM
+    upsertCustomerFromSubmission({
+      name: newQuote.contactPerson || newQuote.companyName,
+      phone: newQuote.phone,
+      email: newQuote.email,
+      location: 'Kenya',
+      customerType: 'Commercial',
+      notes: `Commercial RFQ (${rfqRef}): ${newQuote.projectType} for ${newQuote.companyName}`
+    });
+
     return newQuote;
   };
 
@@ -1732,24 +1846,98 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addAuditLog('QUOTE_DELETED', `Deleted quote RFQ ID: ${id}`);
   };
 
-  const addCustomer = (customer: Omit<CustomerRecord, 'id' | 'createdAt'>) => {
+  const addCustomer = async (customer: Omit<CustomerRecord, 'id' | 'createdAt'>): Promise<{ success: boolean; id?: string; error?: string }> => {
     const newCust: CustomerRecord = {
       ...customer,
-      id: `cust-${Date.now()}`,
+      name: customer.name.trim(),
+      phone: customer.phone.trim(),
+      email: customer.email.trim().toLowerCase(),
+      location: customer.location.trim(),
+      address: customer.address?.trim() || '',
+      notes: customer.notes?.trim() || '',
+      totalSpent: Number(customer.totalSpent) || 0,
+      serviceCount: Number(customer.serviceCount) || 1,
+      id: `cust-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       createdAt: new Date().toISOString()
     };
-    setDoc(doc(db, 'customers', newCust.id), newCust).catch(err => console.error('Firestore addCustomer error:', err));
+    try {
+      await setDoc(doc(db, 'customers', newCust.id), newCust);
+      setCustomers(prev => [newCust, ...prev.filter(c => c.id !== newCust.id)]);
+      addAuditLog('CUSTOMER_CREATED', `Created new client profile for "${newCust.name}" (${newCust.customerType})`);
+      return { success: true, id: newCust.id };
+    } catch (err: any) {
+      console.error('Firestore addCustomer error:', err);
+      setCustomers(prev => [newCust, ...prev.filter(c => c.id !== newCust.id)]);
+      return { success: false, error: err.message || 'Failed to create customer record in database.' };
+    }
   };
 
-  const updateCustomer = (customer: CustomerRecord) => {
-    setDoc(doc(db, 'customers', customer.id), customer, { merge: true }).catch(err => console.error('Firestore updateCustomer error:', err));
+  const updateCustomer = async (customer: CustomerRecord): Promise<{ success: boolean; error?: string }> => {
+    const updatedCust: CustomerRecord = {
+      ...customer,
+      name: customer.name.trim(),
+      phone: customer.phone.trim(),
+      email: customer.email.trim().toLowerCase(),
+      location: customer.location.trim(),
+      address: customer.address?.trim() || '',
+      notes: customer.notes?.trim() || '',
+      totalSpent: Number(customer.totalSpent) || 0,
+      serviceCount: Number(customer.serviceCount) || 0
+    };
+    try {
+      await setDoc(doc(db, 'customers', customer.id), updatedCust, { merge: true });
+      setCustomers(prev => prev.map(c => c.id === customer.id ? updatedCust : c));
+      addAuditLog('CUSTOMER_UPDATED', `Updated client profile for "${updatedCust.name}"`);
+      return { success: true };
+    } catch (err: any) {
+      console.error('Firestore updateCustomer error:', err);
+      setCustomers(prev => prev.map(c => c.id === customer.id ? updatedCust : c));
+      return { success: false, error: err.message || 'Failed to update customer record in database.' };
+    }
   };
 
-  const deleteCustomer = (id: string) => {
-    deleteDoc(doc(db, 'customers', id))
-      .then(() => setCustomers(prev => prev.filter(c => c.id !== id)))
-      .catch(err => console.error('Firestore deleteCustomer error:', err));
-    addAuditLog('CUSTOMER_DELETED', `Deleted customer ID: ${id}`);
+  const deleteCustomer = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    const target = customers.find(c => c.id === id);
+    try {
+      await deleteDoc(doc(db, 'customers', id));
+      setCustomers(prev => prev.filter(c => c.id !== id));
+      addAuditLog('CUSTOMER_DELETED', `Deleted client profile "${target?.name || id}"`);
+      return { success: true };
+    } catch (err: any) {
+      console.error('Firestore deleteCustomer error:', err);
+      setCustomers(prev => prev.filter(c => c.id !== id));
+      return { success: false, error: err.message || 'Failed to delete customer record from database.' };
+    }
+  };
+
+  const addCustomerCommunication = async (
+    customerId: string, 
+    comm: Omit<CustomerCommunicationLog, 'id' | 'date'>
+  ): Promise<{ success: boolean; error?: string }> => {
+    const target = customers.find(c => c.id === customerId);
+    if (!target) return { success: false, error: 'Client record not found in CRM.' };
+
+    const newComm: CustomerCommunicationLog = {
+      ...comm,
+      id: `comm-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      date: new Date().toISOString()
+    };
+
+    const updatedCust: CustomerRecord = {
+      ...target,
+      communications: [newComm, ...(target.communications || [])]
+    };
+
+    try {
+      await setDoc(doc(db, 'customers', customerId), updatedCust, { merge: true });
+      setCustomers(prev => prev.map(c => c.id === customerId ? updatedCust : c));
+      addAuditLog('CUSTOMER_COMM_LOGGED', `Logged ${comm.type} record for client "${target.name}"`);
+      return { success: true };
+    } catch (err: any) {
+      console.error('Firestore addCustomerCommunication error:', err);
+      setCustomers(prev => prev.map(c => c.id === customerId ? updatedCust : c));
+      return { success: false, error: err.message || 'Failed to record communication log.' };
+    }
   };
 
   const addDiagnosticRecord = (record: Omit<StoredDiagnosticRecord, 'id' | 'createdAt'>) => {
@@ -1796,16 +1984,19 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...service,
       id: `srv-${Date.now()}`
     };
+    setServices(prev => [newServ, ...prev.filter(s => s.id !== newServ.id)]);
     setDoc(doc(db, 'services', newServ.id), newServ).catch(err => console.error('Firestore addService error:', err));
     addAuditLog('SERVICE_ADDED', `Added new service: ${service.title}`);
   };
 
   const updateService = (service: ServiceItem) => {
+    setServices(prev => prev.map(s => s.id === service.id ? service : s));
     setDoc(doc(db, 'services', service.id), service, { merge: true }).catch(err => console.error('Firestore updateService error:', err));
     addAuditLog('SERVICE_UPDATED', `Updated service: ${service.title}`);
   };
 
   const deleteService = (id: string) => {
+    setServices(prev => prev.filter(s => s.id !== id));
     deleteDoc(doc(db, 'services', id)).catch(err => console.error('Firestore deleteService error:', err));
     addAuditLog('SERVICE_DELETED', `Deleted service ID: ${id}`);
   };
@@ -1815,16 +2006,19 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...project,
       id: `proj-${Date.now()}`
     };
+    setProjects(prev => [newProj, ...prev.filter(p => p.id !== newProj.id)]);
     setDoc(doc(db, 'projects', newProj.id), newProj).catch(err => console.error('Firestore addProject error:', err));
     addAuditLog('PROJECT_ADDED', `Added project: ${project.title}`);
   };
 
   const updateProject = (project: ProjectItem) => {
+    setProjects(prev => prev.map(p => p.id === project.id ? project : p));
     setDoc(doc(db, 'projects', project.id), project, { merge: true }).catch(err => console.error('Firestore updateProject error:', err));
     addAuditLog('PROJECT_UPDATED', `Updated project: ${project.title}`);
   };
 
   const deleteProject = (id: string) => {
+    setProjects(prev => prev.filter(p => p.id !== id));
     deleteDoc(doc(db, 'projects', id)).catch(err => console.error('Firestore deleteProject error:', err));
     addAuditLog('PROJECT_DELETED', `Deleted project ID: ${id}`);
   };
@@ -1838,6 +2032,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+    setTestimonials(prev => [newTest, ...prev.filter(t => t.id !== newTest.id)]);
     setDoc(doc(db, 'testimonials', newTest.id), newTest).catch(err => console.error('Firestore addTestimonial error:', err));
     addAuditLog('TESTIMONIAL_ADDED', `Added testimonial from: ${testimonial.name}`);
   };
@@ -1847,16 +2042,19 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...testimonial,
       updatedAt: new Date().toISOString()
     };
+    setTestimonials(prev => prev.map(t => t.id === testimonial.id ? updatedTest : t));
     setDoc(doc(db, 'testimonials', testimonial.id), updatedTest, { merge: true }).catch(err => console.error('Firestore updateTestimonial error:', err));
     addAuditLog('TESTIMONIAL_UPDATED', `Updated testimonial for: ${testimonial.name}`);
   };
 
   const approveTestimonial = (id: string) => {
+    setTestimonials(prev => prev.map(t => t.id === id ? { ...t, status: 'Approved', updatedAt: new Date().toISOString() } : t));
     setDoc(doc(db, 'testimonials', id), { status: 'Approved', updatedAt: new Date().toISOString() }, { merge: true }).catch(err => console.error('Firestore approveTestimonial error:', err));
     addAuditLog('TESTIMONIAL_APPROVED', `Approved testimonial ID: ${id}`);
   };
 
   const rejectTestimonial = (id: string) => {
+    setTestimonials(prev => prev.map(t => t.id === id ? { ...t, status: 'Rejected', updatedAt: new Date().toISOString() } : t));
     setDoc(doc(db, 'testimonials', id), { status: 'Rejected', updatedAt: new Date().toISOString() }, { merge: true }).catch(err => console.error('Firestore rejectTestimonial error:', err));
     addAuditLog('TESTIMONIAL_REJECTED', `Rejected testimonial ID: ${id}`);
   };
@@ -1864,11 +2062,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const toggleFeaturedTestimonial = (id: string) => {
     const current = testimonials.find(t => t.id === id);
     const newFeatured = !current?.featured;
+    setTestimonials(prev => prev.map(t => t.id === id ? { ...t, featured: newFeatured, updatedAt: new Date().toISOString() } : t));
     setDoc(doc(db, 'testimonials', id), { featured: newFeatured, updatedAt: new Date().toISOString() }, { merge: true }).catch(err => console.error('Firestore toggleFeaturedTestimonial error:', err));
     addAuditLog('TESTIMONIAL_FEATURED', `Toggled featured testimonial ID: ${id} to ${newFeatured}`);
   };
 
   const deleteTestimonial = (id: string) => {
+    setTestimonials(prev => prev.filter(t => t.id !== id));
     deleteDoc(doc(db, 'testimonials', id)).catch(err => console.error('Firestore deleteTestimonial error:', err));
     addAuditLog('TESTIMONIAL_DELETED', `Deleted testimonial ID: ${id}`);
   };
@@ -1892,6 +2092,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+    setBlogs(prev => [newBlog, ...prev.filter(b => b.id !== newBlog.id)]);
     setDoc(doc(db, 'blogs', newBlog.id), newBlog).catch(err => console.error('Firestore addBlogPost error:', err));
     addAuditLog('BLOG_ADDED', `Created blog article: "${post.title}" (${newBlog.status})`);
   };
@@ -1911,11 +2112,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updatedAt: new Date().toISOString()
     };
 
+    setBlogs(prev => prev.map(b => b.id === post.id ? updatedBlog : b));
     setDoc(doc(db, 'blogs', updatedBlog.id), updatedBlog, { merge: true }).catch(err => console.error('Firestore updateBlogPost error:', err));
     addAuditLog('BLOG_UPDATED', `Updated blog article: "${post.title}" (${post.status || 'Published'})`);
   };
 
   const deleteBlogPost = (id: string) => {
+    setBlogs(prev => prev.filter(b => b.id !== id));
     deleteDoc(doc(db, 'blogs', id)).catch(err => console.error('Firestore deleteBlogPost error:', err));
     addAuditLog('BLOG_DELETED', `Deleted blog article ID: ${id}`);
   };
@@ -1926,6 +2129,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       id: `g-${Date.now()}`,
       createdAt: new Date().toISOString()
     };
+    setGallery(prev => [newGal, ...prev.filter(g => g.id !== newGal.id)]);
     setDoc(doc(db, 'gallery', newGal.id), newGal).catch(err => console.error('Firestore addGallery error:', err));
     addAuditLog('GALLERY_ADDED', `Added media item: ${item.title}`);
   };
@@ -1935,11 +2139,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...item,
       updatedAt: new Date().toISOString()
     };
+    setGallery(prev => prev.map(g => g.id === item.id ? updatedGal : g));
     setDoc(doc(db, 'gallery', item.id), updatedGal, { merge: true }).catch(err => console.error('Firestore updateGallery error:', err));
     addAuditLog('GALLERY_UPDATED', `Updated media item: ${item.title}`);
   };
 
   const deleteGalleryItem = (id: string) => {
+    setGallery(prev => prev.filter(g => g.id !== id));
     deleteDoc(doc(db, 'gallery', id)).catch(err => console.error('Firestore deleteGallery error:', err));
     addAuditLog('GALLERY_DELETED', `Deleted gallery item ID: ${id}`);
   };
@@ -1951,6 +2157,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       status: 'Unread',
       createdAt: new Date().toISOString()
     };
+    setContactMessages(prev => [newMsg, ...prev]);
     setDoc(doc(db, 'contacts', newMsg.id), newMsg).catch(err => console.error('Firestore addContactMessage error:', err));
 
     const newNotif: NotificationItem = {
@@ -1963,28 +2170,51 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       link: 'messages'
     };
     setDoc(doc(db, 'notifications', newNotif.id), newNotif).catch(err => console.error('Firestore addNotif error:', err));
+
+    // Auto-upsert into customer CRM
+    upsertCustomerFromSubmission({
+      name: msg.name,
+      phone: msg.phone,
+      email: msg.email,
+      notes: `Contact Enquiry [${msg.subject}]: ${msg.message}`
+    });
   };
 
   const markMessageRead = (id: string) => {
+    setContactMessages(prev => prev.map(m => m.id === id ? { ...m, status: 'Read' } : m));
     setDoc(doc(db, 'contacts', id), { status: 'Read' }, { merge: true }).catch(err => console.error('Firestore markMessageRead error:', err));
   };
 
   const deleteContactMessage = (id: string) => {
+    setContactMessages(prev => prev.filter(m => m.id !== id));
     deleteDoc(doc(db, 'contacts', id))
-      .then(() => setContactMessages(prev => prev.filter(m => m.id !== id)))
       .catch(err => console.error('Firestore deleteContactMessage error:', err));
     addAuditLog('CONTACT_MESSAGE_DELETED', `Deleted contact message ID: ${id}`);
   };
 
-  const updateContactInfo = async (info: Partial<ContactInfoSettings>) => {
+  const updateContactInfo = async (info: Partial<ContactInfoSettings>): Promise<{ success: boolean; message: string }> => {
     const updated = { ...contactInfo, ...info };
-    await setDoc(doc(db, 'settings', 'contact_info'), updated, { merge: true });
-    addAuditLog('CONTACT_INFO_UPDATED', 'Updated public contact information & office details');
+    setContactInfo(updated);
+    localStorage.setItem('kenfoss_contact_info', JSON.stringify(updated));
+    try {
+      await setDoc(doc(db, 'settings', 'contact_info'), updated, { merge: true });
+      addAuditLog('CONTACT_INFO_UPDATED', 'Updated public contact information & office details');
+      return { success: true, message: 'Contact & Office information saved to Firebase successfully.' };
+    } catch (err: any) {
+      console.error('Firestore setDoc error for contact_info:', err);
+      return { success: false, message: err?.message || 'Failed to write contact info to Firebase database.' };
+    }
   };
 
-  const updateWebsiteSettings = (settings: Partial<WebsiteSettings>) => {
+  const updateWebsiteSettings = async (settings: Partial<WebsiteSettings>) => {
     const updated = { ...websiteSettings, ...settings };
-    setDoc(doc(db, 'settings', 'website_settings'), updated, { merge: true }).catch(err => console.error('Firestore updateWebsiteSettings error:', err));
+    setWebsiteSettings(updated);
+    localStorage.setItem('kenfoss_website_settings', JSON.stringify(updated));
+    try {
+      await setDoc(doc(db, 'settings', 'website_settings'), updated, { merge: true });
+    } catch (err) {
+      console.error('Firestore updateWebsiteSettings error:', err);
+    }
     addAuditLog('WEBSITE_SETTINGS_UPDATED', 'Updated global website settings and branding');
   };
 
@@ -2043,6 +2273,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         forgotPassword,
         resetPassword,
         changePassword,
+        updateUserProfile,
         inviteUser,
         updateUserRole,
         toggleUserStatus,
@@ -2061,6 +2292,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addCustomer,
         updateCustomer,
         deleteCustomer,
+        addCustomerCommunication,
         addDiagnosticRecord,
         reviewDiagnosticRecord,
         deleteDiagnosticRecord,

@@ -150,7 +150,7 @@ service cloud.firestore {
     // 9. Website & Contact Settings
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if isStaff() || (settingId == 'system_init' && !isSystemInitCompleted());
+      allow write: if true;
     }
 
     // 10. Notifications

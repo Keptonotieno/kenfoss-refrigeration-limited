@@ -105,9 +105,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
   };
 
   // Save Branding
-  const handleSaveBranding = (e: React.FormEvent) => {
+  const handleSaveBranding = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateContactInfo(brandingForm);
+    await updateContactInfo(brandingForm);
     setEditingBranding(false);
   };
 

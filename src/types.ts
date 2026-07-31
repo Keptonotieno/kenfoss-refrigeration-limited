@@ -24,7 +24,7 @@ export interface ProjectItem {
   id: string;
   title: string;
   client: string;
-  category: 'Cold Room' | 'HVAC' | 'Supermarket' | 'Appliance Repair' | 'Industrial';
+  category: 'Cold Room' | 'HVAC' | 'Supermarket' | 'Appliance Repair' | 'Industrial' | string;
   location: string;
   completedDate: string;
   imageBefore?: string;
@@ -169,6 +169,7 @@ export interface BookingRecord {
   phone: string;
   email: string;
   location: string;
+  address?: string;
   serviceType: string;
   date: string;
   timeSlot?: string;
@@ -202,6 +203,14 @@ export interface QuoteRecord {
   updatedAt?: string;
 }
 
+export interface CustomerCommunicationLog {
+  id: string;
+  date: string;
+  type: 'Call' | 'Email' | 'WhatsApp' | 'Site Visit' | 'Note' | 'Quote' | 'Booking';
+  summary: string;
+  author?: string;
+}
+
 export interface CustomerRecord {
   id: string;
   name: string;
@@ -213,6 +222,7 @@ export interface CustomerRecord {
   totalSpent: number;
   serviceCount: number;
   notes?: string;
+  communications?: CustomerCommunicationLog[];
   createdAt: string;
 }
 

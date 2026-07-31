@@ -115,7 +115,7 @@ export const BlogsManagement: React.FC = () => {
       content: '',
       authorName: currentUser?.name || 'Eng. Ken Munene',
       authorRole: currentUser?.role || 'Lead Refrigeration Engineer',
-      authorAvatar: currentUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(currentUser?.name || 'kenfoss')}`,
+      authorAvatar: currentUser?.avatar || '',
       authorEmail: currentUser?.email || 'info@kenfoss.co.ke',
       date: new Date().toISOString().slice(0, 10),
       readTime: '5 min read',
@@ -221,7 +221,7 @@ export const BlogsManagement: React.FC = () => {
       author: {
         name: formData.authorName || 'Kenfoss Staff',
         role: formData.authorRole || 'Refrigeration Engineer',
-        avatar: formData.authorAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=kenfoss`,
+        avatar: formData.authorAvatar || '',
         email: formData.authorEmail
       },
       date: formData.date,

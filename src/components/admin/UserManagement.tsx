@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAdmin, ALL_PERMISSIONS } from '../../context/AdminContext';
 import { UserRole, AdminUser, RoleDefinition, PermissionKey } from '../../types';
 import { AdminInvitationService, AdminInvitation } from '../../services/adminService';
+import { UserAvatar } from '../common/UserAvatar';
 import { 
   ShieldCheck, 
   ShieldAlert,
@@ -474,7 +475,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
                   </tr>
                 ) : (
                   filteredUsers.map((u) => {
-                    const avatarUrl = u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(u.email || 'staff')}`;
                     const uName = u.name || u.email?.split('@')[0] || 'Staff Member';
                     const uEmail = u.email || 'N/A';
                     const uRole = u.role || 'Technician';
@@ -484,7 +484,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
                         
                         <td className="p-4">
                           <div className="flex items-center space-x-3">
-                            <img src={avatarUrl} alt={uName} className="w-9 h-9 rounded-full object-cover border border-slate-700 bg-slate-800" />
+                            <UserAvatar user={u} size="md" />
                             <div>
                               <span className="font-bold text-white text-sm block">{uName}</span>
                               <span className="text-[11px] text-slate-400 font-mono">{uEmail}</span>

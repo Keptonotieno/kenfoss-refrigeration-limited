@@ -23,6 +23,12 @@ import {
   orderBy, 
   serverTimestamp 
 } from 'firebase/firestore';
+import {
+  getStorage,
+  ref,
+  uploadBytesResumable,
+  getDownloadURL
+} from 'firebase/storage';
 
 import firebaseConfigJson from '../../firebase-applet-config.json';
 
@@ -42,11 +48,36 @@ export const db = firebaseConfigJson.firestoreDatabaseId && firebaseConfigJson.f
   : getFirestore(app);
 
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
+
+/**
+ * Uploads a profile photo to Firebase Storage under `profile_photos/{userId}`.
+ * If Firebase Storage is restricted or encounters CORS issues, falls back seamlessly to data URL string.
+ */
+export async function uploadProfilePhotoToStorage(file: File, userId: string): Promise<string> {
+  if (!file) throw new Error("No image file provided.");
+
+  try {
+    const fileExtension = file.name.split('.').pop() || 'jpg';
+    const storageRef = ref(storage, `profile_photos/${userId}_${Date.now()}.${fileExtension}`);
+    const uploadTask = await uploadBytesResumable(storageRef, file);
+    const downloadUrl = await getDownloadURL(uploadTask.ref);
+    return downloadUrl;
+  } catch (storageErr) {
+    console.warn("Firebase storage error, falling back to data URL encoding:", storageErr);
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  }
+}
 
 // Helper to save or update user profile document in Firestore
 export async function saveUserProfile(user: User, additionalData: Record<string, any> = {}) {

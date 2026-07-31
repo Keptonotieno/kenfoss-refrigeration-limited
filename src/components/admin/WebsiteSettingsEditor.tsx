@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAdmin } from '../../context/AdminContext';
 import { 
   Settings, 
@@ -17,7 +17,8 @@ import {
   ExternalLink,
   Info,
   Lock,
-  MessageSquare
+  MessageSquare,
+  Upload
 } from 'lucide-react';
 import { WebsiteSettings } from '../../types';
 
@@ -29,6 +30,31 @@ export const WebsiteSettingsEditor: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState(false);
+
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const ogFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, logoUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleOgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, ogImageUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   useEffect(() => {
     if (websiteSettings) {
@@ -222,15 +248,26 @@ export const WebsiteSettingsEditor: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-300">Brand Logo Image URL</label>
-                <input
-                  type="url"
-                  value={formData.logoUrl}
-                  onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                  placeholder="https://example.com/logo.png (leave blank for vector badge)"
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
-                />
-                <p className="text-[10px] text-slate-500">HTTPS URL to PNG/SVG image with transparent background.</p>
+                <label className="text-xs font-bold text-slate-300">Brand Logo (URL or Local File)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={formData.logoUrl}
+                    onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                    placeholder="https://example.com/logo.png"
+                    className="flex-1 px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => logoFileInputRef.current?.click()}
+                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl flex items-center gap-1 shrink-0 border border-slate-700"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Upload</span>
+                  </button>
+                  <input type="file" ref={logoFileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
+                </div>
+                <p className="text-[10px] text-slate-500">PNG/SVG image or base64 file from local disk.</p>
               </div>
 
               <div className="space-y-1">

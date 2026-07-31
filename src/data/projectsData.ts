@@ -5,6 +5,9 @@ import pharmaColdchainImg from '../assets/images/kenya_pharma_coldchain_17852525
 import flowerFarmChillerImg from '../assets/images/kenya_flower_farm_chiller_1785252557554.jpg';
 import coldRoomBuildImg from '../assets/images/kenya_coldroom_build_1785252517070.jpg';
 import aboutImg from '../assets/images/about_african_engineers_1785117690454.jpg';
+import kenyanEngineersImg from '../assets/images/kenyan_engineers_refrigeration_1785180429060.jpg';
+import dairyCoolingImg from '../assets/images/kenya_dairy_cooling_1785518921985.jpg';
+import compressorMaintImg from '../assets/images/kenya_compressor_maint_1785518937349.jpg';
 
 export const PROJECTS_DATA: ProjectItem[] = [
   {
@@ -39,7 +42,7 @@ export const PROJECTS_DATA: ProjectItem[] = [
     category: 'Supermarket',
     location: 'Westlands, Nairobi',
     completedDate: 'November 2025',
-    imageBefore: aboutImg,
+    imageBefore: kenyanEngineersImg,
     imageAfter: supermarketChillersImg,
     summary: 'Complete refrigeration engineering and centralized VRF air conditioning for a 2,500 sq meter retail store.',
     specs: [
@@ -63,7 +66,7 @@ export const PROJECTS_DATA: ProjectItem[] = [
     category: 'Industrial',
     location: 'Parklands, Nairobi',
     completedDate: 'January 2026',
-    imageBefore: aboutImg,
+    imageBefore: compressorMaintImg,
     imageAfter: pharmaColdchainImg,
     summary: 'Precision vaccine & blood plasma storage facility engineered to WHO & Ministry of Health regulations with dual solar-generator fallback.',
     specs: [
@@ -87,7 +90,7 @@ export const PROJECTS_DATA: ProjectItem[] = [
     category: 'Cold Room',
     location: 'Naivasha, Rift Valley',
     completedDate: 'February 2026',
-    imageBefore: coldRoomBuildImg,
+    imageBefore: dairyCoolingImg,
     imageAfter: flowerFarmChillerImg,
     summary: 'Heavy industrial pre-cooling cold rooms designed for fresh rose exports to European markets.',
     specs: [
