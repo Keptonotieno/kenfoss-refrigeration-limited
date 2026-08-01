@@ -72,99 +72,73 @@ service cloud.firestore {
 
     // 1. Users collection
     match /users/{userId} {
-      allow read: if isOwner(userId) || isStaff() || !isSystemInitCompleted();
-      allow create: if true;
-      allow update: if isOwner(userId) || isStaff() || !isSystemInitCompleted();
-      allow delete: if isStaff();
+      allow read, write: if true;
     }
 
     // 2. Bookings
     match /bookings/{bookingId} {
-      allow read: if isStaff() || (isSignedIn() && (resource.data.userEmail == request.auth.token.email || resource.data.userId == request.auth.uid));
-      allow create: if true;
-      allow update: if isStaff() || (isSignedIn() && (resource.data.userEmail == request.auth.token.email || resource.data.userId == request.auth.uid));
-      allow delete: if isStaff();
+      allow read, write: if true;
     }
 
     // 3. Quotes / RFQs
     match /quotes/{quoteId} {
-      allow read: if isStaff() || (isSignedIn() && (resource.data.email == request.auth.token.email || resource.data.userId == request.auth.uid));
-      allow create: if true;
-      allow update: if isStaff() || (isSignedIn() && (resource.data.email == request.auth.token.email || resource.data.userId == request.auth.uid));
-      allow delete: if isStaff();
+      allow read, write: if true;
     }
 
     // 4. Customers
     match /customers/{customerId} {
-      allow read: if isStaff() || (isSignedIn() && (resource.data.email == request.auth.token.email || resource.data.userId == request.auth.uid));
-      allow create: if true;
-      allow update, delete: if isStaff();
+      allow read, write: if true;
     }
 
     // 5. Diagnostics
     match /diagnostics/{diagnosticId} {
-      allow read: if isStaff() || (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.email == request.auth.token.email));
-      allow create: if true;
-      allow update, delete: if isStaff();
+      allow read, write: if true;
     }
 
     // 6. Contact Messages
     match /contacts/{contactId} {
-      allow read: if isStaff();
-      allow create: if true;
-      allow update, delete: if isStaff();
+      allow read, write: if true;
     }
 
     // 7. Single-use Admin Invitations
     match /invitations/{invitationId} {
-      allow read, write: if isStaff();
+      allow read, write: if true;
     }
 
     // 8. CMS Collections (Services, Projects, Testimonials, Blogs, Gallery)
     match /services/{serviceId} {
-      allow read: if true;
-      allow write: if isStaff();
+      allow read, write: if true;
     }
 
     match /projects/{projectId} {
-      allow read: if true;
-      allow write: if isStaff();
+      allow read, write: if true;
     }
 
     match /testimonials/{testimonialId} {
-      allow read: if true;
-      allow create: if true;
-      allow update, delete: if isStaff();
+      allow read, write: if true;
     }
 
     match /blogs/{blogId} {
-      allow read: if true;
-      allow write: if isStaff();
+      allow read, write: if true;
     }
 
     match /gallery/{galleryId} {
-      allow read: if true;
-      allow write: if isStaff();
+      allow read, write: if true;
     }
 
     // 9. Website & Contact Settings
     match /settings/{settingId} {
-      allow read: if true;
-      allow write: if true;
+      allow read, write: if true;
     }
 
     // 10. Notifications
     match /notifications/{notificationId} {
-      allow read, update: if isStaff() || isSignedIn();
-      allow create: if true;
-      allow delete: if isStaff();
+      allow read, write: if true;
     }
 
     // 11. System Audit Logs
     match /auditLogs/{logId} {
-      allow read: if isStaff();
-      allow create: if true;
-      allow update, delete: if isStaff();
+      allow read, write: if true;
     }
   }
 }

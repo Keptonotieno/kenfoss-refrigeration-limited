@@ -42,13 +42,15 @@ interface AdminSidebarProps {
   setActiveTab: (tab: AdminTab) => void;
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
+  onCloseAdmin?: () => void;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   activeTab,
   setActiveTab,
   isOpenMobile,
-  onCloseMobile
+  onCloseMobile,
+  onCloseAdmin
 }) => {
   const { currentUser, bookings, quotes, notifications, setIsAdminOpen } = useAdmin();
 
@@ -148,7 +150,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {/* Footer Link to Public Site */}
         <div className="p-3 border-t border-slate-800/80 bg-slate-950/50 space-y-2">
           <button
-            onClick={() => setIsAdminOpen(false)}
+            onClick={() => {
+              setIsAdminOpen(false);
+              if (onCloseAdmin) {
+                onCloseAdmin();
+              }
+            }}
             className="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl flex items-center justify-center space-x-2 transition-colors cursor-pointer"
           >
             <ExternalLink className="w-3.5 h-3.5 text-blue-400" />

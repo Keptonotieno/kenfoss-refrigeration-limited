@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAdmin } from '../context/AdminContext';
 import { ServiceItem, ServiceCategory } from '../types';
 import { SEO } from './SEO';
@@ -23,22 +23,23 @@ import {
   AlertTriangle,
   MessageCircle,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Briefcase
 } from 'lucide-react';
 
 import freezerRepairImg from '../assets/images/kenya_freezer_repair_1785251736978.jpg';
-import fridgeRepairNewImg from '../assets/images/kenya_fridge_repair_1785251752515.jpg';
-import coldRoomNewImg from '../assets/images/kenya_cold_room_1785251769488.jpg';
+import fridgeRepairNewImg from '../assets/images/refrigerator_freezer_repair_machine_1785588202357.jpg';
+import coldRoomNewImg from '../assets/images/walk_in_cooler_repair_machine_1785588170230.jpg';
 import microwaveImg from '../assets/images/kenya_microwave_repair_1785251865437.jpg';
-import ovenImg from '../assets/images/kenya_oven_repair_1785251880547.jpg';
+import ovenImg from '../assets/images/oven_repair_machine_1785588235419.jpg';
 import dishwasherImg from '../assets/images/kenya_dishwasher_repair_1785251896358.jpg';
-import dryerImg from '../assets/images/kenya_dryer_repair_1785251910813.jpg';
+import dryerImg from '../assets/images/dryer_repair_machine_1785588250457.jpg';
 import singleDoorFridgeImg from '../assets/images/kenya_single_door_fridge_1785252155392.jpg';
-import miniFridgeImg from '../assets/images/kenya_mini_fridge_repair_1785252169253.jpg';
-import fridgeInstallImg from '../assets/images/kenya_fridge_install_1785252502002.jpg';
+import miniFridgeImg from '../assets/images/mini_refrigerator_repair_machine_1785588217383.jpg';
+import fridgeInstallImg from '../assets/images/refrigerator_installation_machine_1785588185345.jpg';
 import coldRoomBuildImg from '../assets/images/kenya_coldroom_build_1785252517070.jpg';
 import hvacAcImg from '../assets/images/kenya_hvac_ac_1785253019004.jpg';
-import preventiveMaintImg from '../assets/images/kenya_preventive_maint_1785253033702.jpg';
+import preventiveMaintImg from '../assets/images/preventive_maintenance_contract_1785588266062.jpg';
 import emergencyRepairImg from '../assets/images/kenya_emergency_repair_1785253048831.jpg';
 import waterIceServicingImg from '../assets/images/kenya_water_ice_servicing_1785253063233.jpg';
 import washerRepairImg from '../assets/images/kenya_washer_repair_1785253077335.jpg';
@@ -63,10 +64,13 @@ const SERVICE_IMAGE_MAP: Record<string, string> = {
 };
 
 const getServiceImage = (service: ServiceItem): string => {
-  if (service.image && !service.image.includes('unsplash.com') && (service.image.startsWith('data:image') || service.image.startsWith('blob:'))) {
+  if (SERVICE_IMAGE_MAP[service.id]) {
+    return SERVICE_IMAGE_MAP[service.id];
+  }
+  if (service.image && service.image.trim() !== '') {
     return service.image;
   }
-  return SERVICE_IMAGE_MAP[service.id] || service.image || fridgeRepairNewImg;
+  return fridgeRepairNewImg;
 };
 
 interface ServicesSectionProps {
@@ -79,11 +83,45 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
   const [activeCategory, setActiveCategory] = useState<ServiceCategory>('all');
   const [selectedServiceModal, setSelectedServiceModal] = useState<ServiceItem | null>(null);
 
-  const filteredServices = (services || []).filter((service) => {
-    if (service.enabled === false) return false;
-    if (activeCategory === 'all') return true;
-    return service.category === activeCategory;
-  });
+  const filteredServices = useMemo(() => {
+    const allServices = (services && services.length > 0) ? services : [];
+    const seenNormKeys = new Set<string>();
+    const result: ServiceItem[] = [];
+
+    for (const service of allServices) {
+      if (service.enabled === false) continue;
+
+      let normKey = (service.id || service.title || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+
+      if (normKey.includes('preventive') || normKey.includes('amc')) {
+        normKey = 'preventivemaintenance';
+      } else if (normKey.includes('walkin') || normKey.includes('walkincooler')) {
+        normKey = 'walkincoolerrepair';
+      } else if (normKey.includes('minirefrigerator') || normKey.includes('minifridge')) {
+        normKey = 'minirefrigeratorrepair';
+      } else if (normKey.includes('refrigeratorfreezer') || normKey.includes('fridgefreezer')) {
+        normKey = 'refrigeratorfreezerrepair';
+      } else if (normKey === 'refrigeratorrepair' || normKey === 'fridgerepair') {
+        normKey = 'refrigeratorrepair';
+      } else if (normKey.includes('dryerrepair') || normKey === 'dryer') {
+        normKey = 'dryerrepair';
+      } else if (normKey.includes('ovenrepair') || normKey === 'oven') {
+        normKey = 'ovenrepair';
+      }
+
+      if (seenNormKeys.has(normKey)) {
+        continue;
+      }
+
+      seenNormKeys.add(normKey);
+      result.push(service);
+    }
+
+    if (activeCategory === 'all') return result;
+    return result.filter((s) => s.category === activeCategory);
+  }, [services, activeCategory]);
 
   const getIcon = (iconName: string) => {
     switch (iconName) {
@@ -192,6 +230,19 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
                         </div>
                       ))}
                     </div>
+
+                    {/* Real-World Application Highlight */}
+                    {service.realWorldApplications && service.realWorldApplications.length > 0 && (
+                      <div className="mt-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/50 rounded-xl p-2.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-[#0057B8] dark:text-[#00AEEF] flex items-center space-x-1">
+                          <Briefcase className="w-3 h-3 text-[#0057B8] dark:text-[#00AEEF]" />
+                          <span>Real-World Application:</span>
+                        </span>
+                        <p className="text-[11px] font-semibold text-slate-800 dark:text-slate-200 mt-1 line-clamp-2">
+                          <strong className="text-[#0057B8] dark:text-[#00AEEF] font-bold">{service.realWorldApplications[0].title}:</strong> {service.realWorldApplications[0].scenario}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Pricing and Action Buttons */}
@@ -381,6 +432,28 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
                     <span key={idx} className="text-[11px] bg-blue-50 dark:bg-blue-950/80 text-[#0057B8] dark:text-[#00AEEF] border border-blue-200/60 dark:border-blue-800/80 px-2.5 py-1 rounded-md font-semibold">
                       {ind}
                     </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Real-World Applications & Field Scenarios */}
+            {selectedServiceModal.realWorldApplications && selectedServiceModal.realWorldApplications.length > 0 && (
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                <h4 className="text-xs font-black uppercase tracking-wider text-[#0057B8] dark:text-[#00AEEF] mb-2.5 flex items-center space-x-1.5">
+                  <Briefcase className="w-3.5 h-3.5 text-[#0057B8] dark:text-[#00AEEF]" />
+                  <span>Real-World Applications & Field Scenarios:</span>
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {selectedServiceModal.realWorldApplications.map((app, idx) => (
+                    <div key={idx} className="bg-gradient-to-br from-blue-50/90 to-slate-50 dark:from-slate-800/90 dark:to-slate-900 border border-blue-200/70 dark:border-slate-700/80 p-3 rounded-xl space-y-1 shadow-sm">
+                      <span className="text-xs font-extrabold text-[#0057B8] dark:text-[#00AEEF] block leading-tight">
+                        {app.title}
+                      </span>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                        {app.scenario}
+                      </p>
+                    </div>
                   ))}
                 </div>
               </div>

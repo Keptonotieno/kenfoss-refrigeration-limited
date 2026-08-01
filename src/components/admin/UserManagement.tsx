@@ -82,6 +82,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
 
   const [activeTab, setActiveTab] = useState<'users' | 'roles' | 'invitations' | 'audit'>(initialTab);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
+  const [deletingRoleItem, setDeletingRoleItem] = useState<RoleDefinition | null>(null);
+  const [revokingInv, setRevokingInv] = useState<AdminInvitation | null>(null);
 
   // Sync activeTab if initialTab changes
   useEffect(() => {
@@ -209,9 +212,16 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
       alert('You cannot delete your own logged-in administrator account!');
       return;
     }
-    if (confirm(`Permanently remove staff account "${u.name || u.email}"?`)) {
-      deleteUser(u.id);
+    setDeletingUser(u);
+  };
+
+  const confirmDeleteUser = () => {
+    if (!deletingUser) return;
+    const res = deleteUser(deletingUser.id);
+    if (res && !res.success) {
+      alert(res.message);
     }
+    setDeletingUser(null);
   };
 
   // Open Role Modal for Creation
@@ -277,13 +287,17 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
     }
   };
 
-  const handleDeleteRole = async (roleItem: RoleDefinition) => {
-    if (confirm(`Are you sure you want to delete custom role "${roleItem.name}"?`)) {
-      const res = await deleteRole(roleItem.id);
-      if (!res.success) {
-        alert(res.message);
-      }
+  const handleDeleteRole = (roleItem: RoleDefinition) => {
+    setDeletingRoleItem(roleItem);
+  };
+
+  const confirmDeleteRole = async () => {
+    if (!deletingRoleItem) return;
+    const res = await deleteRole(deletingRoleItem.id);
+    if (!res.success) {
+      alert(res.message);
     }
+    setDeletingRoleItem(null);
   };
 
   const togglePermission = (key: PermissionKey) => {
@@ -737,12 +751,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
                         <td className="p-3 text-right font-sans">
                           {inv.status === 'Pending' && (
                             <button
-                              onClick={async () => {
-                                if (confirm(`Revoke invitation code ${inv.code}?`)) {
-                                  await AdminInvitationService.revokeInvitation(inv.id);
-                                  loadInvitations();
-                                }
-                              }}
+                              onClick={() => setRevokingInv(inv)}
                               className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 rounded-lg text-[10px] font-bold cursor-pointer"
                             >
                               Revoke
@@ -1210,6 +1219,103 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
               </form>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* DELETE USER CONFIRMATION MODAL */}
+      {deletingUser && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl text-center">
+            <div className="w-12 h-12 bg-rose-500/10 text-rose-400 rounded-2xl flex items-center justify-center mx-auto border border-rose-500/20">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Delete User Account</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Are you sure you want to permanently remove staff account <span className="text-white font-semibold">{deletingUser.name || deletingUser.email}</span>?
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setDeletingUser(null)}
+                className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteUser}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-lg shadow-rose-600/20"
+              >
+                Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE ROLE CONFIRMATION MODAL */}
+      {deletingRoleItem && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl text-center">
+            <div className="w-12 h-12 bg-rose-500/10 text-rose-400 rounded-2xl flex items-center justify-center mx-auto border border-rose-500/20">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Delete Custom Role</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Are you sure you want to delete custom role <span className="text-white font-semibold">"{deletingRoleItem.name}"</span>?
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setDeletingRoleItem(null)}
+                className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteRole}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-lg shadow-rose-600/20"
+              >
+                Delete Role
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REVOKE INVITATION CONFIRMATION MODAL */}
+      {revokingInv && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl text-center">
+            <div className="w-12 h-12 bg-rose-500/10 text-rose-400 rounded-2xl flex items-center justify-center mx-auto border border-rose-500/20">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Revoke Invitation Code</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Revoke invitation code <span className="text-white font-semibold">{revokingInv.code}</span> ({revokingInv.email})?
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setRevokingInv(null)}
+                className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  await AdminInvitationService.revokeInvitation(revokingInv.id);
+                  loadInvitations();
+                  setRevokingInv(null);
+                }}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-lg shadow-rose-600/20"
+              >
+                Revoke Code
+              </button>
+            </div>
           </div>
         </div>
       )}

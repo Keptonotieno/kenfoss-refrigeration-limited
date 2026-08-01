@@ -85,8 +85,7 @@ export const ContactInfoEditor: React.FC = () => {
   };
 
   const handleResetToDefault = async () => {
-    if (window.confirm("Reset contact information to default Kenfoss Kenya office details?")) {
-      const defaultInfo = {
+    const defaultInfo = {
         mainPhone: '+254 745 411 923',
         secondaryPhone: '+254 745 411 923',
         emergencyPhone: '+254 745 411 923',
@@ -111,7 +110,6 @@ export const ContactInfoEditor: React.FC = () => {
       } else {
         setErrorMsg(res.message);
       }
-    }
   };
 
   return (

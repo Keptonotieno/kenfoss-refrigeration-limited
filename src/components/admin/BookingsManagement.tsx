@@ -41,6 +41,7 @@ export const BookingsManagement: React.FC = () => {
   
   // Detail / Edit modal state
   const [selectedBooking, setSelectedBooking] = useState<BookingRecord | null>(null);
+  const [deletingBooking, setDeletingBooking] = useState<BookingRecord | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<BookingRecord>>({});
 
@@ -432,11 +433,7 @@ export const BookingsManagement: React.FC = () => {
                         <FileText className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => {
-                          if (confirm(`Are you sure you want to delete booking ${b.bookingRef}?`)) {
-                            deleteBooking(b.id);
-                          }
-                        }}
+                        onClick={() => setDeletingBooking(b)}
                         className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs cursor-pointer inline-flex items-center"
                         title="Delete Booking"
                       >
@@ -1055,6 +1052,40 @@ export const BookingsManagement: React.FC = () => {
               >
                 <Printer className="w-4 h-4" />
                 <span>Print Invoice</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deletingBooking && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl text-center">
+            <div className="w-12 h-12 bg-rose-500/10 text-rose-400 rounded-2xl flex items-center justify-center mx-auto border border-rose-500/20">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Delete Service Booking</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Are you sure you want to delete booking <span className="text-white font-semibold">{deletingBooking.bookingRef}</span> ({deletingBooking.fullName})?
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setDeletingBooking(null)}
+                className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteBooking(deletingBooking.id);
+                  setDeletingBooking(null);
+                }}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-lg shadow-rose-600/20"
+              >
+                Delete Booking
               </button>
             </div>
           </div>

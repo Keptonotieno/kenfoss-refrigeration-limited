@@ -117,6 +117,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
           }} 
           isOpenMobile={sidebarOpen}
           onCloseMobile={() => setSidebarOpen(false)}
+          onCloseAdmin={onCloseAdmin}
         />
 
         {/* Main Workspace Area */}

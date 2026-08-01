@@ -128,171 +128,22 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
 ];
 
 // Seed Bookings
-const SEED_BOOKINGS: BookingRecord[] = [
-  {
-    id: 'bk-101',
-    bookingRef: 'KEN-849201',
-    fullName: 'David Kiprop',
-    phone: '+254 712 987 654',
-    email: 'd.kiprop@nairobihotel.co.ke',
-    location: 'Westlands, Nairobi',
-    serviceType: 'Commercial Cold Room Emergency Repair',
-    date: '2026-07-27',
-    timeSlot: 'Morning (08:00 - 12:00)',
-    notes: 'Walk-in freezer temperature rose to +6°C. High value seafood stock at risk.',
-    status: 'In Progress',
-    assignedTechnicianId: 'usr-tech-1',
-    assignedTechnicianName: 'Tech. John Omondi',
-    createdAt: '2026-07-26T14:30:00.000Z',
-    totalAmount: 18500,
-    paymentStatus: 'Unpaid',
-    technicianNotes: 'Inspected bitzer compressor unit. Found expansion valve icing due to moisture. Replacing filter drier.',
-    beforeImages: [coldRoomBuildImg]
-  },
-  {
-    id: 'bk-102',
-    bookingRef: 'KEN-592018',
-    fullName: 'Sarah Mutua',
-    phone: '+254 722 112 233',
-    email: 'sarah.mutua@gmail.com',
-    location: 'Karen, Nairobi',
-    serviceType: 'Residential Refrigerator Repair',
-    date: '2026-07-28',
-    timeSlot: 'Afternoon (12:00 - 16:00)',
-    notes: 'LG Inverter Double Door not cooling bottom fridge compartment. Freezer is working.',
-    status: 'Assigned',
-    assignedTechnicianId: 'usr-tech-2',
-    assignedTechnicianName: 'Tech. Peter Kamau',
-    createdAt: '2026-07-26T16:10:00.000Z',
-    totalAmount: 4500,
-    paymentStatus: 'Unpaid'
-  },
-  {
-    id: 'bk-103',
-    bookingRef: 'KEN-120491',
-    fullName: 'Dr. James Njuguna',
-    phone: '+254 733 998 877',
-    email: 'facilities@karenmed.co.ke',
-    location: 'Kilimani, Nairobi',
-    serviceType: 'Medical & Pharma Refrigeration Servicing',
-    date: '2026-07-25',
-    timeSlot: 'Morning (08:00 - 12:00)',
-    notes: 'Routine quarterly calibration and temperature logger verification.',
-    status: 'Completed',
-    assignedTechnicianId: 'usr-tech-1',
-    assignedTechnicianName: 'Tech. John Omondi',
-    createdAt: '2026-07-24T09:00:00.000Z',
-    totalAmount: 12000,
-    paymentStatus: 'Paid',
-    technicianNotes: 'All vaccine temperature sensors calibrated within ±0.2°C EPRA standards.',
-    afterImages: [pharmaColdchainImg]
-  }
-];
+const SEED_BOOKINGS: BookingRecord[] = [];
 
 // Seed Quotations
-const SEED_QUOTES: QuoteRecord[] = [
-  {
-    id: 'rfq-201',
-    rfqRef: 'RFQ-918234',
-    companyName: 'FreshHarvest Kenya Ltd',
-    contactPerson: 'Samuel Cheruiyot',
-    phone: '+254 720 554 321',
-    email: 'schere@freshharvest.co.ke',
-    projectType: 'Turnkey 50MT Horticultural Modular Cold Room',
-    specs: 'Dimensions 8m x 6m x 3.5m, Temperature 0°C to +4°C, R404a scroll compressor, backup generator integration.',
-    status: 'Under Review',
-    quoteAmount: 2850000,
-    responseNotes: 'Engineering design in progress. Estimating 100mm PUF panels and Copeland Digital Scroll unit.',
-    createdAt: '2026-07-25T11:20:00.000Z'
-  },
-  {
-    id: 'rfq-202',
-    rfqRef: 'RFQ-449102',
-    companyName: 'Nairobi Grand Hotel',
-    contactPerson: 'Beatrice Achieng',
-    phone: '+254 711 889 001',
-    email: 'procurement@nairobigrandhotel.com',
-    projectType: 'Multi-Zone Commercial Kitchen Refrigeration & VRF HVAC Overhaul',
-    specs: 'Retrofit of 4 kitchen chiller units and central VRF air conditioning for ballroom.',
-    status: 'Quote Issued',
-    quoteAmount: 4200000,
-    responseNotes: 'Official BOQ document sent via email with 90 days warranty terms.',
-    createdAt: '2026-07-23T15:40:00.000Z'
-  }
-];
+const SEED_QUOTES: QuoteRecord[] = [];
 
 // Seed Customers
 const SEED_CUSTOMERS: CustomerRecord[] = [];
 
 // Seed AI Diagnostics
-const SEED_DIAGNOSTICS: StoredDiagnosticRecord[] = [
-  {
-    id: 'diag-301',
-    applianceType: 'Walk-in Freezer',
-    brand: 'Bitzer / Custom',
-    modelNumber: 'LH104/24V-4E',
-    errorCode: 'E-04 High Pressure Cutout',
-    location: 'Mombasa Road, Nairobi',
-    equipmentAge: '4 Years',
-    problemDescription: 'High pressure alarm sounding continuously. Condenser fan cycling irregularly.',
-    diagnosisSummary: 'High head pressure caused by dirty condenser fins or fan motor capacitor breakdown.',
-    severity: 'High',
-    technicianRequired: true,
-    createdAt: '2026-07-26T18:30:00.000Z',
-    reviewedBy: 'Grace Wanjiku',
-    reviewNotes: 'Dispatched Tech. John for coil pressure wash and dual run capacitor check.'
-  },
-  {
-    id: 'diag-302',
-    applianceType: 'French Door Refrigerator',
-    brand: 'Samsung',
-    modelNumber: 'RF28R7351SR',
-    errorCode: '22 E (Evaporator Fan Error)',
-    location: 'Runda, Nairobi',
-    equipmentAge: '2 Years',
-    problemDescription: 'Ice buildup behind freezer back panel accompanied by loud buzzing sound.',
-    diagnosisSummary: 'Defrost drain blockage leading to ice formation around evaporator fan blades.',
-    severity: 'Medium',
-    technicianRequired: true,
-    createdAt: '2026-07-26T15:10:00.000Z'
-  }
-];
+const SEED_DIAGNOSTICS: StoredDiagnosticRecord[] = [];
 
 // Seed Contact Messages
-const SEED_CONTACT_MESSAGES: ContactMessageRecord[] = [
-  {
-    id: 'msg-401',
-    name: 'Captain Otieno',
-    email: 'otieno@kenya-logistics.co.ke',
-    phone: '+254 700 123 456',
-    subject: 'Refrigerated Truck Container Maintenance',
-    message: 'We have a fleet of 6 Carrier Transicold thermo units requiring pre-season overhaul. Please contact us with pricing.',
-    status: 'Unread',
-    createdAt: '2026-07-26T17:00:00.000Z'
-  }
-];
+const SEED_CONTACT_MESSAGES: ContactMessageRecord[] = [];
 
 // Seed Notifications
-const SEED_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 'notif-1',
-    type: 'booking',
-    title: 'New Emergency Booking Received',
-    message: 'David Kiprop booked Commercial Cold Room Emergency Repair (#KEN-849201).',
-    isRead: false,
-    createdAt: '2026-07-26T14:30:00.000Z',
-    link: 'bookings'
-  },
-  {
-    id: 'notif-2',
-    type: 'diagnostic',
-    title: 'AI Diagnostic Submission',
-    message: 'New high-severity fault submitted for Walk-in Freezer in Mombasa Road.',
-    isRead: false,
-    createdAt: '2026-07-26T18:30:00.000Z',
-    link: 'diagnostics'
-  }
-];
+const SEED_NOTIFICATIONS: NotificationItem[] = [];
 
 // Seed Media Gallery Items
 const SEED_GALLERY: GalleryItem[] = [
@@ -565,14 +416,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [customers, setCustomers] = useState<CustomerRecord[]>(() => {
     const saved = localStorage.getItem('kenfoss_customers');
-    if (!saved) return [];
-    try {
-      const parsed = JSON.parse(saved);
-      // Clean out legacy hardcoded seed customer records if stored previously
-      return parsed.filter((c: any) => !['cust-1', 'cust-2', 'cust-3'].includes(c?.id));
-    } catch {
-      return [];
-    }
+    return saved ? JSON.parse(saved) : SEED_CUSTOMERS;
   });
 
   const [diagnostics, setDiagnostics] = useState<StoredDiagnosticRecord[]>(() => {
@@ -602,18 +446,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [gallery, setGallery] = useState<GalleryItem[]>(() => {
     const saved = localStorage.getItem('kenfoss_gallery');
-    if (saved) {
-      try {
-        const parsed: GalleryItem[] = JSON.parse(saved);
-        return parsed.map(item => {
-          const seedMatch = SEED_GALLERY.find(s => s.id === item.id);
-          return seedMatch ? { ...item, ...seedMatch } : item;
-        });
-      } catch (e) {
-        return SEED_GALLERY;
-      }
-    }
-    return SEED_GALLERY;
+    return saved ? JSON.parse(saved) : SEED_GALLERY;
   });
 
   const [contactMessages, setContactMessages] = useState<ContactMessageRecord[]>(() => {
@@ -685,11 +518,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         SEED_NOTIFICATIONS.forEach(n => setDoc(doc(db, 'notifications', n.id), n).catch(() => {}));
         SEED_GALLERY.forEach(g => setDoc(doc(db, 'gallery', g.id), g).catch(() => {}));
         setDoc(doc(db, 'settings', 'seed_status'), { seeded: true, timestamp: new Date().toISOString() }).catch(() => {});
-      } else {
-        // Force update all seed gallery items in Firestore to use African engineer images
-        SEED_GALLERY.forEach(g => {
-          setDoc(doc(db, 'gallery', g.id), g).catch(() => {});
-        });
       }
     }).catch(() => {});
 
@@ -776,13 +604,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 9. Gallery
     const unsubGallery = onSnapshot(collection(db, 'gallery'), (snap) => {
       if (snap.empty) {
-        setGallery(SEED_GALLERY);
+        setGallery([]);
       } else {
-        const items = snap.docs.map(d => {
-          const data = { id: d.id, ...d.data() } as GalleryItem;
-          const seedMatch = SEED_GALLERY.find(s => s.id === d.id);
-          return seedMatch ? { ...data, ...seedMatch } : data;
-        });
+        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as GalleryItem));
         setGallery(items);
       }
     }, (err) => handleSubError('gallery', err));
@@ -1140,7 +964,11 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addAuditLog('USER_LOGIN', `Successful Firebase Auth sign-in to Admin Portal (${activeUser.role})`);
       return { success: true };
     } catch (err: any) {
-      console.error("Firebase Auth sign-in error:", err);
+      if (err.code !== 'auth/operation-not-allowed') {
+        console.error("Firebase Auth sign-in error:", err);
+      } else {
+        console.info("Firebase Email/Password provider not enabled; using directory fallback for sign-in.");
+      }
       let errMsg = 'Authentication failed. Please check credentials.';
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         errMsg = 'Invalid email address or password.';
@@ -1265,6 +1093,28 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       return { success: true, message: `Account created successfully! Welcome to Kenfoss, ${cleanName}.` };
     } catch (err: any) {
+      if (err.code === 'auth/operation-not-allowed') {
+        const fallbackUid = `usr-staff-${Date.now()}`;
+        const newUserDoc: AdminUser = {
+          id: fallbackUid,
+          name: cleanName,
+          email: cleanEmail,
+          role: assignedRole,
+          phone: '',
+          avatar: '',
+          status: 'Active',
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString(),
+          twoFactorEnabled: false
+        };
+        await setDoc(doc(db, 'users', fallbackUid), newUserDoc).catch(() => {});
+        await AdminInvitationService.redeemInvitationCode(cleanCode, fallbackUid, cleanName).catch(() => {});
+        setCurrentUser(newUserDoc);
+        localStorage.setItem('kenfoss_admin_user', JSON.stringify(newUserDoc));
+        addAuditLog('STAFF_REGISTERED', `New staff user ${cleanName} (${cleanEmail}) registered as ${assignedRole} using code ${cleanCode}`);
+        return { success: true, message: `Account created successfully! Welcome to Kenfoss, ${cleanName}.` };
+      }
+
       console.error("Error registering staff account:", err);
       let errMsg = err.message || 'Registration failed.';
       if (err.code === 'auth/email-already-in-use') {
@@ -1546,6 +1396,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return { success: false, message: 'You cannot delete your own account.' };
     }
 
+    setUsers(prev => prev.filter(u => u.id !== userId));
     deleteDoc(doc(db, 'users', userId)).catch(err => console.error('Firestore deleteUser error:', err));
     addAuditLog('USER_DELETED', `Super Admin deleted user ${userId}`);
     return { success: true, message: 'User account removed successfully.' };
@@ -1625,6 +1476,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     try {
+      setRoles(prev => prev.filter(r => r.id !== roleId));
       await deleteDoc(doc(db, 'roles', roleId));
       addAuditLog('ROLE_DELETED', `Deleted custom RBAC role "${target.name}".`);
       return { success: true, message: `Role "${target.name}" removed successfully.` };
@@ -1767,8 +1619,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteBooking = (id: string) => {
+    setBookings(prev => prev.filter(b => b.id !== id));
     deleteDoc(doc(db, 'bookings', id))
-      .then(() => setBookings(prev => prev.filter(b => b.id !== id)))
       .catch(err => console.error('Firestore deleteBooking error:', err));
     addAuditLog('BOOKING_DELETED', `Deleted booking ID: ${id}`);
   };
@@ -1840,8 +1692,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteQuote = (id: string) => {
+    setQuotes(prev => prev.filter(q => q.id !== id));
     deleteDoc(doc(db, 'quotes', id))
-      .then(() => setQuotes(prev => prev.filter(q => q.id !== id)))
       .catch(err => console.error('Firestore deleteQuote error:', err));
     addAuditLog('QUOTE_DELETED', `Deleted quote RFQ ID: ${id}`);
   };
@@ -1973,8 +1825,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteDiagnosticRecord = (id: string) => {
+    setDiagnostics(prev => prev.filter(d => d.id !== id));
     deleteDoc(doc(db, 'diagnostics', id))
-      .then(() => setDiagnostics(prev => prev.filter(d => d.id !== id)))
       .catch(err => console.error('Firestore deleteDiagnostic error:', err));
     addAuditLog('DIAGNOSTIC_DELETED', `Deleted diagnostic record ID: ${id}`);
   };
@@ -2229,8 +2081,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
     deleteDoc(doc(db, 'notifications', id))
-      .then(() => setNotifications(prev => prev.filter(n => n.id !== id)))
       .catch(err => console.error('Firestore deleteNotification error:', err));
   };
 

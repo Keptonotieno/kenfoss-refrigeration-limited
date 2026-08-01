@@ -15,7 +15,8 @@ import {
   Menu,
   X,
   User as UserIcon,
-  Settings
+  Settings,
+  ExternalLink
 } from 'lucide-react';
 
 interface AdminHeaderProps {
@@ -24,7 +25,7 @@ interface AdminHeaderProps {
   onCloseAdmin?: () => void;
 }
 
-export const AdminHeader: React.FC<AdminHeaderProps> = ({ onToggleSidebar, isMobileSidebarOpen }) => {
+export const AdminHeader: React.FC<AdminHeaderProps> = ({ onToggleSidebar, isMobileSidebarOpen, onCloseAdmin }) => {
   const { currentUser, logout, notifications, markNotificationRead, clearAllNotifications, deleteNotification, toggleTwoFactor } = useAdmin();
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -103,6 +104,18 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onToggleSidebar, isMob
             <ShieldCheck className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{currentUser?.twoFactorEnabled ? '2FA Active' : '2FA Off'}</span>
           </button>
+
+          {/* Return to Live Site */}
+          {onCloseAdmin && (
+            <button
+              onClick={onCloseAdmin}
+              title="Return to Live Website"
+              className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-600 flex items-center space-x-1.5 transition-colors cursor-pointer"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
+              <span className="hidden md:inline">Live Site</span>
+            </button>
+          )}
 
           {/* Notifications Dropdown */}
           <div className="relative">

@@ -20,6 +20,7 @@ export const AiDiagnosticsManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [selectedDiag, setSelectedDiag] = useState<StoredDiagnosticRecord | null>(null);
+  const [deletingDiag, setDeletingDiag] = useState<StoredDiagnosticRecord | null>(null);
   const [managerNotes, setManagerNotes] = useState('');
 
   const filteredDiagnostics = diagnostics.filter(d => {
@@ -171,11 +172,7 @@ export const AiDiagnosticsManagement: React.FC = () => {
                   {d.reviewedBy ? 'Edit Review' : 'Add Manager Review'}
                 </button>
                 <button
-                  onClick={() => {
-                    if (confirm(`Are you sure you want to delete this diagnostic record (${d.brand} ${d.applianceType})?`)) {
-                      deleteDiagnosticRecord(d.id);
-                    }
-                  }}
+                  onClick={() => setDeletingDiag(d)}
                   className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs cursor-pointer inline-flex items-center"
                   title="Delete Diagnostic Record"
                 >
@@ -235,6 +232,40 @@ export const AiDiagnosticsManagement: React.FC = () => {
                 className="px-4 py-2 bg-[#0057B8] hover:bg-blue-600 text-white font-bold text-xs rounded-xl cursor-pointer"
               >
                 Save Review Notes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deletingDiag && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl text-center">
+            <div className="w-12 h-12 bg-rose-500/10 text-rose-400 rounded-2xl flex items-center justify-center mx-auto border border-rose-500/20">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Delete Diagnostic Record</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Are you sure you want to delete this diagnostic report for <span className="text-white font-semibold">{deletingDiag.brand} {deletingDiag.applianceType}</span>?
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setDeletingDiag(null)}
+                className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteDiagnosticRecord(deletingDiag.id);
+                  setDeletingDiag(null);
+                }}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-lg shadow-rose-600/20"
+              >
+                Delete Record
               </button>
             </div>
           </div>

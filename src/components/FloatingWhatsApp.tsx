@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Clock, Moon } from 'lucide-react';
+import { MessageSquare, X, Send, Clock, Moon, Smile } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 
 interface KenyaTimeInfo {
@@ -54,12 +54,35 @@ const getKenyaTimeInfo = (): KenyaTimeInfo => {
   };
 };
 
+const DRAFT_STORAGE_KEY = 'kenfoss_whatsapp_draft_msg';
+const MAX_MSG_LENGTH = 300;
+const COMMON_EMOJIS = ['👋', '❄️', '🔧', '⚡', '🧊', '🌡️', '🛠️', '🚚', '📍', '👍', '❓', '🙏', '😊', '🏢', '💬', '✨'];
+
 export const FloatingWhatsApp: React.FC = () => {
   const { contactInfo } = useAdmin();
   const [isOpen, setIsOpen] = useState(false);
-  const [msgText, setMsgText] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [msgText, setMsgText] = useState<string>(() => {
+    try {
+      return localStorage.getItem(DRAFT_STORAGE_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
   const [kenyaTime, setKenyaTime] = useState<KenyaTimeInfo>(getKenyaTimeInfo());
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      if (msgText.trim()) {
+        localStorage.setItem(DRAFT_STORAGE_KEY, msgText);
+      } else {
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [msgText]);
 
   useEffect(() => {
     // Update live clock every second
@@ -89,9 +112,22 @@ export const FloatingWhatsApp: React.FC = () => {
 
   const whatsappPhone = contactInfo?.whatsappNumber || '254745411923';
 
+  const handleInsertEmoji = (emoji: string) => {
+    if (msgText.length + emoji.length <= MAX_MSG_LENGTH) {
+      setMsgText((prev) => prev + emoji);
+    }
+  };
+
   const handleSend = () => {
     const text = msgText || 'Hello Kenfoss Refrigeration, I need urgent engineering service assistance.';
     window.open(`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(text)}`, '_blank');
+    setMsgText('');
+    setShowEmojiPicker(false);
+    try {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch {
+      // Ignore localStorage errors
+    }
     setIsOpen(false);
   };
 
@@ -207,15 +243,75 @@ export const FloatingWhatsApp: React.FC = () => {
             ))}
           </div>
 
-          <div className="space-y-2 pt-1">
-            <input
-              type="text"
-              placeholder="Type message (e.g. Cold room quote, Emergency repair)..."
-              value={msgText}
-              onChange={(e) => setMsgText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-[#0057B8]"
-            />
+          <div className="space-y-1.5 pt-1">
+            {/* Quick Emoji Picker Popover */}
+            {showEmojiPicker && (
+              <div className="bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl p-2 shadow-lg space-y-1.5 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between px-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                  <span className="flex items-center space-x-1">
+                    <Smile className="w-3 h-3 text-amber-500" />
+                    <span>Quick Emojis</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowEmojiPicker(false)}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-8 gap-1">
+                  {COMMON_EMOJIS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => handleInsertEmoji(emoji)}
+                      className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-sm transition-transform active:scale-90 cursor-pointer"
+                      title={`Add ${emoji}`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  placeholder="Type message (e.g. Cold room quote, Emergency repair)..."
+                  value={msgText}
+                  maxLength={MAX_MSG_LENGTH}
+                  onChange={(e) => setMsgText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-2.5 pr-9 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-[#0057B8]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker((prev) => !prev)}
+                  className={`absolute right-2 text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 p-1 rounded-full transition-colors cursor-pointer ${
+                    showEmojiPicker ? 'text-amber-500 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40' : ''
+                  }`}
+                  title="Insert Emoji"
+                  aria-label="Insert Emoji"
+                >
+                  <Smile className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="flex items-center justify-between px-1 text-[10px]">
+                <span className="text-slate-400">Keep message clear & concise</span>
+                <span className={`font-mono font-medium ${
+                  msgText.length >= MAX_MSG_LENGTH
+                    ? 'text-red-500 font-bold'
+                    : msgText.length >= MAX_MSG_LENGTH * 0.85
+                    ? 'text-amber-500 font-semibold'
+                    : 'text-slate-400'
+                }`}>
+                  {msgText.length} / {MAX_MSG_LENGTH}
+                </span>
+              </div>
+            </div>
 
             <button
               type="button"

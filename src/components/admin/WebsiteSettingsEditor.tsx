@@ -79,8 +79,7 @@ export const WebsiteSettingsEditor: React.FC = () => {
   };
 
   const handleResetToDefault = () => {
-    if (confirm("Reset website, SEO & branding settings to system default values?")) {
-      const defaults: WebsiteSettings = {
+    const defaults: WebsiteSettings = {
         companyName: 'Kenfoss Refrigeration Limited',
         siteTitle: 'Kenfoss Refrigeration Limited | EPRA Certified Engineers',
         tagline: 'Precision Refrigeration & HVAC Engineering Solutions Across Kenya',
@@ -108,7 +107,6 @@ export const WebsiteSettingsEditor: React.FC = () => {
       updateWebsiteSettings(defaults);
       setSuccessMsg(true);
       setTimeout(() => setSuccessMsg(false), 3000);
-    }
   };
 
   return (

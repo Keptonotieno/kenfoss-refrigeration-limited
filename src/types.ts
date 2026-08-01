@@ -17,6 +17,7 @@ export interface ServiceItem {
   commonIssues?: string[];
   benefits?: string[];
   industriesServed?: string[];
+  realWorldApplications?: { title: string; scenario: string }[];
   enabled?: boolean;
 }
 

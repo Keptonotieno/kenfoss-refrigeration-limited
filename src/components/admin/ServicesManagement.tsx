@@ -9,6 +9,7 @@ export const ServicesManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<ServiceItem | null>(null);
+  const [deletingService, setDeletingService] = useState<ServiceItem | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<Omit<ServiceItem, 'id'>>({
@@ -34,11 +35,40 @@ export const ServicesManagement: React.FC = () => {
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, image: reader.result as string }));
+      reader.onload = (evt) => {
+        const img = new window.Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1200;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            setFormData(prev => ({ ...prev, image: canvas.toDataURL('image/jpeg', 0.85) }));
+          } else {
+            setFormData(prev => ({ ...prev, image: evt.target?.result as string }));
+          }
+        };
+        img.onerror = () => {
+          setFormData(prev => ({ ...prev, image: evt.target?.result as string }));
+        };
+        img.src = evt.target?.result as string;
       };
       reader.readAsDataURL(file);
     }
+    e.target.value = '';
   };
 
   const filteredServices = services.filter(s => {
@@ -95,9 +125,10 @@ export const ServicesManagement: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  const handleDelete = (id: string, title: string) => {
-    if (confirm(`Are you sure you want to delete the service "${title}"?`)) {
-      deleteService(id);
+  const handleDeleteConfirm = () => {
+    if (deletingService) {
+      deleteService(deletingService.id);
+      setDeletingService(null);
     }
   };
 
@@ -174,7 +205,7 @@ export const ServicesManagement: React.FC = () => {
                     <Edit className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(s.id, s.title)}
+                    onClick={() => setDeletingService(s)}
                     className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl transition-colors cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -330,6 +361,37 @@ export const ServicesManagement: React.FC = () => {
             </div>
 
           </form>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deletingService && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl text-center">
+            <div className="w-12 h-12 bg-rose-500/10 text-rose-400 rounded-2xl flex items-center justify-center mx-auto border border-rose-500/20">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Delete Service Offering</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Are you sure you want to delete <span className="text-white font-semibold">"{deletingService.title}"</span>? This will remove it from the website services section.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setDeletingService(null)}
+                className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-lg shadow-rose-600/20"
+              >
+                Delete Service
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

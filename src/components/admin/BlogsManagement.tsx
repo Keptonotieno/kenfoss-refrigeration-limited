@@ -279,16 +279,45 @@ export const BlogsManagement: React.FC = () => {
   const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 3 * 1024 * 1024) {
-        alert('File size exceeds 3MB. Please choose a smaller image.');
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file.');
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, image: reader.result as string }));
+      reader.onload = (evt) => {
+        const img = new window.Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1200;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            setFormData(prev => ({ ...prev, image: canvas.toDataURL('image/jpeg', 0.85) }));
+          } else {
+            setFormData(prev => ({ ...prev, image: evt.target?.result as string }));
+          }
+        };
+        img.onerror = () => {
+          setFormData(prev => ({ ...prev, image: evt.target?.result as string }));
+        };
+        img.src = evt.target?.result as string;
       };
       reader.readAsDataURL(file);
     }
+    e.target.value = '';
   };
 
   return (

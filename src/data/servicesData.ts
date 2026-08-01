@@ -1,17 +1,17 @@
 import { ServiceItem } from '../types';
 import freezerRepairImg from '../assets/images/kenya_freezer_repair_1785251736978.jpg';
-import fridgeRepairNewImg from '../assets/images/kenya_fridge_repair_1785251752515.jpg';
-import coldRoomNewImg from '../assets/images/kenya_cold_room_1785251769488.jpg';
+import fridgeRepairNewImg from '../assets/images/refrigerator_freezer_repair_machine_1785588202357.jpg';
+import coldRoomNewImg from '../assets/images/walk_in_cooler_repair_machine_1785588170230.jpg';
 import microwaveImg from '../assets/images/kenya_microwave_repair_1785251865437.jpg';
-import ovenImg from '../assets/images/kenya_oven_repair_1785251880547.jpg';
+import ovenImg from '../assets/images/oven_repair_machine_1785588235419.jpg';
 import dishwasherImg from '../assets/images/kenya_dishwasher_repair_1785251896358.jpg';
-import dryerImg from '../assets/images/kenya_dryer_repair_1785251910813.jpg';
+import dryerImg from '../assets/images/dryer_repair_machine_1785588250457.jpg';
 import singleDoorFridgeImg from '../assets/images/kenya_single_door_fridge_1785252155392.jpg';
-import miniFridgeImg from '../assets/images/kenya_mini_fridge_repair_1785252169253.jpg';
-import fridgeInstallImg from '../assets/images/kenya_fridge_install_1785252502002.jpg';
+import miniFridgeImg from '../assets/images/mini_refrigerator_repair_machine_1785588217383.jpg';
+import fridgeInstallImg from '../assets/images/refrigerator_installation_machine_1785588185345.jpg';
 import coldRoomBuildImg from '../assets/images/kenya_coldroom_build_1785252517070.jpg';
 import hvacAcImg from '../assets/images/kenya_hvac_ac_1785253019004.jpg';
-import preventiveMaintImg from '../assets/images/kenya_preventive_maint_1785253033702.jpg';
+import preventiveMaintImg from '../assets/images/preventive_maintenance_contract_1785588266062.jpg';
 import emergencyRepairImg from '../assets/images/kenya_emergency_repair_1785253048831.jpg';
 import waterIceServicingImg from '../assets/images/kenya_water_ice_servicing_1785253063233.jpg';
 import washerRepairImg from '../assets/images/kenya_washer_repair_1785253077335.jpg';
@@ -199,6 +199,20 @@ export const SERVICES_DATA: ServiceItem[] = [
       'Executive Offices & Boardrooms',
       'Hospital Patient Rooms',
       'Student Hostels & Apartments'
+    ],
+    realWorldApplications: [
+      {
+        title: 'Hotel Minibar Fleet Servicing',
+        scenario: 'On-site silent absorption cooling repairs and door gasket replacements across 45+ guest rooms for luxury hotels in Westlands & Coast resorts without disturbing guests.'
+      },
+      {
+        title: 'Executive Boardroom & Wine Storage',
+        scenario: 'Precision thermal sensor & humidity calibration for undercounter wine chillers holding premium vintages at strict 12°C–14°C in corporate office suites.'
+      },
+      {
+        title: 'Medical & University Lab Specimen Coolers',
+        scenario: 'Compact thermoelectric relay and power module repairs ensuring zero temperature variance for clinical reagents and biological samples in hospital labs.'
+      }
     ]
   },
   {
@@ -475,6 +489,20 @@ export const SERVICES_DATA: ServiceItem[] = [
       'Spas, Salons & Gyms',
       'Commercial Laundromats',
       'Hotels, Lodges & Airbnb Properties'
+    ],
+    realWorldApplications: [
+      {
+        title: 'Commercial Laundromat Tumble Dryers',
+        scenario: 'Emergency heavy-duty drum drive belt and gas ignition coil replacements for 20kg commercial laundromat dryers operating 14 hours daily.'
+      },
+      {
+        title: 'Hotel Spa & Gym Towel Sanitization',
+        scenario: 'Heat-pump compressor gas recharge and exhaust lint duct cleanouts for luxury hotel spas requiring rapid turnaround of thick cotton towels.'
+      },
+      {
+        title: 'Residential Eco Heat-Pump Dryers',
+        scenario: 'Digital moisture sensor and thermal fuse overhaul for energy-efficient Bosch & Samsung condenser dryers in residential apartments.'
+      }
     ]
   },
   {
@@ -565,6 +593,20 @@ export const SERVICES_DATA: ServiceItem[] = [
       'Bakeries & Pastry Shops',
       'Hotels, Restaurants & Pizzerias',
       'Institutional Catering Kitchens'
+    ],
+    realWorldApplications: [
+      {
+        title: 'Commercial Bakery Deck Ovens',
+        scenario: 'High-wattage heating element replacement and PID digital thermostat calibration for commercial deck ovens producing 500+ loaves daily.'
+      },
+      {
+        title: 'Restaurant & Hotel Gas Cooking Ranges',
+        scenario: 'Gas line pressure testing, burner igniter rebuilding, and safety shutoff valve installations for heavy-duty commercial restaurant kitchens.'
+      },
+      {
+        title: 'Residential Built-in Wall Ovens',
+        scenario: 'Convection fan motor swap and high-temperature triple-pane glass door seal fitting to eliminate hot spots for home bakers.'
+      }
     ]
   },
   {
