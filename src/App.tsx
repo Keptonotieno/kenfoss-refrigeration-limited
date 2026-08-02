@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { AdminProvider } from './context/AdminContext';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
@@ -12,6 +13,7 @@ import { ServicesSection } from './components/ServicesSection';
 import { ColdRoomCalculator } from './components/ColdRoomCalculator';
 import { WhyChooseUs } from './components/WhyChooseUs';
 import { IndustriesSection } from './components/IndustriesSection';
+import { ServiceAreas } from './components/ServiceAreas';
 import { ProjectsGallery } from './components/ProjectsGallery';
 import { BrandsSection } from './components/BrandsSection';
 import { TestimonialsSection } from './components/TestimonialsSection';
@@ -21,6 +23,8 @@ import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
 import { BookingModal } from './components/BookingModal';
 import { AiDiagnosticModal } from './components/AiDiagnosticModal';
+import { GeminiChatbotModal } from './components/GeminiChatbotModal';
+import { GeminiImageStudioModal } from './components/GeminiImageStudioModal';
 import { AuthModal } from './components/AuthModal';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -36,6 +40,12 @@ export default function App() {
 
   // AI Diagnostic Modal State
   const [aiModalOpen, setAiModalOpen] = useState(false);
+
+  // Gemini Chatbot Modal State
+  const [geminiChatbotOpen, setGeminiChatbotOpen] = useState(false);
+
+  // Gemini Image Studio Modal State
+  const [geminiImageStudioOpen, setGeminiImageStudioOpen] = useState(false);
 
   // Admin Portal State
   const [isAdminPortalOpen, setIsAdminPortalOpen] = useState(false);
@@ -56,9 +66,10 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <AdminProvider>
-          <ToastProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <AdminProvider>
+            <ToastProvider>
             {/* Dynamic SEO Meta Tag Injector */}
             <SEO pageKey={isAdminPortalOpen ? 'admin' : activeTab} />
 
@@ -72,7 +83,8 @@ export default function App() {
                   activeTab={activeTab}
                   setActiveTab={setActiveTab}
                   onOpenBooking={handleOpenBooking}
-                  onOpenAiDiagnostic={() => setAiModalOpen(true)}
+                  onOpenAiDiagnostic={() => setGeminiChatbotOpen(true)}
+                  onOpenImageStudio={() => setGeminiImageStudioOpen(true)}
                   onOpenCalculator={handleOpenCalculator}
                   onOpenAdmin={() => setIsAdminPortalOpen(true)}
                 />
@@ -84,7 +96,7 @@ export default function App() {
                   <Hero
                     onOpenBooking={handleOpenBooking}
                     onOpenCalculator={handleOpenCalculator}
-                    onOpenAiDiagnostic={() => setAiModalOpen(true)}
+                    onOpenAiDiagnostic={() => setGeminiChatbotOpen(true)}
                   />
 
                   {/* Trust Statistics Bar */}
@@ -101,6 +113,9 @@ export default function App() {
 
                   {/* Industries Served */}
                   <IndustriesSection onOpenBooking={handleOpenBooking} />
+
+                  {/* Coverage Area & Dispatch Network */}
+                  <ServiceAreas onOpenBooking={handleOpenBooking} />
 
                   {/* Featured Projects & Before/After Comparison */}
                   <ProjectsGallery onOpenBooking={handleOpenBooking} />
@@ -137,11 +152,27 @@ export default function App() {
                   isOpen={aiModalOpen}
                   onClose={() => setAiModalOpen(false)}
                   onBookService={(prefill) => handleOpenBooking('service', prefill)}
+                  onOpenChatbot={() => {
+                    setAiModalOpen(false);
+                    setGeminiChatbotOpen(true);
+                  }}
+                />
+
+                <GeminiChatbotModal
+                  isOpen={geminiChatbotOpen}
+                  onClose={() => setGeminiChatbotOpen(false)}
+                  onBookService={(prefill) => handleOpenBooking('service', prefill)}
+                />
+
+                <GeminiImageStudioModal
+                  isOpen={geminiImageStudioOpen}
+                  onClose={() => setGeminiImageStudioOpen(false)}
+                  onBookService={(prefill) => handleOpenBooking('service', prefill)}
                 />
 
                 <AuthModal />
 
-                <FloatingWhatsApp />
+                <FloatingWhatsApp onOpenChatbot={() => setGeminiChatbotOpen(true)} />
 
                 <MobileBottomNav onOpenBooking={handleOpenBooking} />
 
@@ -153,6 +184,7 @@ export default function App() {
           </ToastProvider>
         </AdminProvider>
       </AuthProvider>
-    </ThemeProvider>
-  );
+    </LanguageProvider>
+  </ThemeProvider>
+);
 }

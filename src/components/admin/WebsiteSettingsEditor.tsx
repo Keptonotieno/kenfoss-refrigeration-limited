@@ -367,14 +367,36 @@ export const WebsiteSettingsEditor: React.FC = () => {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-300">OpenGraph Social Share Card Image URL (Facebook/LinkedIn/Twitter)</label>
-              <input
-                type="url"
-                value={formData.ogImageUrl || ''}
-                onChange={(e) => setFormData({ ...formData, ogImageUrl: e.target.value })}
-                placeholder="https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=1200"
-                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
-              />
+              <label className="text-xs font-bold text-slate-300">OpenGraph Social Share Card Image (URL or Local File)</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={formData.ogImageUrl || ''}
+                  onChange={(e) => setFormData({ ...formData, ogImageUrl: e.target.value })}
+                  placeholder="https://... or upload image file"
+                  className="flex-1 px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => ogFileInputRef.current?.click()}
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-700 shrink-0 cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Browse...</span>
+                </button>
+                <input
+                  type="file"
+                  ref={ogFileInputRef}
+                  onChange={handleOgUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
+              </div>
+              {formData.ogImageUrl && (
+                <div className="mt-2 h-24 w-44 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 relative">
+                  <img src={formData.ogImageUrl} alt="OG Card Preview" className="w-full h-full object-cover" />
+                </div>
+              )}
             </div>
 
             {/* LIVE GOOGLE SEARCH SNIPPET PREVIEW */}

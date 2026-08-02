@@ -105,6 +105,9 @@ export interface DiagnosticResult {
   canSelfFix: boolean;
   suggestedParts?: string[];
   closingStatement: string;
+  searchGrounded?: boolean;
+  sources?: { title: string; uri: string }[];
+  searchQueries?: string[];
 }
 
 export interface ColdRoomEstimate {

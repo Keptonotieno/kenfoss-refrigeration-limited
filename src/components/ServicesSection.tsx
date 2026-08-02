@@ -28,18 +28,18 @@ import {
 } from 'lucide-react';
 
 import freezerRepairImg from '../assets/images/kenya_freezer_repair_1785251736978.jpg';
-import fridgeRepairNewImg from '../assets/images/refrigerator_freezer_repair_machine_1785588202357.jpg';
-import coldRoomNewImg from '../assets/images/walk_in_cooler_repair_machine_1785588170230.jpg';
+import fridgeRepairNewImg from '../assets/images/kenya_fridge_repair_af_1785656923848.jpg';
+import coldRoomNewImg from '../assets/images/kenya_walkin_cooler_1785656893057.jpg';
 import microwaveImg from '../assets/images/kenya_microwave_repair_1785251865437.jpg';
-import ovenImg from '../assets/images/oven_repair_machine_1785588235419.jpg';
+import ovenImg from '../assets/images/kenya_oven_repair_af_1785656952345.jpg';
 import dishwasherImg from '../assets/images/kenya_dishwasher_repair_1785251896358.jpg';
-import dryerImg from '../assets/images/dryer_repair_machine_1785588250457.jpg';
+import dryerImg from '../assets/images/kenya_dryer_repair_af_1785656965525.jpg';
 import singleDoorFridgeImg from '../assets/images/kenya_single_door_fridge_1785252155392.jpg';
-import miniFridgeImg from '../assets/images/mini_refrigerator_repair_machine_1785588217383.jpg';
-import fridgeInstallImg from '../assets/images/refrigerator_installation_machine_1785588185345.jpg';
+import miniFridgeImg from '../assets/images/kenya_minifridge_af_1785656937308.jpg';
+import fridgeInstallImg from '../assets/images/kenya_fridge_install_af_1785656908678.jpg';
 import coldRoomBuildImg from '../assets/images/kenya_coldroom_build_1785252517070.jpg';
 import hvacAcImg from '../assets/images/kenya_hvac_ac_1785253019004.jpg';
-import preventiveMaintImg from '../assets/images/preventive_maintenance_contract_1785588266062.jpg';
+import preventiveMaintImg from '../assets/images/kenya_amc_maint_af_1785656981168.jpg';
 import emergencyRepairImg from '../assets/images/kenya_emergency_repair_1785253048831.jpg';
 import waterIceServicingImg from '../assets/images/kenya_water_ice_servicing_1785253063233.jpg';
 import washerRepairImg from '../assets/images/kenya_washer_repair_1785253077335.jpg';

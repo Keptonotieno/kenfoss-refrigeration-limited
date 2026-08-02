@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Clock, Moon, Smile } from 'lucide-react';
+import { MessageSquare, X, Send, Clock, Moon, Smile, Globe, MapPin, ExternalLink, Navigation, Car, Copy, Check, Phone, Smartphone, Bot, Sparkles } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
+
+interface FloatingWhatsAppProps {
+  onOpenChatbot?: () => void;
+}
 
 interface KenyaTimeInfo {
   timeString: string;
   dayName: string;
   isBusinessHours: boolean;
+  userTimeString?: string;
+  userTimeZoneName?: string;
+  isOutsideKenya: boolean;
 }
 
 const getKenyaTimeInfo = (): KenyaTimeInfo => {
@@ -47,10 +54,53 @@ const getKenyaTimeInfo = (): KenyaTimeInfo => {
   const isSunday = dayName === 'Sun';
   const isBusinessHours = !isSunday && totalMinutes >= 450 && totalMinutes < 1080;
 
+  // Detect visitor local timezone
+  let userTimeZone = '';
+  try {
+    userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch {
+    userTimeZone = '';
+  }
+
+  const isOutsideKenya = !!userTimeZone && userTimeZone !== 'Africa/Nairobi';
+
+  let userTimeString = '';
+  let userTimeZoneName = '';
+
+  if (isOutsideKenya) {
+    try {
+      const userTimeFormatter = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+      });
+      userTimeString = userTimeFormatter.format(now);
+
+      const tzParts = userTimeZone.split('/');
+      const city = tzParts.length > 1 ? tzParts[tzParts.length - 1].replace(/_/g, ' ') : userTimeZone;
+
+      const offsetFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZoneName: 'short',
+      });
+      const formattedParts = offsetFormatter.formatToParts(now);
+      const tzPart = formattedParts.find((p) => p.type === 'timeZoneName');
+      const tzCode = tzPart ? tzPart.value : '';
+
+      userTimeZoneName = tzCode ? `${city} (${tzCode})` : city;
+    } catch {
+      userTimeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      userTimeZoneName = 'Your Local Time';
+    }
+  }
+
   return {
     timeString,
     dayName,
     isBusinessHours,
+    userTimeString,
+    userTimeZoneName,
+    isOutsideKenya,
   };
 };
 
@@ -58,10 +108,40 @@ const DRAFT_STORAGE_KEY = 'kenfoss_whatsapp_draft_msg';
 const MAX_MSG_LENGTH = 300;
 const COMMON_EMOJIS = ['👋', '❄️', '🔧', '⚡', '🧊', '🌡️', '🛠️', '🚚', '📍', '👍', '❓', '🙏', '😊', '🏢', '💬', '✨'];
 
-export const FloatingWhatsApp: React.FC = () => {
+export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbot }) => {
   const { contactInfo } = useAdmin();
   const [isOpen, setIsOpen] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [addressCopied, setAddressCopied] = useState(false);
+
+  const fullRuiruAddress = contactInfo
+    ? `${contactInfo.address}, ${contactInfo.city}`
+    : "Ivy's Park Business Park, Next to Mark Hotel, Thika Superhighway Service Lane, Ruiru, Kiambu County, Kenya";
+
+  const displayPhone = contactInfo?.mainPhone || contactInfo?.emergencyPhone || '+254 745 411 923';
+  const telNumber = `tel:${displayPhone.replace(/[^0-9+]/g, '')}`;
+  const smsMessage = `Kenfoss Refrigeration Ruiru Office: ${fullRuiruAddress} | Directions: https://maps.google.com/?q=Kenfoss+Refrigeration+limited+Ruiru`;
+  const smsUrl = `sms:?body=${encodeURIComponent(smsMessage)}`;
+
+  const handleCopyAddress = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(fullRuiruAddress);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = fullRuiruAddress;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setAddressCopied(true);
+      setTimeout(() => setAddressCopied(false), 2500);
+    } catch (err) {
+      console.error('Failed to copy address:', err);
+    }
+  };
   const [msgText, setMsgText] = useState<string>(() => {
     try {
       return localStorage.getItem(DRAFT_STORAGE_KEY) || '';
@@ -156,9 +236,18 @@ export const FloatingWhatsApp: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs font-bold text-slate-900 dark:text-white">Kenfoss Support Team</p>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-[#0057B8] dark:text-blue-300">
-                      Ruiru, KE
-                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowLocationModal(true);
+                      }}
+                      title="Click to view office location map preview"
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/60 dark:hover:bg-blue-800 text-[#0057B8] dark:text-blue-300 transition-all cursor-pointer flex items-center gap-0.5 shadow-2xs hover:scale-105 active:scale-95"
+                    >
+                      <MapPin className="w-2.5 h-2.5 text-[#0057B8] dark:text-blue-300 shrink-0" />
+                      <span>Ruiru, KE</span>
+                    </button>
                   </div>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                     {kenyaTime.isBusinessHours 
@@ -208,6 +297,17 @@ export const FloatingWhatsApp: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Visitor Local Time Badge (shown if outside Kenya) */}
+              {kenyaTime.isOutsideKenya && kenyaTime.userTimeString && (
+                <div className="pt-1.5 mt-0.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[10px] bg-blue-50/80 dark:bg-blue-950/40 px-2 py-1 rounded-md border border-blue-100 dark:border-blue-900/50">
+                  <div className="flex items-center space-x-1 min-w-0 pr-1">
+                    <Globe className="w-3 h-3 text-blue-500 shrink-0" />
+                    <span className="font-medium text-slate-700 dark:text-slate-300 truncate">Your Time ({kenyaTime.userTimeZoneName}):</span>
+                  </div>
+                  <span className="font-mono font-bold text-blue-700 dark:text-blue-300 shrink-0">{kenyaTime.userTimeString}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -223,6 +323,33 @@ export const FloatingWhatsApp: React.FC = () => {
               <p>🌙 <strong>Jambo!</strong> Standard office hours are closed (Mon-Sat 7:30 AM–6:00 PM EAT), but our <strong>24/7 Emergency Technicians</strong> are on call for urgent cold room & HVAC repairs.</p>
             )}
           </div>
+
+          {/* Ask Gemini AI Assistant Direct Trigger */}
+          {onOpenChatbot && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                onOpenChatbot();
+              }}
+              className="w-full flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-blue-900/90 to-blue-800 hover:from-blue-800 hover:to-blue-700 text-white text-xs font-medium shadow-sm transition-all cursor-pointer group"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                  <Bot className="w-4 h-4 text-sky-300" />
+                </div>
+                <div className="text-left">
+                  <span className="font-bold block text-white text-[11px] flex items-center gap-1">
+                    Ask Gemini AI Assistant <Sparkles className="w-3 h-3 text-amber-300 fill-amber-300" />
+                  </span>
+                  <span className="text-[10px] text-blue-200">Instant multi-turn fault diagnostic & thermodynamics</span>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold bg-white/20 px-2 py-1 rounded text-white group-hover:bg-white/30 transition-colors">
+                Chat AI
+              </span>
+            </button>
+          )}
 
           {/* Quick Reply Chips */}
           <div className="flex flex-wrap gap-1.5 pt-1">
@@ -339,6 +466,166 @@ export const FloatingWhatsApp: React.FC = () => {
           <MessageSquare className="w-6 h-6 relative z-10" />
         )}
       </button>
+
+      {/* Location Map Preview Popup Modal */}
+      {showLocationModal && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-900/65 backdrop-blur-xs animate-in fade-in duration-200 pointer-events-auto overflow-y-auto"
+          onClick={() => setShowLocationModal(false)}
+        >
+          <div 
+            className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm max-h-[90vh] overflow-y-auto my-auto animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-slate-900 text-white p-3.5 flex items-start justify-between">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#00AEEF]/20 border border-[#00AEEF]/40 flex items-center justify-center text-[#00AEEF] shrink-0">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                    Kenfoss Office Location
+                    <span className="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-semibold">HQ</span>
+                  </h4>
+                  <p className="text-[10px] text-slate-300">
+                    Ivy's Park Business Park, Ruiru, Kiambu
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLocationModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Close location map"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Embedded Map iframe */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-950">
+              <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner bg-slate-200 dark:bg-slate-800 aspect-video">
+                <iframe
+                  title="Kenfoss Ruiru Office Location"
+                  src={contactInfo?.googleMapsEmbedUrl || "https://maps.google.com/maps?q=Kenfoss+Refrigeration+limited,+Ivy%E2%80%99s+Park+Business+Park,+Next+to+Mark+Hotel,+Thika+Superhighway+Service+Lane,+Ruiru,+Kiambu+County&t=&z=16&ie=UTF8&iwloc=B&output=embed"}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen={false}
+                  loading="lazy"
+                  className="w-full h-full"
+                />
+              </div>
+
+              {/* Address Details & Actions */}
+              <div className="mt-3 space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
+                <div className="flex items-start gap-2 bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800 text-[11px]">
+                  <Navigation className="w-3.5 h-3.5 text-[#00AEEF] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-slate-900 dark:text-white">Thika Superhighway Service Lane</p>
+                    <p className="text-slate-500 dark:text-slate-400">Next to Mark Hotel, Ruiru • Open 24/7 for Emergency Services</p>
+                  </div>
+                </div>
+
+                {/* Thika Superhighway Real-Time Traffic Link */}
+                <a
+                  href="https://www.google.com/maps/@-1.1620371,36.9586472,13z/data=!5m1!1e1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-500/15 dark:hover:bg-amber-500/25 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-[11px] transition-all group cursor-pointer"
+                  title="Check live congestion and traffic updates on Thika Superhighway before visiting Ruiru office"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
+                      <Car className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <span className="font-bold block text-slate-900 dark:text-amber-100 text-[11px]">Thika Superhighway Live Traffic</span>
+                      <span className="text-[10px] text-amber-700 dark:text-amber-300 font-medium">View real-time traffic updates & route delays</span>
+                    </div>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                </a>
+
+                {/* Click to Call Ruiru Office Direct Link */}
+                <a
+                  href={telNumber}
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 dark:bg-emerald-500/15 dark:hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-900 dark:text-emerald-200 text-[11px] transition-all group cursor-pointer"
+                  title={`Click to call Kenfoss Ruiru Office directly at ${displayPhone}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0">
+                      <Phone className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <span className="font-bold block text-slate-900 dark:text-emerald-100 text-[11px]">Click to Call Ruiru Office</span>
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-medium">{displayPhone} • Direct Phone Line</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold bg-emerald-600 text-white px-2.5 py-1 rounded-lg shadow-xs group-hover:bg-emerald-500 transition-colors shrink-0 flex items-center gap-1">
+                    <Phone className="w-3 h-3 fill-current" />
+                    Call
+                  </span>
+                </a>
+
+                <div className="grid grid-cols-2 gap-1.5 sm:flex sm:items-center">
+                  <a
+                    href="https://www.google.com/maps/dir//Kenfoss+Refrigeration+limited,+Ivy%E2%80%99s+Park+Business+Park,+Next+to+Mark+Hotel,+Thika+Superhighway+Service+Lane,+Ruiru,+Kiambu+County/@-1.1620371,36.9537816,17z/data=!4m16!1m7!3m6!1s0x182f1510aee81ec1:0xc2b97e14e1f71921!2sKenfoss+Refrigeration+limited!8m2!3d-1.1620371!4d36.9586472!16s%2Fg%2F11xp9xzg41!4m7!1m0!1m5!1m1!1s0x182f1510aee81ec1:0xc2b97e14e1f71921!2m2!1d36.9586472!2d-1.1620371?entry=ttu"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-1 bg-[#00AEEF] hover:bg-blue-600 text-white font-bold py-2 px-2 rounded-lg text-xs transition-colors shadow-xs"
+                    title="Open Google Maps driving directions"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                    <span>Directions</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={handleCopyAddress}
+                    className={`flex-1 flex items-center justify-center gap-1 font-bold py-2 px-2 rounded-lg text-xs transition-all cursor-pointer border ${
+                      addressCopied
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border-slate-300 dark:border-slate-700'
+                    }`}
+                    title="Copy exact Ruiru office address for Uber, Bolt, or courier services"
+                  >
+                    {addressCopied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-white shrink-0" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-[#00AEEF] dark:text-blue-400 shrink-0" />
+                        <span>Copy Address</span>
+                      </>
+                    )}
+                  </button>
+
+                  <a
+                    href={smsUrl}
+                    className="flex-1 flex items-center justify-center gap-1 bg-violet-600 hover:bg-violet-700 text-white font-bold py-2 px-2 rounded-lg text-xs transition-colors shadow-xs"
+                    title="Send office location & directions pre-filled via SMS"
+                  >
+                    <Smartphone className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Share SMS</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowLocationModal(false)}
+                    className="px-2.5 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-lg text-xs transition-colors cursor-pointer text-center"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

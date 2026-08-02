@@ -14,17 +14,23 @@ import {
   Sun,
   Moon,
   User as UserIcon,
-  LogIn
+  LogIn,
+  Sparkles,
+  Image as ImageIcon,
+  Globe,
+  Truck
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
+import { useLanguage } from '../context/LanguageContext';
 
 interface NavbarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onOpenBooking: (type?: string) => void;
   onOpenAiDiagnostic: () => void;
+  onOpenImageStudio?: () => void;
   onOpenCalculator: () => void;
   onOpenAdmin?: () => void;
 }
@@ -34,10 +40,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   onOpenBooking,
   onOpenAiDiagnostic,
+  onOpenImageStudio,
   onOpenCalculator,
   onOpenAdmin
 }) => {
   const { theme, toggleTheme } = useTheme();
+  const { language, setLanguage, toggleLanguage, t } = useLanguage();
   const { user, openAuthModal } = useAuth();
   const { contactInfo, websiteSettings } = useAdmin();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -55,15 +63,19 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navLinks = [
-    { id: 'home', label: 'Home' },
-    { id: 'services', label: 'Services' },
-    { id: 'industries', label: 'Industries' },
-    { id: 'projects', label: 'Projects' },
-    { id: 'about', label: 'About Us' },
-    { id: 'calculator', label: 'Cold Room Sizing' },
-    { id: 'blog', label: 'Engineering Hub' },
-    { id: 'contact', label: 'Contact' },
+  const mainNavLinks = [
+    { id: 'home', label: t.home },
+    { id: 'services', label: t.services },
+    { id: 'industries', label: t.industries },
+    { id: 'projects', label: t.projects },
+    { id: 'service-areas', label: language === 'sw' ? 'Maeneo' : 'Coverage' },
+    { id: 'about', label: t.aboutUs },
+    { id: 'contact', label: t.contact },
+  ];
+
+  const toolsMenuLinks = [
+    { id: 'calculator', label: t.coldRoomSizing, icon: Calculator, desc: 'Calculate BTU & compressor HP' },
+    { id: 'blog', label: t.engineeringHub, icon: Wrench, desc: 'HVAC-R technical articles' },
   ];
 
   const handleNavClick = (id: string) => {
@@ -127,8 +139,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             </a>
           </div>
 
-          {/* Right Side: Working Hours, Certification, Admin Button */}
+          {/* Right Side: Working Hours, Certification, Language Switcher, Admin Button */}
           <div className="flex items-center gap-3.5 lg:gap-4 shrink-0">
+            {/* Top Bar Language Switcher Button */}
+            <button
+              onClick={toggleLanguage}
+              className="flex items-center gap-1.5 text-slate-200 hover:text-white transition-all cursor-pointer text-[11px] font-bold bg-blue-900/60 hover:bg-blue-800/80 px-2.5 py-1 rounded-md border border-blue-700/60 shadow-2xs"
+              title={t.switchTo}
+            >
+              <Globe className="w-3.5 h-3.5 text-[#00AEEF]" />
+              <span>{language === 'en' ? '🇰🇪 Kiswahili' : '🇬🇧 English'}</span>
+            </button>
+
+            <div className="h-3.5 w-px bg-blue-800/60 dark:bg-slate-800 shrink-0" />
+
             {/* Working Hours */}
             <div className="flex items-center gap-1.5 text-slate-200">
               <Clock className="w-3.5 h-3.5 text-[#00AEEF] shrink-0" />
@@ -198,8 +222,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {/* Desktop Navigation Links */}
-          <div className="hidden lg:flex items-center space-x-1 xl:space-x-3 2xl:space-x-5 text-[12px] xl:text-[13.5px] 2xl:text-[14.5px] font-semibold text-[#1E293B] dark:text-slate-200 mx-1 xl:mx-3 shrink-0">
-            {navLinks.map((link) => (
+          <div className="hidden lg:flex items-center space-x-1 xl:space-x-2 text-[12px] xl:text-[13px] font-semibold text-[#1E293B] dark:text-slate-200 mx-2 shrink">
+            {mainNavLinks.map((link) => (
               <button
                 key={link.id}
                 onClick={() => handleNavClick(link.id)}
@@ -212,14 +236,51 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {link.label}
               </button>
             ))}
+
+            {/* Engineering Tools Quick Dropdown / Menu */}
+            <div className="relative group">
+              <button
+                className="px-2 xl:px-2.5 py-1.5 rounded-lg font-semibold text-[#1E293B] dark:text-slate-200 hover:text-[#0057B8] dark:hover:text-[#00AEEF] hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-all cursor-pointer whitespace-nowrap flex items-center gap-1"
+              >
+                <span>{language === 'sw' ? 'Zana' : 'Tools'}</span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:rotate-90 transition-transform" />
+              </button>
+
+              <div className="absolute right-0 top-full pt-1.5 hidden group-hover:block w-56 z-50 animate-in fade-in duration-150">
+                <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 space-y-1">
+                  {toolsMenuLinks.map((tool) => {
+                    const ToolIcon = tool.icon;
+                    return (
+                      <button
+                        key={tool.id}
+                        onClick={() => handleNavClick(tool.id)}
+                        className="w-full text-left p-2.5 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors flex items-start gap-2.5 cursor-pointer group/item"
+                      >
+                        <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950 text-[#0057B8] dark:text-[#00AEEF] shrink-0 group-hover/item:scale-105 transition-transform">
+                          <ToolIcon className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-slate-900 dark:text-white group-hover/item:text-[#0057B8] dark:group-hover/item:text-[#00AEEF]">
+                            {tool.label}
+                          </div>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
+                            {tool.desc}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Quick Action Buttons & Theme Toggle Desktop/Laptop */}
-          <div className="hidden lg:flex items-center space-x-1.5 xl:space-x-2.5 shrink-0">
+          {/* Streamlined Quick Action Buttons Desktop/Laptop */}
+          <div className="hidden lg:flex items-center space-x-1.5 xl:space-x-2 shrink-0">
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-amber-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer flex items-center justify-center shadow-2xs shrink-0"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-amber-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer flex items-center justify-center shadow-2xs shrink-0"
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               aria-label="Toggle Theme"
             >
@@ -230,25 +291,34 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Member Account / Sign Up Button */}
+            {/* Track Service Progress Button */}
             <button
               onClick={() => openAuthModal('signin')}
-              className="flex items-center space-x-1.5 px-2.5 py-2 text-xs font-bold text-[#0057B8] dark:text-blue-300 bg-blue-50 dark:bg-blue-950/80 hover:bg-blue-100 dark:hover:bg-blue-900/80 rounded-lg border border-blue-200/80 dark:border-blue-800/80 transition-all cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
+              className="flex items-center space-x-1.5 px-3 py-2 text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/70 hover:bg-amber-100 dark:hover:bg-amber-900/80 rounded-xl border border-amber-200 dark:border-amber-800 transition-all cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
+              title="Track Repair & Installation Status"
+            >
+              <Truck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>{language === 'sw' ? 'Fuatilia Ukarabati' : 'Track Repair'}</span>
+            </button>
+
+            {/* Member Account Portal Button */}
+            <button
+              onClick={() => openAuthModal('signin')}
+              className="flex items-center space-x-1.5 px-3 py-2 text-xs font-bold text-[#0057B8] dark:text-blue-300 bg-blue-50 dark:bg-blue-950/80 hover:bg-blue-100 dark:hover:bg-blue-900/80 rounded-xl border border-blue-200/80 dark:border-blue-800/80 transition-all cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
               title="Member Sign In & Loyalty Registration"
             >
               <UserIcon className="w-3.5 h-3.5 text-[#0057B8] dark:text-blue-400 shrink-0" />
-              <span className="hidden xl:inline">{user ? (user.displayName || 'Member Portal') : 'Member Portal'}</span>
-              <span className="inline xl:hidden">{user ? 'Account' : 'Members'}</span>
+              <span>{user ? (user.displayName || t.memberPortal) : t.memberPortal}</span>
             </button>
 
-            {/* AI Diagnostics Button */}
+            {/* Kenfoss AI Assistant */}
             <button
               onClick={onOpenAiDiagnostic}
-              className="hidden xl:flex items-center space-x-1.5 px-2.5 xl:px-3 py-2 text-xs font-bold text-[#0057B8] dark:text-[#00AEEF] bg-blue-50/80 dark:bg-blue-950/60 hover:bg-blue-100/80 dark:hover:bg-blue-900/80 rounded-lg border border-blue-200/60 dark:border-blue-800/60 transition-all cursor-pointer whitespace-nowrap shadow-2xs shrink-0"
+              className="flex items-center space-x-1.5 px-3 py-2 text-xs font-bold text-[#0057B8] dark:text-[#00AEEF] bg-[#0057B8]/10 dark:bg-blue-950/60 hover:bg-[#0057B8]/20 dark:hover:bg-blue-900/80 rounded-xl border border-blue-200/80 dark:border-blue-800/80 transition-all cursor-pointer whitespace-nowrap shadow-2xs shrink-0"
               title="AI Fault Code & Cooling Diagnostic Assistant"
             >
-              <Bot className="w-4 h-4 text-[#00AEEF] shrink-0" />
-              <span>AI Diagnostics</span>
+              <Bot className="w-3.5 h-3.5 text-[#00AEEF] shrink-0" />
+              <span>{t.aiAssistant}</span>
             </button>
           </div>
 
@@ -302,7 +372,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           <div className="space-y-1">
-            {navLinks.map((link) => (
+            {[...mainNavLinks, ...toolsMenuLinks].map((link) => (
               <button
                 key={link.id}
                 onClick={() => handleNavClick(link.id)}
@@ -319,6 +389,68 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2 text-xs">
+            {/* Mobile Language Switcher Block */}
+            <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Globe className="w-4 h-4 text-[#0057B8] dark:text-[#00AEEF]" />
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  {language === 'en' ? 'Language / Lugha' : 'Lugha / Language'}
+                </span>
+              </div>
+              <div className="flex items-center space-x-1 bg-white dark:bg-slate-900 p-1 rounded-md border border-slate-200 dark:border-slate-700">
+                <button
+                  onClick={() => setLanguage('en')}
+                  className={`px-2 py-0.5 text-[11px] font-extrabold rounded transition-colors ${
+                    language === 'en'
+                      ? 'bg-[#0057B8] text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  EN
+                </button>
+                <button
+                  onClick={() => setLanguage('sw')}
+                  className={`px-2 py-0.5 text-[11px] font-extrabold rounded transition-colors ${
+                    language === 'sw'
+                      ? 'bg-[#0057B8] text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  SW (Kiswahili)
+                </button>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenAiDiagnostic();
+              }}
+              className="w-full flex items-center justify-between text-[#0057B8] dark:text-blue-300 font-bold p-2.5 bg-blue-50/80 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 rounded-lg cursor-pointer"
+            >
+              <div className="flex items-center space-x-2">
+                <Bot className="w-4 h-4 text-[#00AEEF]" />
+                <span>Kenfoss AI Assistant ({t.aiAssistant})</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-[#0057B8] dark:text-blue-400" />
+            </button>
+
+            {onOpenImageStudio && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenImageStudio();
+                }}
+                className="w-full flex items-center justify-between text-purple-700 dark:text-purple-300 font-bold p-2.5 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800/60 rounded-lg cursor-pointer"
+              >
+                <div className="flex items-center space-x-2">
+                  <ImageIcon className="w-4 h-4 text-purple-500" />
+                  <span>Gemini AI Image Studio (Cold Room Concepts)</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-purple-500" />
+              </button>
+            )}
+
             <button
               onClick={() => {
                 setMobileMenuOpen(false);

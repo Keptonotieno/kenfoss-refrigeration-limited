@@ -19,11 +19,13 @@ import {
   Bot,
   Building,
   Tag,
-  ShieldAlert
+  ShieldAlert,
+  Truck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
 import { authService } from '../services/authService';
+import { ServiceProgressTracker } from './ServiceProgressTracker';
 
 export const AuthModal: React.FC = () => {
   const { 
@@ -43,7 +45,7 @@ export const AuthModal: React.FC = () => {
   const { bookings, quotes, updateQuoteStatus, diagnostics } = useAdmin();
 
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>(authModalMode);
-  const [activeTab, setActiveTab] = useState<'bookings' | 'quotes' | 'history' | 'profile'>('bookings');
+  const [activeTab, setActiveTab] = useState<'tracker' | 'bookings' | 'quotes' | 'history' | 'profile'>('tracker');
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -238,6 +240,18 @@ export const AuthModal: React.FC = () => {
               {/* Portal Navigation Tabs */}
               <div className="flex border-b border-slate-200 dark:border-slate-800 space-x-1 sm:space-x-3 text-xs sm:text-sm font-bold overflow-x-auto pb-1">
                 <button
+                  onClick={() => setActiveTab('tracker')}
+                  className={`py-2 px-3 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    activeTab === 'tracker'
+                      ? 'bg-[#0057B8] text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Truck className="w-4 h-4 text-amber-400" />
+                  <span>Service Progress Tracker</span>
+                </button>
+
+                <button
                   onClick={() => setActiveTab('bookings')}
                   className={`py-2 px-3 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                     activeTab === 'bookings'
@@ -285,6 +299,13 @@ export const AuthModal: React.FC = () => {
                   <span>Account & Perks</span>
                 </button>
               </div>
+
+              {/* TAB 0: SERVICE PROGRESS TRACKER */}
+              {activeTab === 'tracker' && (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  <ServiceProgressTracker />
+                </div>
+              )}
 
               {/* TAB 1: BOOKINGS */}
               {activeTab === 'bookings' && (

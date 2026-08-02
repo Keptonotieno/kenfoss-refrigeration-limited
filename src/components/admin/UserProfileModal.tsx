@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAdmin } from '../../context/AdminContext';
 import { UserAvatar } from '../common/UserAvatar';
-import { uploadProfilePhotoToStorage } from '../../lib/firebase';
+import { uploadProfilePhotoToStorage, compressImageFile } from '../../lib/firebase';
 import { 
   User, 
   Mail, 
@@ -51,7 +51,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
   if (!isOpen || !currentUser) return null;
 
   // Handle local image file selection
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -60,17 +60,22 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setFeedback({ type: 'error', message: 'Image size exceeds 5MB limit. Please choose a smaller file.' });
+    if (file.size > 10 * 1024 * 1024) {
+      setFeedback({ type: 'error', message: 'Image size exceeds 10MB limit. Please choose a smaller file.' });
       return;
     }
 
     setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setAvatarPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressedDataUrl = await compressImageFile(file, 400, 400, 0.85);
+      setAvatarPreview(compressedDataUrl);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
     setFeedback(null);
   };
 

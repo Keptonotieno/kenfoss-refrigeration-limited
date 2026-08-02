@@ -11,7 +11,10 @@ import {
   PhoneCall,
   HelpCircle,
   AlertOctagon,
-  Info
+  Info,
+  Globe,
+  ExternalLink,
+  Search
 } from 'lucide-react';
 import { DiagnosticResult } from '../types';
 import { saveDiagnosticToFirestore } from '../lib/firebase';
@@ -21,12 +24,14 @@ interface AiDiagnosticModalProps {
   isOpen: boolean;
   onClose: () => void;
   onBookService: (prefillNotes: string) => void;
+  onOpenChatbot?: () => void;
 }
 
 export const AiDiagnosticModal: React.FC<AiDiagnosticModalProps> = ({
   isOpen,
   onClose,
-  onBookService
+  onBookService,
+  onOpenChatbot
 }) => {
   const { contactInfo } = useAdmin();
   const [applianceType, setApplianceType] = useState('Refrigerator');
@@ -146,6 +151,27 @@ export const AiDiagnosticModal: React.FC<AiDiagnosticModalProps> = ({
         {!result && (
           <form onSubmit={handleRunDiagnostic} className="space-y-4">
             
+            {onOpenChatbot && (
+              <div className="bg-gradient-to-r from-blue-900/80 to-slate-800 p-3 rounded-xl border border-blue-500/40 text-xs text-white flex items-center justify-between gap-3 shadow-md">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-[#0057B8] flex items-center justify-center shrink-0">
+                    <Sparkles className="w-4 h-4 text-amber-300" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-white block">Prefer an interactive conversation?</span>
+                    <span className="text-slate-300 text-[11px]">Chat directly with Gemini AI Assistant for real-time troubleshooting history.</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={onOpenChatbot}
+                  className="bg-[#00AEEF] hover:bg-blue-400 text-slate-950 font-black px-3 py-1.5 rounded-lg transition-colors cursor-pointer shrink-0 text-xs shadow-xs"
+                >
+                  Open Multi-Turn Chat
+                </button>
+              </div>
+            )}
+
             <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 text-xs text-slate-300 flex items-start space-x-2">
               <Info className="w-4 h-4 text-[#00AEEF] shrink-0 mt-0.5" />
               <span>
@@ -378,7 +404,7 @@ export const AiDiagnosticModal: React.FC<AiDiagnosticModalProps> = ({
         {result && (
           <div className="space-y-4 animate-in fade-in duration-300">
             
-            {/* Header / Severity & Confidence */}
+            {/* Header / Severity & Confidence & Google Search Grounding Badge */}
             <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
               result.severity === 'Emergency Critical' || result.severity === 'High'
                 ? 'bg-red-950/80 border-red-800 text-red-200'
@@ -387,11 +413,17 @@ export const AiDiagnosticModal: React.FC<AiDiagnosticModalProps> = ({
               <div className="flex items-center space-x-3">
                 <ShieldAlert className="w-6 h-6 text-red-400 shrink-0" />
                 <div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-[10px] font-black uppercase tracking-wider opacity-80">ENGINEERING DIAGNOSIS</span>
                     <span className="bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded border border-slate-700">
                       Confidence: {result.confidenceLevel || '80% (High)'}
                     </span>
+                    {result.searchGrounded !== false && (
+                      <span className="bg-blue-950/90 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-700/80 flex items-center gap-1">
+                        <Globe className="w-3 h-3 text-blue-400" />
+                        <span>Google Search Grounded</span>
+                      </span>
+                    )}
                   </div>
                   <h4 className="text-base font-bold text-white mt-0.5">{result.appliance}</h4>
                 </div>
@@ -502,6 +534,30 @@ export const AiDiagnosticModal: React.FC<AiDiagnosticModalProps> = ({
                       <span key={idx} className="bg-slate-900 text-slate-300 px-2.5 py-1 rounded-md text-[11px] font-medium border border-slate-700">
                         • {part}
                       </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Google Search Grounding Sources & References */}
+              {result.sources && result.sources.length > 0 && (
+                <div className="pt-2 border-t border-slate-700">
+                  <span className="text-blue-400 font-bold text-[11px] uppercase tracking-wider block mb-1.5 flex items-center space-x-1">
+                    <Globe className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Verified Web Sources & Technical References (Google Search Grounded)</span>
+                  </span>
+                  <div className="space-y-1">
+                    {result.sources.slice(0, 4).map((source, idx) => (
+                      <a
+                        key={idx}
+                        href={source.uri}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-slate-900/90 hover:bg-slate-950 p-2 rounded-lg border border-slate-700/80 flex items-center justify-between text-blue-300 hover:text-blue-200 text-[11px] transition-colors group"
+                      >
+                        <span className="truncate pr-2 font-medium">{source.title}</span>
+                        <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-blue-400 shrink-0" />
+                      </a>
                     ))}
                   </div>
                 </div>

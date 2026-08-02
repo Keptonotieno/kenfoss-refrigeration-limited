@@ -72,73 +72,99 @@ service cloud.firestore {
 
     // 1. Users collection
     match /users/{userId} {
-      allow read, write: if true;
+      allow read: if isOwner(userId) || isStaff();
+      allow create: if (isSignedIn() && request.auth.uid == userId) || isStaff();
+      allow update: if (isOwner(userId) && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) || isSuperAdmin())) || isStaff();
+      allow delete: if isSuperAdmin();
     }
 
     // 2. Bookings
     match /bookings/{bookingId} {
-      allow read, write: if true;
+      allow create: if true;
+      allow read: if isStaff() || (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.email == request.auth.email));
+      allow update: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isSuperAdmin();
     }
 
     // 3. Quotes / RFQs
     match /quotes/{quoteId} {
-      allow read, write: if true;
+      allow create: if true;
+      allow read: if isStaff() || (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.email == request.auth.email));
+      allow update: if isStaff();
+      allow delete: if isSuperAdmin();
     }
 
     // 4. Customers
     match /customers/{customerId} {
-      allow read, write: if true;
+      allow read: if isStaff();
+      allow create, update: if isStaff();
+      allow delete: if isSuperAdmin();
     }
 
     // 5. Diagnostics
     match /diagnostics/{diagnosticId} {
-      allow read, write: if true;
+      allow create: if true;
+      allow read: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isStaff();
     }
 
     // 6. Contact Messages
     match /contacts/{contactId} {
-      allow read, write: if true;
+      allow create: if true;
+      allow read: if isStaff();
+      allow update, delete: if isStaff();
     }
 
     // 7. Single-use Admin Invitations
     match /invitations/{invitationId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create, update, delete: if isStaff() || (isSignedIn() && request.resource.data.status == 'Used');
     }
 
     // 8. CMS Collections (Services, Projects, Testimonials, Blogs, Gallery)
     match /services/{serviceId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaff();
     }
 
     match /projects/{projectId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaff();
     }
 
     match /testimonials/{testimonialId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaff();
     }
 
     match /blogs/{blogId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaff();
     }
 
     match /gallery/{galleryId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaff();
     }
 
     // 9. Website & Contact Settings
     match /settings/{settingId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaff();
     }
 
     // 10. Notifications
     match /notifications/{notificationId} {
-      allow read, write: if true;
+      allow read: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isStaff() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow update, delete: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
     // 11. System Audit Logs
     match /auditLogs/{logId} {
-      allow read, write: if true;
+      allow read: if isStaff();
+      allow create: if isSignedIn() || isStaff();
+      allow update, delete: if isSuperAdmin();
     }
   }
 }

@@ -10,7 +10,8 @@ import {
   Building2,
   Navigation,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  Car
 } from 'lucide-react';
 import { saveContactToFirestore } from '../lib/firebase';
 import { useToast } from '../context/ToastContext';
@@ -181,14 +182,27 @@ export const ContactSection: React.FC = () => {
                 />
               </div>
 
-              <a
-                href={googleDirectionsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-center block text-[11px] text-[#00AEEF] hover:underline font-bold"
-              >
-                Open full map & driving route in Google Maps →
-              </a>
+              <div className="pt-1 flex flex-col sm:flex-row gap-2">
+                <a
+                  href={googleDirectionsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 text-center py-2 px-3 bg-slate-900 hover:bg-slate-950 rounded-lg border border-slate-700 text-[11px] text-[#00AEEF] hover:underline font-bold flex items-center justify-center gap-1.5"
+                >
+                  <span>Open Directions</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                <a
+                  href="https://www.google.com/maps/@-1.1620371,36.9586472,13z/data=!5m1!1e1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 text-center py-2 px-3 bg-amber-500/10 hover:bg-amber-500/20 rounded-lg border border-amber-500/30 text-[11px] text-amber-300 hover:underline font-bold flex items-center justify-center gap-1.5"
+                  title="Check live congestion and traffic updates on Thika Superhighway"
+                >
+                  <Car className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span>Thika Hwy Live Traffic</span>
+                </a>
+              </div>
             </div>
 
           </div>
