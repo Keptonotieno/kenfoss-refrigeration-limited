@@ -156,7 +156,7 @@ export interface AdminUser {
   role: UserRole;
   phone?: string;
   avatar?: string;
-  status: 'Active' | 'Suspended' | 'Pending Invitation';
+  status: 'Active' | 'Suspended' | 'Pending Invitation' | 'Disabled' | 'Inactive';
   createdAt: string;
   lastLogin?: string;
   twoFactorEnabled?: boolean;
@@ -278,12 +278,14 @@ export interface ContactMessageRecord {
 
 export interface NotificationItem {
   id: string;
-  type: 'booking' | 'quote' | 'diagnostic' | 'contact' | 'system';
+  type: 'booking' | 'quote' | 'diagnostic' | 'contact' | 'system' | 'whatsapp';
   title: string;
   message: string;
   isRead: boolean;
   createdAt: string;
   link?: string;
+  imageUrl?: string;
+  imageName?: string;
 }
 
 export interface ContactInfoSettings {

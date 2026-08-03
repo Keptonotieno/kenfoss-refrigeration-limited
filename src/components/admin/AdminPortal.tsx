@@ -21,6 +21,7 @@ import { BlogsManagement } from './BlogsManagement';
 import { ContactInfoEditor } from './ContactInfoEditor';
 import { WebsiteSettingsEditor } from './WebsiteSettingsEditor';
 import { UserManagement } from './UserManagement';
+import { RealTimeAdminNotificationListener } from './RealTimeAdminNotificationListener';
 import { ErrorBoundary } from '../ErrorBoundary';
 
 interface AdminPortalProps {
@@ -100,6 +101,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
   return (
     <div className="admin-portal min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       
+      {/* Real-Time Firestore Notification Alert Listener */}
+      <RealTimeAdminNotificationListener />
+
       {/* Top Navigation Header */}
       <AdminHeader 
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} 

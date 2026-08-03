@@ -15,6 +15,7 @@ import {
   doc, 
   setDoc, 
   getDoc, 
+  getDocFromServer,
   collection, 
   addDoc, 
   getDocs, 
@@ -49,6 +50,17 @@ export const db = firebaseConfigJson.firestoreDatabaseId && firebaseConfigJson.f
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+
+export async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'settings', 'contact_info'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.error("Please check your Firebase configuration.");
+    }
+  }
+}
+testConnection();
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({

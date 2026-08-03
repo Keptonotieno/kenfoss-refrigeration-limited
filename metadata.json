@@ -1,6 +1,6 @@
 {
   "name": "Kenfoss Refrigeration Limited",
   "description": "Kenya's Premier Refrigeration & HVAC Engineering Company - Cold Room Solutions, Commercial HVAC, & Appliance Engineering",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["microphone", "camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

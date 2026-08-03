@@ -16,7 +16,8 @@ import {
   X,
   User as UserIcon,
   Settings,
-  ExternalLink
+  ExternalLink,
+  Camera
 } from 'lucide-react';
 
 interface AdminHeaderProps {
@@ -152,17 +153,31 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onToggleSidebar, isMob
                     notifications.map(n => (
                       <div
                         key={n.id}
-                        className={`p-3 text-xs space-y-0.5 hover:bg-slate-800/60 transition-colors flex items-start justify-between gap-2 ${
-                          !n.isRead ? 'bg-blue-950/20' : ''
+                        className={`p-3 text-xs space-y-1 hover:bg-slate-800/60 transition-colors flex items-start justify-between gap-2 ${
+                          !n.isRead ? 'bg-blue-950/30 border-l-2 border-emerald-400' : ''
                         }`}
                       >
                         <div className="flex-1 cursor-pointer" onClick={() => markNotificationRead(n.id)}>
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-slate-200">{n.title}</span>
-                            {!n.isRead && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-slate-200 flex items-center gap-1.5">
+                              {n.type === 'whatsapp' && <span className="px-1.5 py-0.2 text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800 rounded font-mono font-bold">WhatsApp</span>}
+                              {n.title}
+                            </span>
+                            {!n.isRead && <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />}
                           </div>
-                          <p className="text-slate-400 text-[11px] leading-snug">{n.message}</p>
-                          <span className="text-[9px] text-slate-500 block pt-1">
+                          <p className="text-slate-300 text-[11px] leading-snug mt-0.5">{n.message}</p>
+                          {n.imageUrl && (
+                            <div className="mt-1.5 flex items-center gap-2 p-1.5 bg-black/40 border border-slate-700/80 rounded-lg">
+                              <img src={n.imageUrl} alt="Attached Faulty Equipment" className="w-10 h-10 object-cover rounded" />
+                              <div className="text-[10px]">
+                                <p className="font-bold text-emerald-400 flex items-center gap-1">
+                                  <Camera className="w-3 h-3" /> Photo Attached
+                                </p>
+                                <span className="text-slate-400 text-[9px]">{n.imageName || 'Equipment Inspection Image'}</span>
+                              </div>
+                            </div>
+                          )}
+                          <span className="text-[9px] text-slate-500 block pt-1 font-mono">
                             {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
@@ -171,7 +186,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onToggleSidebar, isMob
                             e.stopPropagation();
                             deleteNotification(n.id);
                           }}
-                          className="p-1 text-slate-500 hover:text-rose-400 rounded cursor-pointer"
+                          className="p-1 text-slate-500 hover:text-rose-400 rounded cursor-pointer shrink-0"
                           title="Delete notification"
                         >
                           <X className="w-3.5 h-3.5" />

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAdmin } from '../context/AdminContext';
 import { 
   Award, 
   ShieldCheck, 
@@ -11,37 +12,48 @@ import {
 } from 'lucide-react';
 
 export const TrustStats: React.FC = () => {
+  const { bookings, projects: liveProjects, testimonials: liveTestimonials } = useAdmin();
+
+  // Dynamic values calculated from live context
+  const totalCompletedBookings = (bookings || []).filter(b => b.status === 'Completed' || b.status === 'In Progress').length;
+  const targetRepairs = 5000 + totalCompletedBookings;
+  const targetProjects = 500 + (liveProjects || []).length;
+  
+  // Calculate average rating or approved count
+  const approvedTestimonials = (liveTestimonials || []).filter(t => t.status === 'Approved');
+  const totalReviewsCount = 480 + approvedTestimonials.length;
+
   const [repairs, setRepairs] = useState(0);
   const [years, setYears] = useState(0);
   const [satisfaction, setSatisfaction] = useState(0);
-  const [projects, setProjects] = useState(0);
+  const [projectsCount, setProjectsCount] = useState(0);
 
   useEffect(() => {
     // Smooth counting animation effect
-    const duration = 2000;
-    const steps = 50;
+    const duration = 1500;
+    const steps = 30;
     const stepTime = duration / steps;
 
     let step = 0;
     const timer = setInterval(() => {
       step++;
       const progress = step / steps;
-      setRepairs(Math.floor(progress * 5000));
+      setRepairs(Math.floor(progress * targetRepairs));
       setYears(Math.floor(progress * 15));
       setSatisfaction(Math.floor(progress * 98));
-      setProjects(Math.floor(progress * 500));
+      setProjectsCount(Math.floor(progress * targetProjects));
 
       if (step >= steps) {
         clearInterval(timer);
-        setRepairs(5000);
+        setRepairs(targetRepairs);
         setYears(15);
         setSatisfaction(98);
-        setProjects(500);
+        setProjectsCount(targetProjects);
       }
     }, stepTime);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [targetRepairs, targetProjects]);
 
   const stats = [
     {
@@ -64,7 +76,7 @@ export const TrustStats: React.FC = () => {
       id: 3,
       value: `${satisfaction}%`,
       label: 'Customer Satisfaction Rate',
-      subtext: '480+ Verified 5-Star Reviews',
+      subtext: `${totalReviewsCount}+ Verified Reviews`,
       icon: ThumbsUp,
       color: 'text-[#16A34A]'
     },
@@ -78,7 +90,7 @@ export const TrustStats: React.FC = () => {
     },
     {
       id: 5,
-      value: `${projects}+`,
+      value: `${projectsCount}+`,
       label: 'Commercial Cold Rooms & HVAC',
       subtext: 'Hotels, Hospitals & Supermarkets',
       icon: Building2,
@@ -122,7 +134,7 @@ export const TrustStats: React.FC = () => {
 
           <div className="py-3 md:py-0 px-4 flex flex-col items-center">
             <span className="text-3xl lg:text-[32px] font-extrabold text-[#0057B8] dark:text-[#00AEEF] leading-tight">
-              {projects}+
+              {projectsCount}+
             </span>
             <span className="text-xs font-semibold text-[#64748B] dark:text-slate-400 uppercase tracking-wider mt-1">
               Commercial Clients

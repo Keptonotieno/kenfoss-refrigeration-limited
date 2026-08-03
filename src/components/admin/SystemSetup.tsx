@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAdmin } from '../../context/AdminContext';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -48,6 +49,7 @@ interface SuperAdminFormState {
 }
 
 export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCancel }) => {
+  const { superAdminCount } = useAdmin();
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   // Stored Super Admin 1 details
@@ -327,6 +329,27 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
             Provision the <strong className="text-white">two (2) required Super Administrator accounts</strong> to establish dual-custody governance. Once complete, this setup page will be <strong className="text-rose-400">permanently disabled</strong>.
           </p>
         </div>
+
+        {/* Existing Super Admin Account Detected Banner */}
+        {superAdminCount >= 1 && (
+          <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-amber-200 animate-fadeIn">
+            <div className="flex items-center space-x-2.5">
+              <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0" />
+              <div>
+                <p className="font-bold text-white">{superAdminCount} Super Administrator account(s) registered in Firebase</p>
+                <p className="text-[11px] text-amber-300/80">You can sign in using an existing Super Admin account.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onSetupCompleted}
+              className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl transition-all shrink-0 cursor-pointer shadow-lg shadow-amber-950/40 flex items-center space-x-2"
+            >
+              <span>Sign In with Existing Super Admin</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Stepper Progress Bar */}
         <div className="grid grid-cols-3 gap-2 bg-slate-950 p-2 rounded-2xl border border-slate-800 text-xs">

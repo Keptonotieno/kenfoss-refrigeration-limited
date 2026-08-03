@@ -72,7 +72,7 @@ service cloud.firestore {
 
     // 1. Users collection
     match /users/{userId} {
-      allow read: if isOwner(userId) || isStaff();
+      allow read: if isOwner(userId) || isStaff() || (isSignedIn() && resource.data.email == request.auth.email);
       allow create: if (isSignedIn() && request.auth.uid == userId) || isStaff();
       allow update: if (isOwner(userId) && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) || isSuperAdmin())) || isStaff();
       allow delete: if isSuperAdmin();
@@ -104,7 +104,7 @@ service cloud.firestore {
     // 5. Diagnostics
     match /diagnostics/{diagnosticId} {
       allow create: if true;
-      allow read: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow read: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid) || true;
       allow update, delete: if isStaff();
     }
 
@@ -134,7 +134,8 @@ service cloud.firestore {
 
     match /testimonials/{testimonialId} {
       allow read: if true;
-      allow write: if isStaff();
+      allow create: if true;
+      allow update, delete: if isStaff();
     }
 
     match /blogs/{blogId} {
@@ -155,16 +156,22 @@ service cloud.firestore {
 
     // 10. Notifications
     match /notifications/{notificationId} {
+      allow create: if true;
       allow read: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isStaff() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
       allow update, delete: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
     // 11. System Audit Logs
     match /auditLogs/{logId} {
       allow read: if isStaff();
-      allow create: if isSignedIn() || isStaff();
+      allow create: if true;
       allow update, delete: if isSuperAdmin();
+    }
+
+    // 12. Roles (RBAC)
+    match /roles/{roleId} {
+      allow read: if true;
+      allow write: if isStaff();
     }
   }
 }

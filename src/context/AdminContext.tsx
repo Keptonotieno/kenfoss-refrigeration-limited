@@ -8,7 +8,9 @@ import {
   getDoc,
   getDocs,
   query,
-  where
+  where,
+  orderBy,
+  limit
 } from 'firebase/firestore';
 import { 
   signInWithEmailAndPassword, 
@@ -274,6 +276,7 @@ interface AdminContextType {
   currentUser: AdminUser | null;
   isAuthenticated: boolean;
   isSystemInitialized: boolean;
+  superAdminCount: number;
   refreshSystemSetupState: () => Promise<void>;
   users: AdminUser[];
   bookings: BookingRecord[];
@@ -377,17 +380,20 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isSystemInitialized, setIsSystemInitialized] = useState<boolean>(true);
+  const [superAdminCount, setSuperAdminCount] = useState<number>(0);
 
   const refreshSystemSetupState = async () => {
     try {
       const initDoc = await getDoc(doc(db, 'settings', 'system_init'));
-      if (initDoc.exists() && initDoc.data()?.setupCompleted) {
-        setIsSystemInitialized(true);
-        return;
-      }
       const uSnap = await getDocs(collection(db, 'users'));
       const superAdmins = uSnap.docs.filter(d => d.data()?.role === 'Super Administrator');
-      setIsSystemInitialized(superAdmins.length >= 2);
+      setSuperAdminCount(superAdmins.length);
+
+      if ((initDoc.exists() && initDoc.data()?.setupCompleted) || superAdmins.length >= 1) {
+        setIsSystemInitialized(true);
+      } else {
+        setIsSystemInitialized(false);
+      }
     } catch (err) {
       console.warn("Error checking system init state:", err);
     }
@@ -628,7 +634,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } else {
         getDocs(collection(db, 'users')).then(uSnap => {
           const superAdmins = uSnap.docs.filter(d => d.data()?.role === 'Super Administrator');
-          setIsSystemInitialized(superAdmins.length >= 2);
+          setSuperAdminCount(superAdmins.length);
+          setIsSystemInitialized(superAdmins.length >= 1);
         }).catch(() => setIsSystemInitialized(false));
       }
     }, (err) => handleSubError('system_init', err));
@@ -636,13 +643,23 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
       if (snap.empty) {
         setUsers([]);
+        setSuperAdminCount(0);
         setIsSystemInitialized(false);
       } else {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as AdminUser));
         setUsers(items);
         const superAdmins = items.filter(u => u.role === 'Super Administrator');
-        if (superAdmins.length >= 2) {
+        setSuperAdminCount(superAdmins.length);
+        if (superAdmins.length >= 1) {
           setIsSystemInitialized(true);
+        } else {
+          getDoc(doc(db, 'settings', 'system_init')).then(initDoc => {
+            if (initDoc.exists() && initDoc.data()?.setupCompleted) {
+              setIsSystemInitialized(true);
+            } else {
+              setIsSystemInitialized(false);
+            }
+          });
         }
 
         setCurrentUser(prevMe => {
@@ -901,7 +918,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const pass = password || '';
 
     if (!cleanEmail || !pass) {
-      return { success: false, error: 'Email and password are required.' };
+      const err = 'Email and password are required.';
+      addAuditLog('USER_LOGIN_FAILED', `Login attempt failed for ${cleanEmail || 'blank email'}: ${err}`);
+      return { success: false, error: err };
     }
 
     try {
@@ -909,124 +928,91 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
       const fbUser = userCredential.user;
 
+      // 2. Fetch user profile from Firestore
       const userRef = doc(db, 'users', fbUser.uid);
-      const snap = await getDoc(userRef);
+      let snap = await getDoc(userRef);
 
-      let activeUser: AdminUser;
-
+      let userData: AdminUser | null = null;
       if (snap.exists()) {
-        const d = snap.data();
-        if (d.status === 'Suspended') {
-          await fbSignOut(auth);
-          return { success: false, error: 'Your staff account has been suspended by a Super Administrator.' };
-        }
-
-        activeUser = {
-          id: fbUser.uid,
-          name: d.name || fbUser.displayName || cleanEmail.split('@')[0],
-          email: cleanEmail,
-          role: d.role || 'Technician',
-          phone: d.phone || '',
-          avatar: d.avatar || '',
-          status: 'Active',
-          createdAt: d.createdAt || new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
-          twoFactorEnabled: !!d.twoFactorEnabled,
-          mustChangePassword: !!d.mustChangePassword
-        };
+        userData = { id: snap.id, ...snap.data() } as AdminUser;
       } else {
-        let role: UserRole = 'Technician';
-        if (cleanEmail.includes('admin') || cleanEmail.includes('owner')) {
-          role = 'Super Administrator';
-        } else if (cleanEmail.includes('manager')) {
-          role = 'Manager';
+        const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
+        const qSnap = await getDocs(q);
+        if (!qSnap.empty) {
+          userData = { id: qSnap.docs[0].id, ...qSnap.docs[0].data() } as AdminUser;
         }
-
-        activeUser = {
-          id: fbUser.uid,
-          name: cleanEmail.split('@')[0].replace('.', ' '),
-          email: cleanEmail,
-          role,
-          phone: '',
-          avatar: '',
-          status: 'Active',
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
-          twoFactorEnabled: false
-        };
-        await setDoc(userRef, activeUser);
       }
+
+      if (!userData) {
+        await fbSignOut(auth);
+        const errMsg = `Staff account '${cleanEmail}' is not registered in Firestore. Please contact your Super Administrator.`;
+        addAuditLog('USER_LOGIN_FAILED', `Login rejected for ${cleanEmail}: No Firestore staff profile found.`);
+        return { success: false, error: errMsg };
+      }
+
+      // 3. Verify Account Status
+      if (userData.status === 'Suspended' || userData.status === 'Disabled' || userData.status === 'Inactive') {
+        await fbSignOut(auth);
+        const errMsg = `Your staff account '${cleanEmail}' has been ${userData.status.toLowerCase()} by a Super Administrator.`;
+        addAuditLog('USER_LOGIN_FAILED', `Login blocked for ${cleanEmail}: Account is ${userData.status}.`);
+        return { success: false, error: errMsg };
+      }
+
+      // 4. Verify Authorized Staff Role
+      const validStaffRoles = ['Super Administrator', 'Owner', 'Manager', 'Technician'];
+      if (!userData.role || !validStaffRoles.includes(userData.role)) {
+        await fbSignOut(auth);
+        const errMsg = `Access Denied: Account '${cleanEmail}' is assigned role '${userData.role || 'Customer'}', which is not authorized for Admin Portal access.`;
+        addAuditLog('USER_LOGIN_FAILED', `Login blocked for ${cleanEmail}: Unauthorized role (${userData.role || 'Customer'}).`);
+        return { success: false, error: errMsg };
+      }
+
+      // 5. Success - Set user state & update last login
+      const activeUser: AdminUser = {
+        ...userData,
+        lastLogin: new Date().toISOString()
+      };
 
       setCurrentUser(activeUser);
       localStorage.setItem('kenfoss_admin_user', JSON.stringify(activeUser));
-      await setDoc(doc(db, 'users', fbUser.uid), { lastLogin: activeUser.lastLogin }, { merge: true });
+      await setDoc(doc(db, 'users', activeUser.id), { lastLogin: activeUser.lastLogin }, { merge: true }).catch(() => {});
 
-      addAuditLog('USER_LOGIN', `Successful Firebase Auth sign-in to Admin Portal (${activeUser.role})`);
+      addAuditLog('USER_LOGIN_SUCCESS', `Successful authentication for ${activeUser.name} (${cleanEmail}) as ${activeUser.role}`);
       return { success: true };
+
     } catch (err: any) {
-      if (err.code !== 'auth/operation-not-allowed') {
-        console.error("Firebase Auth sign-in error:", err);
-      } else {
-        console.info("Firebase Email/Password provider not enabled; using directory fallback for sign-in.");
-      }
-      let errMsg = 'Authentication failed. Please check credentials.';
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        errMsg = 'Invalid email address or password.';
+      let errMsg = 'Authentication failed. Please verify your credentials.';
+
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        errMsg = 'Invalid email address or password. Please check your credentials and try again.';
+      } else if (err.code === 'auth/user-disabled') {
+        errMsg = 'This account has been disabled in Firebase Authentication.';
       } else if (err.code === 'auth/too-many-requests') {
-        errMsg = 'Too many failed login attempts. Please try again later or reset password.';
+        errMsg = 'Too many failed login attempts. Access temporarily locked for security. Please try again later or reset password.';
+      } else if (err.code === 'auth/network-request-failed') {
+        errMsg = 'Network error. Please check your internet connection and try again.';
       } else if (err.code === 'auth/operation-not-allowed') {
-        const cleanEmail = email.trim().toLowerCase();
-        let found = users.find(u => u.email.toLowerCase() === cleanEmail);
-        
-        if (!found) {
-          try {
-            const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
-            const qSnap = await getDocs(q);
-            if (!qSnap.empty) {
-              const d = qSnap.docs[0].data() as AdminUser;
-              found = { ...d, id: qSnap.docs[0].id };
-            }
-          } catch (e) {
-            console.error("Firestore user lookup error:", e);
+        const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
+        const qSnap = await getDocs(q);
+        if (!qSnap.empty) {
+          const found = { id: qSnap.docs[0].id, ...qSnap.docs[0].data() } as AdminUser;
+          if (found.status === 'Suspended' || found.status === 'Disabled') {
+            addAuditLog('USER_LOGIN_FAILED', `Login blocked for ${cleanEmail}: Account is ${found.status}.`);
+            return { success: false, error: `Your staff account '${cleanEmail}' is ${found.status.toLowerCase()}.` };
+          }
+          if (['Super Administrator', 'Owner', 'Manager', 'Technician'].includes(found.role)) {
+            setCurrentUser(found);
+            localStorage.setItem('kenfoss_admin_user', JSON.stringify(found));
+            addAuditLog('USER_LOGIN_SUCCESS', `Authenticated via Firestore directory for ${found.name} (${found.role})`);
+            return { success: true };
           }
         }
-
-        if (found) {
-          if (found.status === 'Suspended') {
-            return { success: false, error: 'Your staff account has been suspended by a Super Administrator.' };
-          }
-          setCurrentUser(found);
-          localStorage.setItem('kenfoss_admin_user', JSON.stringify(found));
-          addAuditLog('USER_LOGIN_FALLBACK', `Authenticated via staff directory for ${found.name} (${found.role})`);
-          return { success: true };
-        }
-
-        // Auto-provision Super Administrator for owner/admin emails if signing in
-        if (cleanEmail === 'keptonotieno@gmail.com' || cleanEmail === 'keptonromez62@gmail.com' || cleanEmail === 'admin@kenfoss.co.ke' || cleanEmail.includes('admin')) {
-          const formattedName = cleanEmail.split('@')[0].replace(/[^a-zA-Z]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-          const defaultAdminUser: AdminUser = {
-            id: `usr-admin-${Date.now()}`,
-            name: formattedName || 'Super Administrator',
-            email: cleanEmail,
-            role: 'Super Administrator',
-            phone: '+254 700 000 000',
-            avatar: '',
-            status: 'Active',
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-            twoFactorEnabled: false
-          };
-          await setDoc(doc(db, 'users', defaultAdminUser.id), defaultAdminUser).catch(() => {});
-          setCurrentUser(defaultAdminUser);
-          localStorage.setItem('kenfoss_admin_user', JSON.stringify(defaultAdminUser));
-          addAuditLog('SUPER_ADMIN_INIT', `Initialized Super Administrator account for ${cleanEmail}`);
-          return { success: true };
-        }
-
-        errMsg = `Staff account '${cleanEmail}' is not registered. Please ask your Super Administrator to create your staff profile, or use Invitation Code 'KEN-SUPER-2026'.`;
+        errMsg = `Staff account '${cleanEmail}' is not registered in Firestore. Please contact your Super Administrator.`;
       } else if (err.message) {
         errMsg = err.message;
       }
+
+      addAuditLog('USER_LOGIN_FAILED', `Login attempt failed for ${cleanEmail}: ${errMsg}`);
       return { success: false, error: errMsg };
     }
   };
@@ -2092,6 +2078,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         currentUser,
         isAuthenticated: !!currentUser,
         isSystemInitialized,
+        superAdminCount,
         refreshSystemSetupState,
         users,
         bookings,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAdmin } from '../context/AdminContext';
 import { ProjectItem, GalleryItem } from '../types';
 import { 
@@ -9,6 +9,7 @@ import {
   Info, 
   X, 
   SlidersHorizontal,
+  ChevronLeft,
   ChevronRight,
   ArrowRight,
   Image as ImageIcon,
@@ -73,6 +74,104 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
 
     return matchesSearch && matchesCategory && matchesType;
   });
+
+  // Touch Gesture States for Mobile Swipe Navigation
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchEndX, setTouchEndX] = useState<number | null>(null);
+
+  // Gallery Lightbox Navigation Logic
+  const lightboxIndex = selectedGalleryLightbox
+    ? filteredGallery.findIndex((item) => item.id === selectedGalleryLightbox.id)
+    : -1;
+
+  const handlePrevLightbox = () => {
+    if (filteredGallery.length === 0) return;
+    const prevIdx = (lightboxIndex - 1 + filteredGallery.length) % filteredGallery.length;
+    setSelectedGalleryLightbox(filteredGallery[prevIdx]);
+  };
+
+  const handleNextLightbox = () => {
+    if (filteredGallery.length === 0) return;
+    const nextIdx = (lightboxIndex + 1) % filteredGallery.length;
+    setSelectedGalleryLightbox(filteredGallery[nextIdx]);
+  };
+
+  // Case Study Modal Navigation Logic
+  const projectModalIndex = selectedProjectModal
+    ? filteredProjects.findIndex((p) => p.id === selectedProjectModal.id)
+    : -1;
+
+  const handlePrevProjectModal = () => {
+    if (filteredProjects.length === 0) return;
+    const prevIdx = (projectModalIndex - 1 + filteredProjects.length) % filteredProjects.length;
+    setSelectedProjectModal(filteredProjects[prevIdx]);
+  };
+
+  const handleNextProjectModal = () => {
+    if (filteredProjects.length === 0) return;
+    const nextIdx = (projectModalIndex + 1) % filteredProjects.length;
+    setSelectedProjectModal(filteredProjects[nextIdx]);
+  };
+
+  // Before & After Case Study Slider Navigation Logic
+  const sliderProjectIndex = (projects || []).findIndex((p) => p.id === activeProject?.id);
+
+  const handlePrevSliderProject = () => {
+    const list = projects || [];
+    if (list.length === 0) return;
+    const prevIdx = (sliderProjectIndex - 1 + list.length) % list.length;
+    setActiveSliderProject(list[prevIdx]);
+    setSliderPosition(50);
+  };
+
+  const handleNextSliderProject = () => {
+    const list = projects || [];
+    if (list.length === 0) return;
+    const nextIdx = (sliderProjectIndex + 1) % list.length;
+    setActiveSliderProject(list[nextIdx]);
+    setSliderPosition(50);
+  };
+
+  // Generic Touch Handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEndX(null);
+    setTouchStartX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEndX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = (onSwipeLeft: () => void, onSwipeRight: () => void) => {
+    if (touchStartX === null || touchEndX === null) return;
+    const distance = touchStartX - touchEndX;
+    const minSwipeDistance = 40; // minimum 40px swipe threshold
+    if (distance > minSwipeDistance) {
+      onSwipeLeft();
+    } else if (distance < -minSwipeDistance) {
+      onSwipeRight();
+    }
+    setTouchStartX(null);
+    setTouchEndX(null);
+  };
+
+  // Keyboard Arrow Navigation Support
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (selectedGalleryLightbox) {
+        if (e.key === 'ArrowLeft') handlePrevLightbox();
+        if (e.key === 'ArrowRight') handleNextLightbox();
+        if (e.key === 'Escape') setSelectedGalleryLightbox(null);
+      } else if (selectedProjectModal) {
+        if (e.key === 'ArrowLeft') handlePrevProjectModal();
+        if (e.key === 'ArrowRight') handleNextProjectModal();
+        if (e.key === 'Escape') setSelectedProjectModal(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedGalleryLightbox, selectedProjectModal, filteredGallery, filteredProjects, lightboxIndex, projectModalIndex]);
 
   return (
     <section id="projects" className="py-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 scroll-mt-[76px] md:scroll-mt-[112px]">
@@ -358,7 +457,27 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
                   </h3>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1 mr-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                    <button
+                      onClick={handlePrevSliderProject}
+                      className="p-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                      title="Previous Case Study"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-[10px] text-slate-400 font-mono px-1">
+                      {sliderProjectIndex + 1}/{(projects || []).length}
+                    </span>
+                    <button
+                      onClick={handleNextSliderProject}
+                      className="p-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                      title="Next Case Study"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
                   {(projects || []).map((proj) => (
                     <button
                       key={proj.id}
@@ -549,9 +668,39 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-3xl w-full p-6 sm:p-8 space-y-6 relative shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             
+            {/* Modal Header & Navigation Bar */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 pr-10">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold px-2.5 py-1 bg-blue-50 dark:bg-blue-950/80 text-[#0057B8] dark:text-[#00AEEF] rounded-lg border border-blue-200/80 dark:border-blue-800/80 uppercase tracking-wider">
+                  Case {projectModalIndex + 1} of {filteredProjects.length}
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                  (Swipe ← / → or use Arrow keys)
+                </span>
+              </div>
+
+              {/* Prev / Next Modal Buttons */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handlePrevProjectModal}
+                  className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                  title="Previous Project (Left Arrow)"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleNextProjectModal}
+                  className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                  title="Next Project (Right Arrow)"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={() => setSelectedProjectModal(null)}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 z-10"
             >
               <X className="w-6 h-6" />
             </button>
@@ -568,12 +717,39 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
               </p>
             </div>
 
-            <div className="rounded-xl overflow-hidden h-64 bg-slate-900">
+            {/* Touch Swipe-responsive Image Stage */}
+            <div 
+              className="relative rounded-xl overflow-hidden h-64 bg-slate-900 group touch-pan-y cursor-grab active:cursor-grabbing"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={() => handleTouchEnd(handleNextProjectModal, handlePrevProjectModal)}
+            >
               <img
                 src={selectedProjectModal.imageAfter}
                 alt={selectedProjectModal.title}
                 className="w-full h-full object-cover"
               />
+
+              {/* Touch Swipe Stage Chevron Overlays */}
+              <button
+                onClick={handlePrevProjectModal}
+                className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-slate-950/70 hover:bg-slate-950 text-white rounded-full border border-slate-700/80 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                aria-label="Previous Project"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={handleNextProjectModal}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-slate-950/70 hover:bg-slate-950 text-white rounded-full border border-slate-700/80 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                aria-label="Next Project"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+
+              <div className="absolute bottom-2 right-2 px-2 py-1 bg-slate-950/80 text-white text-[10px] rounded-lg border border-slate-800 font-mono pointer-events-none">
+                Swipe left / right to navigate
+              </div>
             </div>
 
             {/* Technical Specifications Table */}
@@ -600,7 +776,7 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
               <button
                 onClick={() => {
                   const details = `Quotation for similar project: ${selectedProjectModal.title}`;
@@ -622,20 +798,76 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
         <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-lg flex items-center justify-center p-4 sm:p-6">
           <div className="relative max-w-4xl w-full bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             
+            {/* Top Navigation & Status Bar */}
+            <div className="flex items-center justify-between px-6 py-3 bg-slate-950/80 border-b border-slate-800 z-10 pr-16">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 bg-blue-950 text-[#00AEEF] text-xs font-bold rounded-lg border border-blue-800">
+                  Item {lightboxIndex + 1} of {filteredGallery.length}
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                  (Swipe ← / → or use Arrow keys)
+                </span>
+              </div>
+
+              {/* Prev / Next Buttons */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handlePrevLightbox}
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white transition-colors cursor-pointer"
+                  title="Previous Media (Left Arrow)"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleNextLightbox}
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white transition-colors cursor-pointer"
+                  title="Next Media (Right Arrow)"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={() => setSelectedGalleryLightbox(null)}
-              className="absolute top-4 right-4 z-20 p-2.5 text-white bg-slate-950/80 hover:bg-slate-950 rounded-full border border-slate-700 transition-colors cursor-pointer"
+              className="absolute top-2.5 right-4 z-20 p-2 text-slate-400 hover:text-white bg-slate-950/80 hover:bg-slate-950 rounded-full border border-slate-800 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
-            {/* Media Stage */}
-            <div className="relative bg-slate-950 flex items-center justify-center min-h-[300px] sm:min-h-[420px] max-h-[60vh] overflow-hidden">
+            {/* Touch Swipe-responsive Media Stage */}
+            <div 
+              className="relative bg-slate-950 flex items-center justify-center min-h-[300px] sm:min-h-[420px] max-h-[60vh] overflow-hidden select-none group touch-pan-y cursor-grab active:cursor-grabbing"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={() => handleTouchEnd(handleNextLightbox, handlePrevLightbox)}
+            >
               {selectedGalleryLightbox.type === 'video' ? (
                 <video src={selectedGalleryLightbox.url} controls autoPlay className="max-w-full max-h-[60vh] object-contain" />
               ) : (
                 <img src={selectedGalleryLightbox.url} alt={selectedGalleryLightbox.title} className="max-w-full max-h-[60vh] object-contain" />
               )}
+
+              {/* Floating Overlay Chevron Navigation Buttons */}
+              <button
+                onClick={handlePrevLightbox}
+                className="absolute left-3 top-1/2 -translate-y-1/2 z-20 p-3 text-white bg-slate-950/80 hover:bg-slate-950 rounded-full border border-slate-700 transition-all cursor-pointer shadow-xl hover:scale-105"
+                aria-label="Previous Gallery Item"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+
+              <button
+                onClick={handleNextLightbox}
+                className="absolute right-3 top-1/2 -translate-y-1/2 z-20 p-3 text-white bg-slate-950/80 hover:bg-slate-950 rounded-full border border-slate-700 transition-all cursor-pointer shadow-xl hover:scale-105"
+                aria-label="Next Gallery Item"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-slate-950/80 text-white text-[10px] rounded-full border border-slate-800 font-mono pointer-events-none opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                Swipe left / right to navigate
+              </div>
             </div>
 
             {/* Details */}

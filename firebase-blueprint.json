@@ -130,6 +130,18 @@
         "ipAddress": { "type": "string" }
       },
       "required": ["action", "actorName", "timestamp"]
+    },
+    "roles": {
+      "title": "Role Definitions",
+      "description": "Role definitions and permission rules for RBAC",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "permissions": { "type": "array" },
+        "description": { "type": "string" }
+      },
+      "required": ["id", "name"]
     }
   }
 }
