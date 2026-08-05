@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Offline | Kenfoss Refrigeration Limited</title>
+  <meta name="theme-color" content="#002B5B" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      background-color: #002B5B;
+      color: #F8FAFC;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 1.25rem;
+      padding: 2.5rem 2rem;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(12px);
+    }
+    .icon-container {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(0, 119, 255, 0.1));
+      border: 1px solid rgba(0, 210, 255, 0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem auto;
+    }
+    .icon-container svg {
+      width: 40px;
+      height: 40px;
+      fill: #00D2FF;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: #FFFFFF;
+      letter-spacing: -0.02em;
+    }
+    p {
+      font-size: 0.9375rem;
+      color: #94A3B8;
+      line-height: 1.6;
+      margin-bottom: 1.75rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: linear-gradient(135deg, #00D2FF, #0077FF);
+      color: #FFFFFF;
+      font-weight: 600;
+      font-size: 0.9375rem;
+      padding: 0.875rem 1.75rem;
+      border-radius: 0.75rem;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+    .contact-box {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-t: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.8125rem;
+      color: #CBD5E1;
+    }
+    .contact-box strong {
+      color: #00D2FF;
+      display: block;
+      margin-top: 0.25rem;
+      font-size: 0.9375rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-container">
+      <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="1" y1="1" x2="23" y2="23"></line>
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+        <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+        <line x1="12" y1="20" x2="12.01" y2="20"></line>
+      </svg>
+    </div>
+    <h1>You are currently offline</h1>
+    <p>It looks like your internet connection was interrupted. Pages and equipment features you've previously visited remain accessible offline.</p>
+
+    <button class="btn" onclick="window.location.reload()">
+      <svg style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M23 4v6h-6M1 20v-6h6"></path>
+        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
+      </svg>
+      Retry Connection
+    </button>
+
+    <div class="contact-box">
+      Need Immediate Emergency Cold Room Support?
+      <strong>Call +254 745 411 923</strong>
+      <span>Available 24/7 Rapid Technical Response</span>
+    </div>
+  </div>
+</body>
+</html>

@@ -29,6 +29,7 @@ import { AuthModal } from './components/AuthModal';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { AdminPortal } from './components/admin/AdminPortal';
+import { PWAInstallPrompt } from './components/pwa/PWAInstallPrompt';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -181,6 +182,9 @@ export default function App() {
 
             {/* Floating Toast Notification Stack */}
             <NotificationToastContainer />
+
+            {/* PWA Install Banner & Offline Status Manager */}
+            <PWAInstallPrompt />
           </ToastProvider>
         </AdminProvider>
       </AuthProvider>

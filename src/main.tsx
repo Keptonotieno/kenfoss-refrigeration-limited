@@ -3,6 +3,10 @@ import {createRoot} from 'react-dom/client';
 import {HelmetProvider} from 'react-helmet-async';
 import App from './App.tsx';
 import './index.css';
+import { registerServiceWorker } from './registerSW';
+
+// Register PWA Service Worker for offline capability & home screen installation
+registerServiceWorker();
 
 // Handle benign WebSocket HMR disconnect errors gracefully in sandboxed iframe runtime
 window.addEventListener('unhandledrejection', (event) => {
