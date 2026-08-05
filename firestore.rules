@@ -25,14 +25,13 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return isSignedIn() && (
-        getUserRole() == 'Super Administrator' ||
-        getUserRole() == 'Owner'
+        getUserRole() in ['Super Administrator', 'Owner', 'super_admin', 'admin']
       );
     }
 
     function isStaffOrAdmin() {
       return isSignedIn() && (
-        getUserRole() in ['Super Administrator', 'Owner', 'Manager', 'Technician']
+        getUserRole() in ['Super Administrator', 'Owner', 'Manager', 'Technician', 'super_admin', 'admin', 'manager', 'technician']
       );
     }
 

@@ -96,39 +96,43 @@ export async function fetchUserProfileFromFirestore(user: User): Promise<UserPro
       };
     }
 
-    // 2. Query 'users' collection by email to link legacy or email-indexed accounts
+    // 2. Query 'users' collection by email to link legacy or email-indexed accounts (catch permission errors if non-staff)
     if (cleanEmail) {
-      let q = query(collection(db, 'users'), where('email', '==', cleanEmail));
-      let qSnap = await getDocs(q);
-      
-      if (qSnap.empty && rawEmail && rawEmail !== cleanEmail) {
-        q = query(collection(db, 'users'), where('email', '==', rawEmail));
-        qSnap = await getDocs(q);
-      }
+      try {
+        let q = query(collection(db, 'users'), where('email', '==', cleanEmail));
+        let qSnap = await getDocs(q);
+        
+        if (qSnap.empty && rawEmail && rawEmail !== cleanEmail) {
+          q = query(collection(db, 'users'), where('email', '==', rawEmail));
+          qSnap = await getDocs(q);
+        }
 
-      if (!qSnap.empty) {
-        const d = qSnap.docs[0].data();
-        const profile: UserProfile = {
-          uid: user.uid,
-          email: user.email,
-          displayName: d.displayName || d.name || user.displayName || cleanEmail.split('@')[0],
-          photoURL: d.photoURL || user.photoURL,
-          phone: d.phone || '',
-          company: d.company || '',
-          role: d.role || 'Customer',
-          status: d.status || 'Active'
-        };
+        if (!qSnap.empty) {
+          const d = qSnap.docs[0].data();
+          const profile: UserProfile = {
+            uid: user.uid,
+            email: user.email,
+            displayName: d.displayName || d.name || user.displayName || cleanEmail.split('@')[0],
+            photoURL: d.photoURL || user.photoURL,
+            phone: d.phone || '',
+            company: d.company || '',
+            role: d.role || 'Customer',
+            status: d.status || 'Active'
+          };
 
-        // Link profile to doc(db, 'users', user.uid) for security rules
-        saveUserProfile(user, {
-          role: profile.role,
-          displayName: profile.displayName,
-          phone: profile.phone,
-          company: profile.company,
-          status: profile.status
-        }).catch(() => {});
+          // Link profile to doc(db, 'users', user.uid) for security rules
+          saveUserProfile(user, {
+            role: profile.role,
+            displayName: profile.displayName,
+            phone: profile.phone,
+            company: profile.company,
+            status: profile.status
+          }).catch(() => {});
 
-        return profile;
+          return profile;
+        }
+      } catch (queryErr) {
+        // Query by email fails if user is not staff, which is expected and safe
       }
     }
 

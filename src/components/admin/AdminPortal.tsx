@@ -78,8 +78,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
     );
   }
 
-  // Allow only authorized staff (Super Administrator, Manager, Technician)
-  const isStaff = currentUser && ['Super Administrator', 'Manager', 'Technician'].includes(currentUser.role);
+  // Allow only authorized staff (Super Administrator, Owner, Manager, Technician)
+  const isStaff = currentUser && ['super administrator', 'owner', 'manager', 'technician', 'super_admin', 'admin'].includes((currentUser.role || '').toLowerCase());
 
   // If not logged in, render secure login view
   if (!isAuthenticated || !currentUser) {
