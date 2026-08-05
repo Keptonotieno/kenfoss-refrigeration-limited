@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, Clock, Moon, Smile, Globe, MapPin, ExternalLink, Navigation, Car, Bus, Copy, Check, CheckCheck, Phone, Smartphone, Share2, Mail, Mic, MicOff, Bot, Sparkles, RotateCcw, Volume2, VolumeX, Camera, Image, Archive, History, Trash2, AlertTriangle, CheckCircle2, Wifi, WifiOff, RefreshCw, Search } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 import { db } from '../lib/firebase';
+import { sanitizeString, sanitizeObject } from '../lib/sanitize';
 import { doc, setDoc, onSnapshot, enableNetwork, disableNetwork } from 'firebase/firestore';
 
 interface FloatingWhatsAppProps {
@@ -920,7 +921,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
     const defaultText = hasImage
       ? `📷 Attached photo of faulty equipment for ${companyName} engineering inspection.`
       : `Hello ${companyName}, I need urgent engineering service assistance.`;
-    const textToSend = msgText.trim() || defaultText;
+    const textToSend = sanitizeString(msgText.trim()) || defaultText;
     const newMsgId = `usr-${Date.now()}`;
     const timeStr = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date());
 
@@ -930,7 +931,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
       text: textToSend,
       timestamp: timeStr,
       status: 'sent',
-      ...(attachedImage ? { imageUrl: attachedImage.url, imageName: attachedImage.name } : {}),
+      ...(attachedImage ? { imageUrl: attachedImage.url, imageName: sanitizeString(attachedImage.name) } : {}),
     };
 
     setChatHistory((prev) => [...prev, userMsg]);
@@ -952,7 +953,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
       ? `Equipment Photo (${userMsg.imageName || 'Inspection image'}) attached: "${textToSend}"`
       : `Client Message: "${textToSend}"`;
 
-    const realTimeNotif = {
+    const realTimeNotif = sanitizeObject({
       id: notifId,
       type: 'whatsapp' as const,
       title: notifTitle,
@@ -961,7 +962,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
       createdAt: new Date().toISOString(),
       link: 'contact_info',
       ...(userMsg.imageUrl ? { imageUrl: userMsg.imageUrl, imageName: userMsg.imageName } : {}),
-    };
+    });
 
     setDoc(doc(db, 'notifications', notifId), realTimeNotif).catch((err) => {
       console.error('Firestore real-time WhatsApp notification save error:', err);
@@ -969,7 +970,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
 
     // Also persist inquiry log in contacts collection in Firestore
     const contactMsgId = `contact-wa-${Date.now()}`;
-    const contactDoc = {
+    const contactDoc = sanitizeObject({
       id: contactMsgId,
       name: 'WhatsApp Live Visitor',
       email: 'whatsapp-chat@kenfoss.co.ke',
@@ -979,7 +980,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
       ...(userMsg.imageUrl ? { imageUrl: userMsg.imageUrl, imageName: userMsg.imageName } : {}),
       status: 'Unread',
       createdAt: new Date().toISOString(),
-    };
+    });
     setDoc(doc(db, 'contacts', contactMsgId), contactDoc).catch((err) => {
       console.error('Firestore real-time WhatsApp contact message save error:', err);
     });

@@ -22,6 +22,7 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { db, auth, createSecondaryStaffAuthUser } from '../lib/firebase';
+import { hashPassword, comparePassword } from '../lib/passwordHash';
 import { AdminInvitationService } from '../services/adminService';
 import {
   AdminUser,
@@ -310,8 +311,8 @@ interface AdminContextType {
   loginWithInvitationCode: (code: string) => Promise<{ success: boolean; message: string; user?: AdminUser }>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<{ success: boolean; message: string }>;
-  resetPassword: (email: string, newPassword: string) => { success: boolean; message: string };
-  changePassword: (oldPassword: string, newPassword: string) => { success: boolean; message: string };
+  resetPassword: (email: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
   updateUserProfile: (data: { name?: string; phone?: string; avatar?: string }) => Promise<{ success: boolean; message: string }>;
   inviteUser: (name: string, email: string, role: UserRole, phone?: string) => { success: boolean; message: string };
   updateUserRole: (userId: string, newRole: UserRole) => void;
@@ -1010,6 +1011,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             addAuditLog('USER_LOGIN_FAILED', `Login blocked for ${cleanEmail}: Account is ${found.status}.`);
             return { success: false, error: `Your staff account '${cleanEmail}' is ${found.status.toLowerCase()}.` };
           }
+          if (found.passwordHash) {
+            const isMatch = await comparePassword(pass, found.passwordHash);
+            if (!isMatch) {
+              addAuditLog('USER_LOGIN_FAILED', `Login failed for ${cleanEmail}: Invalid password match against stored hash.`);
+              return { success: false, error: 'Invalid email address or password. Please check your credentials and try again.' };
+            }
+          }
           if (['Super Administrator', 'Owner', 'Manager', 'Technician'].includes(found.role)) {
             const activeUser: AdminUser = {
               ...found,
@@ -1026,6 +1034,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } else {
           // Provision new Super Administrator profile in Firestore directory if logging in
           const autoName = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Super Administrator';
+          const pHash = await hashPassword(pass);
           const newSuperAdminDoc: AdminUser = {
             id: `usr-admin-${Date.now()}`,
             name: autoName,
@@ -1037,7 +1046,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             createdAt: new Date().toISOString(),
             lastLogin: new Date().toISOString(),
             twoFactorEnabled: true,
-            mustChangePassword: false
+            mustChangePassword: false,
+            passwordHash: pHash
           };
           await setDoc(doc(db, 'users', newSuperAdminDoc.id), newSuperAdminDoc, { merge: true }).catch(() => {});
           setCurrentUser(newSuperAdminDoc);
@@ -1088,6 +1098,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // 2. Create Firebase Auth account
       const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
       const fbUser = userCred.user;
+      const passHash = await hashPassword(pass);
 
       // 3. Create Firestore User Profile
       const newUserDoc: AdminUser = {
@@ -1100,7 +1111,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         status: 'Active',
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString(),
-        twoFactorEnabled: false
+        twoFactorEnabled: false,
+        passwordHash: passHash
       };
 
       await setDoc(doc(db, 'users', fbUser.uid), newUserDoc);
@@ -1118,6 +1130,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err: any) {
       if (err.code === 'auth/operation-not-allowed') {
         const fallbackUid = `usr-staff-${Date.now()}`;
+        const passHash = await hashPassword(pass);
         const newUserDoc: AdminUser = {
           id: fallbackUid,
           name: cleanName,
@@ -1128,7 +1141,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           status: 'Active',
           createdAt: new Date().toISOString(),
           lastLogin: new Date().toISOString(),
-          twoFactorEnabled: false
+          twoFactorEnabled: false,
+          passwordHash: passHash
         };
         await setDoc(doc(db, 'users', fallbackUid), newUserDoc).catch(() => {});
         await AdminInvitationService.redeemInvitationCode(cleanCode, fallbackUid, cleanName).catch(() => {});
@@ -1173,6 +1187,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       // Simultaneously create Firebase Auth account and Firestore user document
       const uid = await createSecondaryStaffAuthUser(cleanEmail, assignedTempPass);
+      const tempPassHash = await hashPassword(assignedTempPass);
 
       const newStaffUser: AdminUser = {
         id: uid,
@@ -1184,7 +1199,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         status: 'Active',
         createdAt: new Date().toISOString(),
         mustChangePassword: true,
-        twoFactorEnabled: false
+        twoFactorEnabled: false,
+        passwordHash: tempPassHash
       };
 
       await setDoc(doc(db, 'users', uid), newStaffUser);
@@ -1220,9 +1236,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       await updatePassword(auth.currentUser, newPassword);
-      await setDoc(doc(db, 'users', currentUser.id), { mustChangePassword: false, updatedAt: new Date().toISOString() }, { merge: true });
+      const newHash = await hashPassword(newPassword);
+      await setDoc(doc(db, 'users', currentUser.id), { passwordHash: newHash, mustChangePassword: false, updatedAt: new Date().toISOString() }, { merge: true });
 
-      const updated = { ...currentUser, mustChangePassword: false };
+      const updated = { ...currentUser, mustChangePassword: false, passwordHash: newHash };
       setCurrentUser(updated);
       localStorage.setItem('kenfoss_admin_user', JSON.stringify(updated));
 
@@ -1308,7 +1325,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const resetPassword = (email: string, newPassword: string) => {
+  const resetPassword = async (email: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
     const found = users.find(u => u.email.toLowerCase() === email.toLowerCase());
     if (!found) {
       return { success: false, message: 'Account not found or authorization link expired.' };
@@ -1316,14 +1333,38 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!newPassword || newPassword.length < 8) {
       return { success: false, message: 'Password must be at least 8 characters long.' };
     }
-    addAuditLog('PASSWORD_RESET_COMPLETED', `Password successfully updated for ${found.name} (${found.email})`);
-    return { success: true, message: 'Your password has been successfully reset. You can now sign in with your new credentials.' };
+    try {
+      const pHash = await hashPassword(newPassword);
+      await setDoc(doc(db, 'users', found.id), { passwordHash: pHash, updatedAt: new Date().toISOString() }, { merge: true });
+      addAuditLog('PASSWORD_RESET_COMPLETED', `Password successfully updated for ${found.name} (${found.email})`);
+      return { success: true, message: 'Your password has been successfully reset. You can now sign in with your new credentials.' };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Failed to reset password.' };
+    }
   };
 
-  const changePassword = (_oldPassword: string, _newPassword: string) => {
+  const changePassword = async (oldPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
     if (!currentUser) return { success: false, message: 'Not authenticated.' };
-    addAuditLog('PASSWORD_CHANGED', 'User updated account password');
-    return { success: true, message: 'Account password changed successfully.' };
+    if (!newPassword || newPassword.length < 8) {
+      return { success: false, message: 'New password must be at least 8 characters long.' };
+    }
+    if (currentUser.passwordHash) {
+      const isMatch = await comparePassword(oldPassword, currentUser.passwordHash);
+      if (!isMatch) {
+        return { success: false, message: 'Current password is incorrect. Verification failed.' };
+      }
+    }
+    try {
+      const pHash = await hashPassword(newPassword);
+      await setDoc(doc(db, 'users', currentUser.id), { passwordHash: pHash, updatedAt: new Date().toISOString() }, { merge: true });
+      const updated = { ...currentUser, passwordHash: pHash };
+      setCurrentUser(updated);
+      localStorage.setItem('kenfoss_admin_user', JSON.stringify(updated));
+      addAuditLog('PASSWORD_CHANGED', `User ${currentUser.name} updated account password.`);
+      return { success: true, message: 'Account password changed successfully.' };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Failed to change password.' };
+    }
   };
 
   const updateUserProfile = async (data: { name?: string; phone?: string; avatar?: string }): Promise<{ success: boolean; message: string }> => {

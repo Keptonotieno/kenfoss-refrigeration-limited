@@ -162,6 +162,7 @@ export interface AdminUser {
   twoFactorEnabled?: boolean;
   invitedBy?: string;
   mustChangePassword?: boolean;
+  passwordHash?: string;
 }
 
 export type BookingStatus = 'New' | 'Assigned' | 'In Progress' | 'Completed' | 'Cancelled';

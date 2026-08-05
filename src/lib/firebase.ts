@@ -32,6 +32,8 @@ import {
   getDownloadURL
 } from 'firebase/storage';
 
+import { sanitizeObject } from './sanitize';
+
 import firebaseConfigJson from '../../firebase-applet-config.json';
 
 export const firebaseConfig = {
@@ -224,9 +226,10 @@ export async function saveUserProfile(user: User, additionalData: Record<string,
 // Helper to save booking request to Firestore
 export async function saveBookingToFirestore(bookingData: any) {
   try {
+    const sanitizedData = sanitizeObject(bookingData);
     const colRef = collection(db, 'bookings');
     const docRef = await addDoc(colRef, {
-      ...bookingData,
+      ...sanitizedData,
       createdAt: new Date().toISOString(),
       serverTime: serverTimestamp()
     });
@@ -240,9 +243,10 @@ export async function saveBookingToFirestore(bookingData: any) {
 // Helper to save contact inquiry to Firestore
 export async function saveContactToFirestore(contactData: any) {
   try {
+    const sanitizedData = sanitizeObject(contactData);
     const colRef = collection(db, 'contacts');
     const docRef = await addDoc(colRef, {
-      ...contactData,
+      ...sanitizedData,
       createdAt: new Date().toISOString(),
       serverTime: serverTimestamp()
     });
@@ -256,9 +260,10 @@ export async function saveContactToFirestore(contactData: any) {
 // Helper to save AI Diagnostic log to Firestore
 export async function saveDiagnosticToFirestore(diagnosticData: any) {
   try {
+    const sanitizedData = sanitizeObject(diagnosticData);
     const colRef = collection(db, 'diagnostics');
     const docRef = await addDoc(colRef, {
-      ...diagnosticData,
+      ...sanitizedData,
       createdAt: new Date().toISOString(),
       serverTime: serverTimestamp()
     });

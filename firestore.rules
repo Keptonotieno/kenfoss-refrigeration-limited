@@ -2,86 +2,140 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default match for all documents
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isStaffOrAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email.matches('.*@kenfoss\\.co\\.ke$') ||
+        request.auth.token.role in ['Super Administrator', 'Manager', 'Technician'] ||
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Super Administrator', 'Manager', 'Technician']
+      );
+    }
+
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    // Default deny catch-all
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
 
     // 1. Users collection
     match /users/{userId} {
-      allow read, write: if true;
+      allow read: if isOwner(userId) || isStaffOrAdmin();
+      allow create: if isOwner(userId) || isStaffOrAdmin();
+      allow update: if isOwner(userId) || isStaffOrAdmin();
+      allow delete: if isStaffOrAdmin();
     }
 
     // 2. Bookings
     match /bookings/{bookingId} {
-      allow read, write: if true;
+      allow read: if isSignedIn() && (resource.data.email == request.auth.token.email || isStaffOrAdmin());
+      allow create: if isValidString(request.resource.data.bookingRef, 3, 64) 
+                   && isValidString(request.resource.data.serviceType, 2, 128);
+      allow update: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
+      allow delete: if isStaffOrAdmin();
     }
 
     // 3. Quotes / RFQs
     match /quotes/{quoteId} {
-      allow read, write: if true;
+      allow read: if isSignedIn() && (resource.data.email == request.auth.token.email || isStaffOrAdmin());
+      allow create: if isValidString(request.resource.data.rfqRef, 3, 64) 
+                   && isValidString(request.resource.data.projectType, 2, 128);
+      allow update: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
+      allow delete: if isStaffOrAdmin();
     }
 
     // 4. Customers
     match /customers/{customerId} {
-      allow read, write: if true;
+      allow read: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
+      allow create: if isStaffOrAdmin() || (isSignedIn() && request.resource.data.email == request.auth.token.email);
+      allow update: if isStaffOrAdmin();
+      allow delete: if isStaffOrAdmin();
     }
 
     // 5. Diagnostics
     match /diagnostics/{diagnosticId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create: if isValidString(request.resource.data.applianceType, 1, 128);
+      allow update, delete: if isStaffOrAdmin();
     }
 
     // 6. Contact Messages
     match /contacts/{contactId} {
-      allow read, write: if true;
+      allow read: if isStaffOrAdmin();
+      allow create: if isValidString(request.resource.data.name, 1, 128) 
+                   && isValidString(request.resource.data.message, 1, 2000);
+      allow update, delete: if isStaffOrAdmin();
     }
 
     // 7. Invitations
     match /invitations/{invitationId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create, update, delete: if isStaffOrAdmin();
     }
 
-    // 8. CMS Collections
+    // 8. Public CMS Collections (Read-Only for Public, Write for Staff/Admin)
     match /services/{serviceId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaffOrAdmin();
     }
 
     match /projects/{projectId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaffOrAdmin();
     }
 
     match /testimonials/{testimonialId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaffOrAdmin();
     }
 
     match /blogs/{blogId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaffOrAdmin();
     }
 
     match /gallery/{galleryId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaffOrAdmin();
     }
 
-    // 9. Website & System Init Settings
+    // 9. Website & System Settings
     match /settings/{settingId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaffOrAdmin();
     }
 
     // 10. Notifications
     match /notifications/{notificationId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isStaffOrAdmin();
     }
 
     // 11. System Audit Logs
     match /auditLogs/{logId} {
-      allow read, write: if true;
+      allow read: if isStaffOrAdmin();
+      allow create: if isSignedIn() || request.resource.data.action is string;
+      allow update, delete: if isStaffOrAdmin();
     }
 
     // 12. Roles (RBAC)
     match /roles/{roleId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isStaffOrAdmin();
     }
   }
 }
+
 

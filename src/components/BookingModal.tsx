@@ -14,6 +14,7 @@ import {
   Building
 } from 'lucide-react';
 import { saveBookingToFirestore } from '../lib/firebase';
+import { sanitizeString, sanitizeObject } from '../lib/sanitize';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
 import { useToast } from '../context/ToastContext';
@@ -87,20 +88,30 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
     const ref = tab === 'service' ? `KEN-${Math.floor(100000 + Math.random() * 900000)}` : `RFQ-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    const bookingRecord = {
+    const cleanName = sanitizeString(fullName) || sanitizeString(user?.displayName) || 'Guest Customer';
+    const cleanEmail = sanitizeString(email) || sanitizeString(user?.email) || '';
+    const cleanPhone = sanitizeString(phone);
+    const cleanLocation = sanitizeString(location);
+    const cleanServiceType = sanitizeString(serviceType);
+    const cleanProjectType = sanitizeString(projectType);
+    const cleanNotes = sanitizeString(notes);
+    const cleanCompanyName = sanitizeString(companyName);
+    const cleanPreferredDate = sanitizeString(preferredDate);
+
+    const bookingRecord = sanitizeObject({
       refCode: ref,
       type: tab,
       userId: user?.uid || 'guest',
-      userName: fullName || user?.displayName || 'Guest Customer',
-      userEmail: email || user?.email || '',
-      phone,
-      location,
-      serviceType: tab === 'service' ? serviceType : projectType,
-      equipmentDetails: notes,
-      preferredDate,
-      companyName: tab === 'quote' ? companyName : '',
+      userName: cleanName,
+      userEmail: cleanEmail,
+      phone: cleanPhone,
+      location: cleanLocation,
+      serviceType: tab === 'service' ? cleanServiceType : cleanProjectType,
+      equipmentDetails: cleanNotes,
+      preferredDate: cleanPreferredDate,
+      companyName: tab === 'quote' ? cleanCompanyName : '',
       status: 'Pending Dispatch'
-    };
+    });
 
     try {
       // Save to Firestore
@@ -109,8 +120,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       // Attempt API backend endpoint if available
       const endpoint = tab === 'service' ? '/api/book' : '/api/quote';
       const payload = tab === 'service' 
-        ? { fullName, phone, email, location, serviceType, date: preferredDate, notes, bookingRef: ref }
-        : { companyName, contactPerson: fullName, phone, email, location, projectType, specs: notes, rfqRef: ref };
+        ? { fullName: cleanName, phone: cleanPhone, email: cleanEmail, location: cleanLocation, serviceType: cleanServiceType, date: cleanPreferredDate, notes: cleanNotes, bookingRef: ref }
+        : { companyName: cleanCompanyName, contactPerson: cleanName, phone: cleanPhone, email: cleanEmail, location: cleanLocation, projectType: cleanProjectType, specs: cleanNotes, rfqRef: ref };
 
       try {
         await fetch(endpoint, {
@@ -124,30 +135,30 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
       setConfirmation({
         refCode: ref,
-        message: `Inquiry ${ref} recorded successfully & synchronized with Firestore database! A senior engineer will call ${phone} within 15 minutes.`
+        message: `Inquiry ${ref} recorded successfully & synchronized with Firestore database! A senior engineer will call ${cleanPhone} within 15 minutes.`
       });
 
       showToast({
         type: tab === 'service' ? 'booking' : 'quote',
-        title: tab === 'service' ? `Service Booking Received (${serviceType})` : `Commercial RFQ Received (${projectType})`,
-        message: `Thank you ${fullName || 'Valued Customer'}! Your request has been logged. An EPRA-certified engineer at Kenfoss Ruiru will review your specs and reach out on ${phone} within 15 minutes.`,
+        title: tab === 'service' ? `Service Booking Received (${cleanServiceType})` : `Commercial RFQ Received (${cleanProjectType})`,
+        message: `Thank you ${cleanName}! Your request has been logged. An EPRA-certified engineer at Kenfoss Ruiru will review your specs and reach out on ${cleanPhone} within 15 minutes.`,
         refCode: ref,
-        phone,
-        location
+        phone: cleanPhone,
+        location: cleanLocation
       });
     } catch (err: any) {
       console.error("Booking error:", err);
       setConfirmation({
         refCode: ref,
-        message: `Inquiry ${ref} received! A senior engineer will call ${phone} shortly.`
+        message: `Inquiry ${ref} received! A senior engineer will call ${cleanPhone} shortly.`
       });
 
       showToast({
         type: tab === 'service' ? 'booking' : 'quote',
         title: `Inquiry Received (${ref})`,
-        message: `Your request was received successfully! Kenfoss engineers will call ${phone} shortly.`,
+        message: `Your request was received successfully! Kenfoss engineers will call ${cleanPhone} shortly.`,
         refCode: ref,
-        phone
+        phone: cleanPhone
       });
     } finally {
       setLoading(false);

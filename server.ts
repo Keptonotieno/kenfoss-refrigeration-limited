@@ -6,11 +6,77 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Simple sliding-window IP rate limiter to protect against DDoS, brute force, and quota exhaustion
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+function rateLimiter(maxRequests = 40, windowMs = 60 * 1000) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const ip = req.ip || req.headers['x-forwarded-for']?.toString() || 'unknown-ip';
+    const now = Date.now();
+    const record = rateLimitMap.get(ip);
+
+    if (!record || now > record.resetTime) {
+      rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs });
+      return next();
+    }
+
+    if (record.count >= maxRequests) {
+      return res.status(429).json({
+        error: 'Too many requests. Please slow down and try again shortly.',
+        retryAfter: Math.ceil((record.resetTime - now) / 1000)
+      });
+    }
+
+    record.count += 1;
+    next();
+  };
+}
+
+// Input sanitizer to strip script tags and dangerous HTML characters
+function sanitizeInput(val: any): string {
+  if (typeof val !== 'string') return '';
+  return val
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+=/gi, '')
+    .trim();
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  // Security Hardening: Disable Express fingerprinting header
+  app.disable('x-powered-by');
+
+  // Security Hardening: Enforce strict HTTP security response headers and Content Security Policy (CSP)
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://apis.google.com https://*.firebaseapp.com; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src 'self' https://fonts.gstatic.com data:; " +
+      "img-src 'self' data: blob: https: http:; " +
+      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com ws: wss:; " +
+      "frame-src 'self' https://*.firebaseapp.com https://*.google.com; " +
+      "object-src 'none'; " +
+      "base-uri 'self'; " +
+      "form-action 'self';"
+    );
+    next();
+  });
+
+  // Limit body size to 1MB to prevent Denial of Service (DoS) memory overflow attacks
+  app.use(express.json({ limit: '1mb' }));
+
+  // Apply rate limiting across all public API routes
+  app.use('/api/', rateLimiter(40, 60 * 1000));
 
   // API Route: AI Instant Refrigeration & Fault Diagnostic Assistant
   app.post('/api/diagnose', async (req, res) => {
@@ -49,7 +115,7 @@ async function startServer() {
           });
 
           const prompt = `
-You are the Kenfoss AI Diagnostic Engineer, a virtual refrigeration and HVAC diagnostic assistant at Kenfoss Refrigeration Limited in Kenya (+254 712 345 678 / +254 745 411 923).
+You are the Kenfoss AI Diagnostic Engineer, a virtual refrigeration and HVAC diagnostic assistant at Kenfoss Refrigeration Limited in Kenya (+254 745 411 923).
 
 OBJECTIVE:
 - Understand the customer's problem.
@@ -222,7 +288,7 @@ REQUIRED JSON OUTPUT SCHEMA (no markdown tags, valid JSON only):
       });
     } catch (err: any) {
       console.error('Diagnostic error:', err);
-      return res.status(500).json({ error: 'Diagnostic service temporarily unavailable. Please call +254 712 345 678.' });
+      return res.status(500).json({ error: 'Diagnostic service temporarily unavailable. Please call +254 745 411 923.' });
     }
   });
 
@@ -265,7 +331,7 @@ REQUIRED JSON OUTPUT SCHEMA (no markdown tags, valid JSON only):
 
       // Select system instruction and model based on task role
       let selectedModel = 'gemini-3.5-flash';
-      let systemInstruction = `You are Kenfoss AI Assistant, an expert virtual HVAC and commercial refrigeration engineer at Kenfoss Refrigeration Limited (+254 745 411 923 / +254 712 345 678, Ruiru, Kiambu County, Kenya).
+      let systemInstruction = `You are Kenfoss AI Assistant, an expert virtual HVAC and commercial refrigeration engineer at Kenfoss Refrigeration Limited (+254 745 411 923, Ruiru, Kiambu County, Kenya).
 You assist customers, building managers, and technicians with:
 - Troubleshooting refrigerator, freezer, chiller, and walk-in cold room faults
 - Explaining OEM error codes (Samsung, LG, Danfoss, Bitzer, Copeland, Carrier)
@@ -365,7 +431,7 @@ Provide advanced technical calculations, refrigeration load sizing, enthalpy/P-T
       } else if (lowerMsg.includes('hi') || lowerMsg.includes('hello') || lowerMsg.includes('hey') || lowerMsg.includes('kenfoss')) {
         reply = "Welcome to Kenfoss Refrigeration Limited! I am your AI HVAC & Cold Room Assistant. I can help with equipment diagnostics, error codes, preventative maintenance advice, cold room sizing, and booking a technician dispatch. What can I assist you with today?";
       } else {
-        reply = `Regarding "${message}": Kenfoss Refrigeration Limited specializes in commercial cold room engineering, supermarket display chillers, industrial HVAC systems, and precision temperature controls in Kenya. For immediate technical assistance or on-site engineer dispatch, call our Ruiru workshop desk at +254 745 411 923 or +254 712 345 678.`;
+        reply = `Regarding "${message}": Kenfoss Refrigeration Limited specializes in commercial cold room engineering, supermarket display chillers, industrial HVAC systems, and precision temperature controls in Kenya. For immediate technical assistance or on-site engineer dispatch, call our Ruiru workshop desk at +254 745 411 923.`;
       }
 
       return res.json({
