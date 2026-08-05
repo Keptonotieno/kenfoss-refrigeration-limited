@@ -131,6 +131,24 @@
       },
       "required": ["action", "actorName", "timestamp"]
     },
+    "notifications": {
+      "title": "System & Chat Notifications",
+      "description": "Real-time system, chat, and activity alerts",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isRead": { "type": "boolean" },
+        "link": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "imageName": { "type": "string" },
+        "phone": { "type": "string" },
+        "sender": { "type": "string" }
+      },
+      "required": ["title", "message", "createdAt"]
+    },
     "roles": {
       "title": "Role Definitions",
       "description": "Role definitions and permission rules for RBAC",

@@ -51,6 +51,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
   // Active module tab
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [showSetup, setShowSetup] = useState<boolean>(false);
 
   // Set default tab based on role upon login
   useEffect(() => {
@@ -60,13 +61,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
   }, [currentUser?.role, currentUser?.id]);
 
   // If system initialization is pending (no Super Admins provisioned yet), show SystemSetup page
-  if (!isSystemInitialized) {
+  if (!isSystemInitialized || showSetup) {
     return (
       <SystemSetup 
         onSetupCompleted={() => {
+          setShowSetup(false);
           refreshSystemSetupState();
         }} 
-        onCancel={onCloseAdmin} 
+        onCancel={() => {
+          setShowSetup(false);
+          if (!isSystemInitialized && onCloseAdmin) {
+            onCloseAdmin();
+          }
+        }} 
       />
     );
   }
@@ -76,7 +83,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
 
   // If not logged in, render secure login view
   if (!isAuthenticated || !currentUser) {
-    return <AdminLogin onCancel={onCloseAdmin} />;
+    return <AdminLogin onCancel={onCloseAdmin} onSwitchToSetup={() => setShowSetup(true)} />;
   }
 
   // If authenticated but user role is not staff level, block with explicit feedback

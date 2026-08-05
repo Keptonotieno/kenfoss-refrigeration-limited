@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Clock, Moon, Smile, Globe, MapPin, ExternalLink, Navigation, Car, Bus, Copy, Check, CheckCheck, Phone, Smartphone, Share2, Mail, Mic, MicOff, Bot, Sparkles, RotateCcw, Volume2, VolumeX, Camera, Image } from 'lucide-react';
+import { MessageSquare, X, Send, Clock, Moon, Smile, Globe, MapPin, ExternalLink, Navigation, Car, Bus, Copy, Check, CheckCheck, Phone, Smartphone, Share2, Mail, Mic, MicOff, Bot, Sparkles, RotateCcw, Volume2, VolumeX, Camera, Image, Archive, History, Trash2, AlertTriangle, CheckCircle2, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 import { db } from '../lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, enableNetwork, disableNetwork } from 'firebase/firestore';
 
 interface FloatingWhatsAppProps {
   onOpenChatbot?: () => void;
+}
+
+export interface ArchivedWhatsAppSession {
+  id: string;
+  title: string;
+  archivedAt: string;
+  messageCount: number;
+  messages: ChatMessage[];
 }
 
 interface KenyaTimeInfo {
@@ -144,8 +152,150 @@ const getKenyaTimeInfo = (): KenyaTimeInfo => {
 
 const DRAFT_STORAGE_KEY = 'kenfoss_whatsapp_draft_msg';
 const CHAT_HISTORY_STORAGE_KEY = 'kenfoss_whatsapp_chat_history';
+const CHAT_ARCHIVES_STORAGE_KEY = 'kenfoss_whatsapp_chat_archives';
 const MAX_MSG_LENGTH = 300;
 const COMMON_EMOJIS = ['👋', '❄️', '🔧', '⚡', '🧊', '🌡️', '🛠️', '🚚', '📍', '👍', '❓', '🙏', '😊', '🏢', '💬', '✨'];
+
+export interface QuickReplyChip {
+  label: string;
+  msg: string;
+  category?: string;
+}
+
+/**
+ * Analyzes the last received support message using a keyword matcher
+ * to suggest 3 context-aware Quick Reply chips.
+ */
+const getQuickReplies = (lastSupportText: string = '', companyName: string): QuickReplyChip[] => {
+  const text = lastSupportText.toLowerCase();
+
+  // 1. Price / Quote / Cost / Financial / Payments
+  if (/\b(price|pricing|quote|quotation|cost|costs|rate|rates|payment|mpesa|m-pesa|paybill|invoice|shilling|ksh|fee|charges|deposit|budget|costing)\b/i.test(text)) {
+    return [
+      { label: '📋 Request Official Quote', msg: `Hi ${companyName}, please send me an official quotation with detailed pricing.`, category: 'Pricing' },
+      { label: '💳 M-Pesa & Payment Info', msg: `Could you share your M-Pesa Paybill / Till details or bank account info?`, category: 'Payment' },
+      { label: '📊 View Budget Options', msg: `What cost-effective equipment models or capacity options fit our project budget?`, category: 'Options' }
+    ];
+  }
+
+  // 2. Cold Storage / Freezers / Chillers / Temperature / Capacity
+  if (/\b(cold\s*room|freezer|chiller|refrigerat|cool|cooling|temperature|degree|celsius|storage|capacity|condensing|evaporator|meat|milk|flower|fruit|produce|pharma)\b/i.test(text)) {
+    return [
+      { label: '🧊 Specify Storage Dimensions', msg: `Our required cold storage size is approx [e.g. 3m x 3m x 2.4m] at [e.g. -18°C / +4°C].`, category: 'Specifications' },
+      { label: '🛠️ Book On-Site Technical Audit', msg: `Can a Kenfoss engineering team visit our facility for a cold room assessment?`, category: 'Audit' },
+      { label: '⚡ Power & Generator Specs', msg: `What are the electrical power supply requirements (3-phase vs single phase) for this unit?`, category: 'Technical' }
+    ];
+  }
+
+  // 3. Repairs / Faults / Errors / Breakdown / Leaks / Emergency
+  if (/\b(repair|repairs|fault|faulty|breakdown|leak|error|alarm|issue|broken|stop|warm|hot|urgent|emergency|trouble|service|servicing|noise|trip|tripped)\b/i.test(text)) {
+    return [
+      { label: '🚨 Request Emergency Technician', msg: `Urgent: We have an equipment breakdown and require an emergency technician on-site.`, category: 'Emergency' },
+      { label: '📸 Attaching Fault Photo / Error', msg: `I am attaching a photo of the control panel and display error code for diagnosis.`, category: 'Diagnosis' },
+      { label: '⏱️ Check Response ETA', msg: `What is the estimated technician arrival time for a service visit in our area?`, category: 'ETA' }
+    ];
+  }
+
+  // 4. Location / Address / Ruiru / Nairobi / Directions / Map
+  if (/\b(location|address|where|ruiru|nairobi|kiambu|thika|office|workshop|branch|visit|direction|directions|map|pin|find|located|gps|contact|phone)\b/i.test(text)) {
+    return [
+      { label: '📍 Get Workshop Directions', msg: `Please send the exact Google Maps link and driving directions to your Ruiru workshop.`, category: 'Directions' },
+      { label: '🕒 Confirm Visiting Hours', msg: `What are your workshop and emergency technical support opening hours today?`, category: 'Hours' },
+      { label: '📞 Request Call from Support', msg: `Please have a senior technical advisor call me back directly on this number.`, category: 'Callback' }
+    ];
+  }
+
+  // 5. Commercial HVAC / Air Conditioning / Setup / Servicing
+  if (/\b(hvac|air\s*con|ac|install|installation|setup|ventilation|duct|ducting|maintenance|amc)\b/i.test(text)) {
+    return [
+      { label: '🏗️ Schedule HVAC Site Survey', msg: `Hi ${companyName}, I'd like to schedule a site survey for commercial HVAC installation.`, category: 'Survey' },
+      { label: '🔧 Maintenance Contract Info', msg: `Do you offer annual preventative maintenance contracts (AMC) for commercial HVAC?`, category: 'Maintenance' },
+      { label: '🗓️ Book Routine Servicing', msg: `I would like to book a routine servicing for our existing cooling equipment.`, category: 'Servicing' }
+    ];
+  }
+
+  // 6. Default Context-Aware Suggestions
+  return [
+    { label: '🧊 Cold Room Design & Quote', msg: `Hi ${companyName}, I would like to inquire about cold room design and pricing.`, category: 'Inquiry' },
+    { label: '🚨 Emergency System Repair', msg: `Hello! We require urgent repair service for our commercial refrigeration system.`, category: 'Repair' },
+    { label: '📋 Request Product Brochure', msg: `Jambo! Please share your product catalog and commercial equipment brochure.`, category: 'Brochure' }
+  ];
+};
+
+interface QuickReplyChipButtonProps {
+  chip: QuickReplyChip;
+  onDraft: (msg: string) => void;
+  onCopy: (msg: string, label: string) => void;
+}
+
+const QuickReplyChipButton: React.FC<QuickReplyChipButtonProps> = ({ chip, onDraft, onCopy }) => {
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressRef = useRef(false);
+
+  const startPress = () => {
+    isLongPressRef.current = false;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(chip.msg).catch(() => {});
+      }
+      onCopy(chip.msg, chip.label);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
+      if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+        try { navigator.vibrate(50); } catch { /* ignore */ }
+      }
+    }, 500); // 500ms threshold for tap & hold / long press
+  };
+
+  const cancelPress = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (isLongPressRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      isLongPressRef.current = false;
+      return;
+    }
+    onDraft(chip.msg);
+  };
+
+  return (
+    <button
+      type="button"
+      onPointerDown={startPress}
+      onPointerUp={cancelPress}
+      onPointerCancel={cancelPress}
+      onPointerLeave={cancelPress}
+      onClick={handleClick}
+      className={`text-[11px] px-2.5 py-1 rounded-full transition-all cursor-pointer font-medium flex items-center gap-1 active:scale-95 shadow-2xs select-none ${
+        copied
+          ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700'
+          : 'bg-slate-100 hover:bg-sky-50 dark:bg-slate-800/90 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 hover:border-[#0057B8]/40 dark:hover:border-sky-500/50'
+      }`}
+      title={`Tap to draft into message box. Tap & hold (long press) to copy text to clipboard.`}
+    >
+      {copied ? (
+        <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0 animate-in zoom-in-75 duration-150" />
+      ) : (
+        <span className="text-slate-400 dark:text-slate-500 font-bold text-xs shrink-0">+</span>
+      )}
+      <span>{chip.label}</span>
+      {copied && (
+        <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 ml-0.5 animate-in fade-in">
+          Copied!
+        </span>
+      )}
+    </button>
+  );
+};
 
 export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbot }) => {
   const { contactInfo, websiteSettings, services } = useAdmin();
@@ -231,6 +381,41 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
   const [speechError, setSpeechError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const chatFeedRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = (smooth = true) => {
+    requestAnimationFrame(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'nearest' });
+      } else if (chatFeedRef.current) {
+        chatFeedRef.current.scrollTo({
+          top: chatFeedRef.current.scrollHeight,
+          behavior: smooth ? 'smooth' : 'auto'
+        });
+      }
+    });
+  };
+
+  // Firestore Live Connection & Automatic Retry Listener
+  const [connectionState, setConnectionState] = useState<'connected' | 'reconnecting' | 'offline'>('connected');
+  const [retryAttempt, setRetryAttempt] = useState<number>(0);
+  const [isManualReconnecting, setIsManualReconnecting] = useState<boolean>(false);
+  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleManualReconnect = async () => {
+    setIsManualReconnecting(true);
+    setConnectionState('reconnecting');
+    try {
+      await disableNetwork(db).catch(() => {});
+      await enableNetwork(db).catch(() => {});
+      showToast('Reconnecting Firestore live chat sync...');
+    } catch {
+      // ignore
+    } finally {
+      setTimeout(() => setIsManualReconnecting(false), 1200);
+    }
+  };
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {
     try {
@@ -253,6 +438,75 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
       }
     ];
   });
+
+  const [whatsappArchives, setWhatsappArchives] = useState<ArchivedWhatsAppSession[]>(() => {
+    try {
+      const saved = localStorage.getItem(CHAT_ARCHIVES_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+
+  const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
+  const [showArchivesModal, setShowArchivesModal] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3500);
+  };
+
+  // Smooth Auto-scroll behavior triggering on new user or support messages and layout shifts (images, long text)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    scrollToBottom(true);
+
+    const feedEl = chatFeedRef.current;
+    if (!feedEl) return;
+
+    let rafId: number | null = null;
+    const handleResize = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        scrollToBottom(true);
+      });
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+
+    resizeObserver.observe(feedEl);
+    Array.from(feedEl.children).forEach((child) => resizeObserver.observe(child));
+
+    const images = feedEl.querySelectorAll('img');
+    images.forEach((img) => {
+      if (!img.complete) {
+        img.addEventListener('load', handleResize, { once: true });
+      }
+    });
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      resizeObserver.disconnect();
+      images.forEach((img) => img.removeEventListener('load', handleResize));
+    };
+  }, [chatHistory, isOpen]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_ARCHIVES_STORAGE_KEY, JSON.stringify(whatsappArchives));
+    } catch {
+      // ignore
+    }
+  }, [whatsappArchives]);
+
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [attachedImage, setAttachedImage] = useState<{ url: string; name: string } | null>(null);
   const [selectedImageModalUrl, setSelectedImageModalUrl] = useState<string | null>(null);
@@ -320,11 +574,48 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
     }
   }, [chatHistory]);
 
-  const handleClearChat = () => {
+  const handleArchiveAndClearChat = () => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
     setSpeakingMsgId(null);
+
+    const firstUserMsg = chatHistory.find(m => m.sender === 'user');
+    let title = firstUserMsg 
+      ? firstUserMsg.text.slice(0, 45).replace(/\n/g, ' ')
+      : `Support Chat (${new Date().toLocaleDateString()})`;
+    if (firstUserMsg && firstUserMsg.text.length > 45) title += '...';
+
+    const archiveItem: ArchivedWhatsAppSession = {
+      id: `wa-archive-${Date.now()}`,
+      title,
+      archivedAt: `${new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+      messageCount: chatHistory.length,
+      messages: [...chatHistory]
+    };
+
+    setWhatsappArchives(prev => [archiveItem, ...prev]);
+
+    const defaultMsg: ChatMessage[] = [
+      {
+        id: `welcome-msg-${Date.now()}`,
+        sender: 'support',
+        text: 'Jambo! 👋 Welcome to Kenfoss Support. Chat history archived to local storage. How can our engineering team assist you today?',
+        timestamp: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date()),
+      }
+    ];
+    setChatHistory(defaultMsg);
+
+    setShowClearConfirmModal(false);
+    showToast('Support chat archived to local storage & chat reset!');
+  };
+
+  const handleClearWithoutArchiveChat = () => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setSpeakingMsgId(null);
+
     const defaultMsg: ChatMessage[] = [
       {
         id: `welcome-msg-${Date.now()}`,
@@ -334,11 +625,26 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
       }
     ];
     setChatHistory(defaultMsg);
-    try {
-      localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY);
-    } catch {
-      // ignore
-    }
+
+    setShowClearConfirmModal(false);
+    showToast('Chat history reset permanently.');
+  };
+
+  const handleRestoreWhatsAppArchive = (archive: ArchivedWhatsAppSession) => {
+    setChatHistory(archive.messages);
+    setShowArchivesModal(false);
+    showToast(`Restored chat: "${archive.title}"`);
+  };
+
+  const handleDeleteWhatsAppArchive = (id: string) => {
+    setWhatsappArchives(prev => prev.filter(a => a.id !== id));
+    showToast('Archived chat deleted.');
+  };
+
+  const handleClearAllWhatsAppArchives = () => {
+    if (whatsappArchives.length === 0) return;
+    setWhatsappArchives([]);
+    showToast('All WhatsApp chat archives deleted.');
   };
 
   useEffect(() => {
@@ -446,6 +752,85 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Firestore connection retry listener effect monitoring connection & chat history state
+  useEffect(() => {
+    let unsubscribe: (() => void) | null = null;
+    let isMounted = true;
+
+    const setupFirestoreRetryListener = (attempt = 0) => {
+      if (!isMounted) return;
+
+      try {
+        const docRef = doc(db, 'settings', 'contact_info');
+        unsubscribe = onSnapshot(
+          docRef,
+          { includeMetadataChanges: true },
+          (snapshot) => {
+            if (!isMounted) return;
+            if (snapshot.metadata.fromCache) {
+              setConnectionState('reconnecting');
+            } else {
+              setConnectionState('connected');
+              setRetryAttempt(0);
+            }
+          },
+          async (error) => {
+            if (!isMounted) return;
+            console.warn('Firestore transport stream disconnected. Initiating automatic retry reconnect...', error);
+            setConnectionState('reconnecting');
+
+            const nextAttempt = attempt + 1;
+            setRetryAttempt(nextAttempt);
+            const backoffMs = Math.min(1000 * Math.pow(2, Math.min(nextAttempt, 4)), 16000);
+
+            if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+            retryTimerRef.current = setTimeout(async () => {
+              if (!isMounted) return;
+              try {
+                await disableNetwork(db).catch(() => {});
+                await enableNetwork(db).catch(() => {});
+              } catch {
+                // ignore
+              }
+              if (unsubscribe) unsubscribe();
+              setupFirestoreRetryListener(nextAttempt);
+            }, backoffMs);
+          }
+        );
+      } catch {
+        if (!isMounted) return;
+        setConnectionState('reconnecting');
+      }
+    };
+
+    setupFirestoreRetryListener();
+
+    const handleOnline = async () => {
+      setConnectionState('reconnecting');
+      try {
+        await enableNetwork(db).catch(() => {});
+      } catch {
+        // ignore
+      }
+      setupFirestoreRetryListener(0);
+    };
+
+    const handleOffline = () => {
+      setConnectionState('offline');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      isMounted = false;
+      if (unsubscribe) unsubscribe();
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [chatHistory.length]);
 
   // Close when clicking outside the chat box
   useEffect(() => {
@@ -631,17 +1016,37 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                 </div>
               </div>
 
-              <button 
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsOpen(false);
-                }}
-                className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors cursor-pointer"
-                aria-label="Close WhatsApp chat"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center space-x-1">
+                {/* View Archives Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowArchivesModal(true);
+                  }}
+                  className="relative p-1.5 text-slate-400 hover:text-[#0057B8] dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors cursor-pointer flex items-center justify-center"
+                  title="View & Restore Archived Support Chats"
+                >
+                  <History className="w-4 h-4" />
+                  {whatsappArchives.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#0057B8] text-white text-[9px] font-bold px-1 rounded-full">
+                      {whatsappArchives.length}
+                    </span>
+                  )}
+                </button>
+
+                <button 
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsOpen(false);
+                  }}
+                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors cursor-pointer"
+                  aria-label="Close WhatsApp chat"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Dynamic Local Kenya Time & Business Hours Status Badge */}
@@ -682,6 +1087,39 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                   <span className="font-mono font-bold text-blue-700 dark:text-blue-300 shrink-0">{kenyaTime.userTimeString}</span>
                 </div>
               )}
+
+              {/* Firestore Connection & Retry Status Indicator */}
+              <div className="pt-1 mt-0.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[10px]">
+                <div className="flex items-center space-x-1.5">
+                  {connectionState === 'connected' ? (
+                    <Wifi className="w-3 h-3 text-emerald-500 shrink-0" />
+                  ) : connectionState === 'reconnecting' ? (
+                    <RefreshCw className="w-3 h-3 text-amber-500 shrink-0 animate-spin" />
+                  ) : (
+                    <WifiOff className="w-3 h-3 text-red-500 shrink-0" />
+                  )}
+                  <span className="font-medium text-slate-600 dark:text-slate-300">
+                    {connectionState === 'connected'
+                      ? 'Live Sync Active'
+                      : connectionState === 'reconnecting'
+                      ? `Reconnecting Sync${retryAttempt > 0 ? ` (#${retryAttempt})` : '...'}`
+                      : 'Offline Mode'}
+                  </span>
+                </div>
+
+                {connectionState !== 'connected' && (
+                  <button
+                    type="button"
+                    onClick={handleManualReconnect}
+                    disabled={isManualReconnecting}
+                    className="px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded font-semibold text-[9px] flex items-center space-x-1 transition-all cursor-pointer"
+                    title="Force reconnect Firestore live listener"
+                  >
+                    <RefreshCw className={`w-2.5 h-2.5 ${isManualReconnecting ? 'animate-spin' : ''}`} />
+                    <span>Retry Sync</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -726,7 +1164,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
           )}
 
           {/* Chat Messages Feed Display with Status Indicators */}
-          <div className="bg-slate-100/80 dark:bg-slate-950/80 rounded-xl p-2.5 border border-slate-200/80 dark:border-slate-800 space-y-2 max-h-44 overflow-y-auto text-xs">
+          <div ref={chatFeedRef} className="bg-slate-100/80 dark:bg-slate-950/80 rounded-xl p-2.5 border border-slate-200/80 dark:border-slate-800 space-y-2 max-h-44 overflow-y-auto text-xs scroll-smooth">
             {chatHistory.map((msg) => (
               <div
                 key={msg.id}
@@ -806,6 +1244,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                 </div>
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Message Status Ticks Legend & Reset Button */}
@@ -828,9 +1267,9 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
             {chatHistory.length > 1 && (
               <button
                 type="button"
-                onClick={handleClearChat}
+                onClick={() => setShowClearConfirmModal(true)}
                 className="flex items-center gap-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer ml-1"
-                title="Reset saved chat history"
+                title="Clear or Archive chat history"
               >
                 <RotateCcw className="w-2.5 h-2.5" />
                 <span>Reset</span>
@@ -838,30 +1277,36 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
             )}
           </div>
 
-          {/* Quick Reply Chips */}
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {(services && services.length > 0
-              ? services.slice(0, 4).map((s) => ({
-                  label: s.title,
-                  msg: `Hi ${companyName}, I need assistance regarding ${s.title}.`,
-                }))
-              : [
-                  { label: 'Cold Room Maintenance', msg: `Hi ${companyName}, I need assistance with Cold Room Maintenance.` },
-                  { label: 'Emergency Repair', msg: `Hello, I require urgent Emergency Repair service for our refrigeration system.` },
-                  { label: 'Request Quote', msg: `Jambo! I would like to request a custom project quote from ${companyName}.` },
-                  { label: 'HVAC Installation', msg: `Hi team, I need inquiries regarding commercial HVAC installation.` },
-                ]
-            ).map((chip) => (
-              <button
-                key={chip.label}
-                type="button"
-                onClick={() => setMsgText(chip.msg)}
-                className="text-[11px] bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-full transition-colors cursor-pointer font-medium"
-              >
-                + {chip.label}
-              </button>
-            ))}
-          </div>
+          {/* Context-Aware Quick Reply Chips */}
+          {(() => {
+            const lastSupportMsg = [...chatHistory].reverse().find(m => m.sender === 'support');
+            const quickReplies = getQuickReplies(lastSupportMsg?.text || '', companyName);
+
+            return (
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between px-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                  <span className="flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-[#0057B8] dark:text-sky-400 animate-pulse" />
+                    <span>Quick Replies</span>
+                    <span className="text-[9px] font-normal text-slate-400 dark:text-slate-500 hidden sm:inline">
+                      • Tap to draft, Hold to copy
+                    </span>
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {quickReplies.map((chip, idx) => (
+                    <QuickReplyChipButton
+                      key={chip.label + idx}
+                      chip={chip}
+                      onDraft={(msg) => setMsgText(msg)}
+                      onCopy={(msg, label) => showToast(`Copied "${label}" text to clipboard!`)}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="space-y-1.5 pt-1">
             {/* Hidden File Input for Device Camera / Image Capture */}
@@ -1318,6 +1763,168 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                 className="w-full max-h-[70vh] object-contain rounded-xl"
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Feedback Notification */}
+      {toastMsg && (
+        <div className="fixed bottom-24 right-6 z-[130] bg-slate-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-2xl border border-slate-700/80 flex items-center space-x-2 animate-in fade-in slide-in-from-bottom-3 duration-200 pointer-events-auto">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{toastMsg}</span>
+        </div>
+      )}
+
+      {/* Clear Chat Confirmation Modal */}
+      {showClearConfirmModal && (
+        <div 
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200 pointer-events-auto"
+          onClick={() => setShowClearConfirmModal(false)}
+        >
+          <div 
+            className="relative max-w-sm w-full bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-4 animate-in zoom-in-95 duration-200 text-slate-900 dark:text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start space-x-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold">Clear WhatsApp Support Chat?</h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  You are about to reset this support conversation. Would you like to archive your messages to local storage first so you can restore them later?
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={handleArchiveAndClearChat}
+                className="w-full py-2.5 px-3 bg-[#0057B8] hover:bg-[#004494] text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center space-x-2 transition-all cursor-pointer"
+              >
+                <Archive className="w-4 h-4" />
+                <span>Archive & Clear Chat</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearWithoutArchiveChat}
+                className="w-full py-2.5 px-3 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 font-bold text-xs rounded-xl border border-red-200 dark:border-red-900/50 flex items-center justify-center space-x-2 transition-all cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Clear Without Archiving</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowClearConfirmModal(false)}
+                className="w-full py-2 px-3 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 font-semibold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Archives Manager Modal */}
+      {showArchivesModal && (
+        <div 
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200 pointer-events-auto"
+          onClick={() => setShowArchivesModal(false)}
+        >
+          <div 
+            className="relative max-w-md w-full bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-4 animate-in zoom-in-95 duration-200 text-slate-900 dark:text-white max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-full bg-[#0057B8]/10 text-[#0057B8] dark:bg-blue-950 dark:text-blue-400 flex items-center justify-center">
+                  <Archive className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold">Archived Support Conversations</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Stored in your browser's local storage</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowArchivesModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-[50vh]">
+              {whatsappArchives.length === 0 ? (
+                <div className="text-center py-8 space-y-2 text-slate-400">
+                  <Archive className="w-8 h-8 mx-auto opacity-40" />
+                  <p className="text-xs font-semibold">No archived support chats found</p>
+                  <p className="text-[11px]">When you reset a support session, choose "Archive & Clear" to save it here.</p>
+                </div>
+              ) : (
+                whatsappArchives.map((item) => (
+                  <div 
+                    key={item.id}
+                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:border-[#0057B8]/40 transition-all space-y-2"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{item.title}</h4>
+                        <div className="flex items-center space-x-2 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          <span>{item.archivedAt}</span>
+                          <span>•</span>
+                          <span>{item.messageCount} messages</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteWhatsAppArchive(item.id)}
+                        className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors cursor-pointer"
+                        title="Delete archive"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleRestoreWhatsAppArchive(item)}
+                        className="py-1 px-3 bg-[#0057B8] hover:bg-[#004494] text-white text-[11px] font-bold rounded-lg shadow-xs flex items-center space-x-1 transition-all cursor-pointer"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Restore Chat</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {whatsappArchives.length > 0 && (
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <button
+                  type="button"
+                  onClick={handleClearAllWhatsAppArchives}
+                  className="text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400 font-semibold cursor-pointer"
+                >
+                  Clear All Archives
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowArchivesModal(false)}
+                  className="py-1.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-xl transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

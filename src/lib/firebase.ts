@@ -11,6 +11,7 @@ import {
   User
 } from 'firebase/auth';
 import { 
+  initializeFirestore,
   getFirestore, 
   doc, 
   setDoc, 
@@ -44,19 +45,72 @@ export const firebaseConfig = {
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-export const db = firebaseConfigJson.firestoreDatabaseId && firebaseConfigJson.firestoreDatabaseId !== '(default)'
-  ? getFirestore(app, firebaseConfigJson.firestoreDatabaseId)
-  : getFirestore(app);
+/**
+ * Initialize Firestore with auto-detect long polling to prevent WebChannel / WebSocket transport errors
+ * in proxy / iframe environments.
+ */
+const firestoreSettings = {
+  experimentalAutoDetectLongPolling: true,
+};
+
+const databaseId = firebaseConfigJson.firestoreDatabaseId && firebaseConfigJson.firestoreDatabaseId !== '(default)'
+  ? firebaseConfigJson.firestoreDatabaseId
+  : undefined;
+
+let firestoreInstance;
+try {
+  firestoreInstance = databaseId
+    ? initializeFirestore(app, firestoreSettings, databaseId)
+    : initializeFirestore(app, firestoreSettings);
+} catch {
+  firestoreInstance = databaseId
+    ? getFirestore(app, databaseId)
+    : getFirestore(app);
+}
+
+export const db = firestoreInstance;
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
+/**
+ * Custom exponential backoff retry wrapper for Firestore network calls and initial connection.
+ */
+export async function withExponentialBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries = 4,
+  initialDelayMs = 400,
+  factor = 2
+): Promise<T> {
+  let delay = initialDelayMs;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const isTransient =
+        error?.message?.includes('offline') ||
+        error?.message?.includes('backend') ||
+        error?.message?.includes('stream') ||
+        error?.message?.includes('WebSocket') ||
+        error?.message?.includes('WebChannel') ||
+        error?.code === 'unavailable';
+
+      if (attempt === maxRetries - 1 || !isTransient) {
+        throw error;
+      }
+      await new Promise((res) => setTimeout(res, delay));
+      delay *= factor;
+    }
+  }
+  return fn();
+}
+
 export async function testConnection() {
   try {
-    await getDocFromServer(doc(db, 'settings', 'contact_info'));
+    await withExponentialBackoff(() => getDocFromServer(doc(db, 'settings', 'contact_info')), 3, 400);
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
+    if (error instanceof Error && (error.message.includes('offline') || error.message.includes('client is offline'))) {
+      console.warn("Firestore operating in fallback offline mode.");
     }
   }
 }

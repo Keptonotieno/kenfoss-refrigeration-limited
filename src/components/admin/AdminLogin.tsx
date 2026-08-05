@@ -13,16 +13,18 @@ import {
   Lock,
   UserPlus,
   User as UserIcon,
-  Phone
+  Phone,
+  Sparkles
 } from 'lucide-react';
 
 interface AdminLoginProps {
   onClose?: () => void;
   onCancel?: () => void;
+  onSwitchToSetup?: () => void;
   initialError?: string;
 }
 
-export const AdminLogin: React.FC<AdminLoginProps> = ({ onClose, onCancel, initialError }) => {
+export const AdminLogin: React.FC<AdminLoginProps> = ({ onClose, onCancel, onSwitchToSetup, initialError }) => {
   const { login, forgotPassword, loginWithInvitationCode } = useAdmin();
   const dismiss = onClose || onCancel;
 
@@ -293,7 +295,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onClose, onCancel, initi
               )}
             </button>
 
-            <div className="pt-2 border-t border-slate-800/80 text-center">
+            <div className="pt-2 border-t border-slate-800/80 text-center space-y-2">
               <button
                 type="button"
                 onClick={() => { setError(null); setSuccessMsg(null); setMode('redeem'); }}
@@ -302,6 +304,17 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onClose, onCancel, initi
                 <KeyRound className="w-3.5 h-3.5" />
                 <span>Have a single-use staff invitation code? Redeem Code</span>
               </button>
+
+              {onSwitchToSetup && (
+                <button
+                  type="button"
+                  onClick={onSwitchToSetup}
+                  className="text-xs text-amber-400 hover:text-amber-300 hover:underline cursor-pointer font-medium flex items-center justify-center gap-1.5 mx-auto pt-1"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>First-Time Setup / Create Super Administrator</span>
+                </button>
+              )}
             </div>
           </form>
         )}

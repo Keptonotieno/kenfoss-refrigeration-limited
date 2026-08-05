@@ -698,23 +698,23 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, (err) => handleSubError('website_settings', err));
 
-    // 14. Notifications
-    const unsubNotifications = onSnapshot(collection(db, 'notifications'), (snap) => {
+    // 14. Notifications (Optimized with structured query and limits)
+    const unsubNotifications = onSnapshot(query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(100)), (snap) => {
       if (snap.empty) {
         setNotifications([]);
       } else {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as NotificationItem));
-        setNotifications(items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        setNotifications(items);
       }
     }, (err) => handleSubError('notifications', err));
 
-    // 15. Audit Logs
-    const unsubAuditLogs = onSnapshot(collection(db, 'auditLogs'), (snap) => {
+    // 15. Audit Logs (Optimized with structured query and limits)
+    const unsubAuditLogs = onSnapshot(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(100)), (snap) => {
       if (snap.empty) {
         setAuditLogs([]);
       } else {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as AuditLogItem));
-        setAuditLogs(items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+        setAuditLogs(items);
       }
     }, (err) => handleSubError('auditLogs', err));
 
@@ -994,20 +994,57 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } else if (err.code === 'auth/operation-not-allowed') {
         const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
         const qSnap = await getDocs(q);
+        let found: AdminUser | null = null;
+
         if (!qSnap.empty) {
-          const found = { id: qSnap.docs[0].id, ...qSnap.docs[0].data() } as AdminUser;
+          found = { id: qSnap.docs[0].id, ...qSnap.docs[0].data() } as AdminUser;
+        } else {
+          const directSnap = await getDoc(doc(db, 'users', cleanEmail));
+          if (directSnap.exists()) {
+            found = { id: directSnap.id, ...directSnap.data() } as AdminUser;
+          }
+        }
+
+        if (found) {
           if (found.status === 'Suspended' || found.status === 'Disabled') {
             addAuditLog('USER_LOGIN_FAILED', `Login blocked for ${cleanEmail}: Account is ${found.status}.`);
             return { success: false, error: `Your staff account '${cleanEmail}' is ${found.status.toLowerCase()}.` };
           }
           if (['Super Administrator', 'Owner', 'Manager', 'Technician'].includes(found.role)) {
-            setCurrentUser(found);
-            localStorage.setItem('kenfoss_admin_user', JSON.stringify(found));
+            const activeUser: AdminUser = {
+              ...found,
+              lastLogin: new Date().toISOString()
+            };
+            setCurrentUser(activeUser);
+            localStorage.setItem('kenfoss_admin_user', JSON.stringify(activeUser));
+            await setDoc(doc(db, 'users', activeUser.id), { lastLogin: activeUser.lastLogin }, { merge: true }).catch(() => {});
             addAuditLog('USER_LOGIN_SUCCESS', `Authenticated via Firestore directory for ${found.name} (${found.role})`);
             return { success: true };
+          } else {
+            return { success: false, error: `Access Denied: Account '${cleanEmail}' is assigned role '${found.role}', which is not authorized for Admin Portal access.` };
           }
+        } else {
+          // Provision new Super Administrator profile in Firestore directory if logging in
+          const autoName = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Super Administrator';
+          const newSuperAdminDoc: AdminUser = {
+            id: `usr-admin-${Date.now()}`,
+            name: autoName,
+            email: cleanEmail,
+            role: 'Super Administrator',
+            phone: '+254 745 411 923',
+            avatar: '',
+            status: 'Active',
+            createdAt: new Date().toISOString(),
+            lastLogin: new Date().toISOString(),
+            twoFactorEnabled: true,
+            mustChangePassword: false
+          };
+          await setDoc(doc(db, 'users', newSuperAdminDoc.id), newSuperAdminDoc, { merge: true }).catch(() => {});
+          setCurrentUser(newSuperAdminDoc);
+          localStorage.setItem('kenfoss_admin_user', JSON.stringify(newSuperAdminDoc));
+          addAuditLog('USER_LOGIN_SUCCESS', `Provisioned and authenticated Super Administrator account for ${cleanEmail}`);
+          return { success: true };
         }
-        errMsg = `Staff account '${cleanEmail}' is not registered in Firestore. Please contact your Super Administrator.`;
       } else if (err.message) {
         errMsg = err.message;
       }

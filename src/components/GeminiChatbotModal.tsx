@@ -15,7 +15,14 @@ import {
   PhoneCall,
   User,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  Archive,
+  History,
+  RotateCcw,
+  AlertTriangle,
+  CheckCircle2,
+  FileText,
+  Download
 } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 
@@ -28,6 +35,14 @@ interface ChatMessage {
   sources?: { title: string; uri: string }[];
 }
 
+export interface ArchivedChatSession {
+  id: string;
+  title: string;
+  archivedAt: string;
+  messageCount: number;
+  messages: ChatMessage[];
+}
+
 type AssistantRole = 'general' | 'fast' | 'complex';
 
 interface GeminiChatbotModalProps {
@@ -35,6 +50,17 @@ interface GeminiChatbotModalProps {
   onClose: () => void;
   onBookService?: (prefillNotes: string) => void;
 }
+
+const ACTIVE_CHAT_KEY = 'kenfoss_gemini_active_chat';
+const ARCHIVED_CHATS_KEY = 'kenfoss_gemini_chat_archives';
+
+const DEFAULT_WELCOME_MESSAGE: ChatMessage = {
+  id: 'welcome-1',
+  role: 'model',
+  content: "Hello! I am **Kenfoss Gemini AI Assistant**. I can help you diagnose refrigeration equipment faults, calculate cold storage capacities, lookup OEM error codes, or answer technical HVAC questions.\n\nHow can I assist you today?",
+  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  modelUsed: 'gemini-3.5-flash'
+};
 
 const SAMPLE_PROMPTS = [
   "My commercial display chiller is not reaching set temperature (+2°C). What should I inspect?",
@@ -51,29 +77,122 @@ export const GeminiChatbotModal: React.FC<GeminiChatbotModalProps> = ({
 }) => {
   const { contactInfo } = useAdmin();
   const [activeRole, setActiveRole] = useState<AssistantRole>('general');
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome-1',
-      role: 'model',
-      content: "Hello! I am **Kenfoss Gemini AI Assistant**. I can help you diagnose refrigeration equipment faults, calculate cold storage capacities, lookup OEM error codes, or answer technical HVAC questions.\n\nHow can I assist you today?",
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      modelUsed: 'gemini-3.5-flash'
+  
+  // Persistent active messages
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem(ACTIVE_CHAT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse saved active Gemini chat:', e);
     }
-  ]);
+    return [DEFAULT_WELCOME_MESSAGE];
+  });
+
+  // Persistent archived sessions
+  const [archives, setArchives] = useState<ArchivedChatSession[]>(() => {
+    try {
+      const saved = localStorage.getItem(ARCHIVED_CHATS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse saved Gemini archives:', e);
+    }
+    return [];
+  });
+
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Dialog and Toast State
+  const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
+  const [showArchivesModal, setShowArchivesModal] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3500);
+  };
+
+  // Sync active messages to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(ACTIVE_CHAT_KEY, JSON.stringify(messages));
+    } catch (e) {
+      console.warn('LocalStorage active chat error:', e);
+    }
+  }, [messages]);
+
+  // Sync archives to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(ARCHIVED_CHATS_KEY, JSON.stringify(archives));
+    } catch (e) {
+      console.warn('LocalStorage archives error:', e);
+    }
+  }, [archives]);
+
+  const scrollToBottom = (smooth = true) => {
+    requestAnimationFrame(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'nearest' });
+      } else if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTo({
+          top: chatContainerRef.current.scrollHeight,
+          behavior: smooth ? 'smooth' : 'auto'
+        });
+      }
+    });
   };
 
   useEffect(() => {
-    if (isOpen) {
-      scrollToBottom();
-    }
+    if (!isOpen) return;
+
+    scrollToBottom(true);
+
+    const containerEl = chatContainerRef.current;
+    if (!containerEl) return;
+
+    let rafId: number | null = null;
+    const handleResize = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        scrollToBottom(true);
+      });
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+
+    resizeObserver.observe(containerEl);
+    Array.from(containerEl.children).forEach((child) => resizeObserver.observe(child));
+
+    const images = containerEl.querySelectorAll('img');
+    images.forEach((img) => {
+      if (!img.complete) {
+        img.addEventListener('load', handleResize, { once: true });
+      }
+    });
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      resizeObserver.disconnect();
+      images.forEach((img) => img.removeEventListener('load', handleResize));
+    };
   }, [messages, isOpen]);
 
   if (!isOpen) return null;
@@ -94,12 +213,10 @@ export const GeminiChatbotModal: React.FC<GeminiChatbotModalProps> = ({
     setIsLoading(true);
 
     try {
-      // Map role to model name
       let requestedModel = 'gemini-3.5-flash';
       if (activeRole === 'fast') requestedModel = 'gemini-3.1-flash-lite';
       if (activeRole === 'complex') requestedModel = 'gemini-3.1-pro-preview';
 
-      // Pass last 8 messages for multi-turn context
       const historyForApi = messages.slice(-8).map((m) => ({
         role: m.role,
         content: m.content
@@ -159,26 +276,92 @@ export const GeminiChatbotModal: React.FC<GeminiChatbotModalProps> = ({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleClearHistory = () => {
-    if (window.confirm('Clear current chat conversation history?')) {
-      setMessages([
-        {
-          id: 'welcome-reset',
-          role: 'model',
-          content: 'Chat history cleared. How else can I assist with your Kenfoss refrigeration systems today?',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          modelUsed: 'gemini-3.5-flash'
-        }
-      ]);
+  // Archive & Clear Handler
+  const handleArchiveAndClear = () => {
+    if (messages.length === 0) return;
+
+    // Derive session title from first user query
+    const firstUserMsg = messages.find(m => m.role === 'user');
+    let title = firstUserMsg 
+      ? firstUserMsg.content.slice(0, 50).replace(/\n/g, ' ')
+      : `Diagnostic Session (${new Date().toLocaleDateString()})`;
+    if (firstUserMsg && firstUserMsg.content.length > 50) {
+      title += '...';
     }
+
+    const archiveItem: ArchivedChatSession = {
+      id: `archive-${Date.now()}`,
+      title,
+      archivedAt: `${new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+      messageCount: messages.length,
+      messages: [...messages]
+    };
+
+    setArchives(prev => [archiveItem, ...prev]);
+
+    // Reset active chat
+    const resetMsg: ChatMessage = {
+      id: `welcome-reset-${Date.now()}`,
+      role: 'model',
+      content: 'Chat history cleared and archived to local storage. How else can I assist with your Kenfoss refrigeration systems today?',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      modelUsed: 'gemini-3.5-flash'
+    };
+    setMessages([resetMsg]);
+
+    setShowClearConfirmModal(false);
+    showToast('Chat history archived to local storage and active session cleared!');
+  };
+
+  // Permanent Delete Without Archive Handler
+  const handleClearWithoutArchive = () => {
+    const resetMsg: ChatMessage = {
+      id: `welcome-reset-${Date.now()}`,
+      role: 'model',
+      content: 'Chat history cleared. How else can I assist with your Kenfoss refrigeration systems today?',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      modelUsed: 'gemini-3.5-flash'
+    };
+    setMessages([resetMsg]);
+
+    setShowClearConfirmModal(false);
+    showToast('Chat conversation cleared permanently.');
+  };
+
+  // Restore Archived Conversation Handler
+  const handleRestoreArchive = (session: ArchivedChatSession) => {
+    setMessages(session.messages);
+    setShowArchivesModal(false);
+    showToast(`Restored conversation: "${session.title}"`);
+  };
+
+  // Delete Single Archived Session
+  const handleDeleteArchive = (id: string) => {
+    setArchives(prev => prev.filter(a => a.id !== id));
+    showToast('Archived conversation deleted.');
+  };
+
+  // Clear All Archives
+  const handleClearAllArchives = () => {
+    if (archives.length === 0) return;
+    setArchives([]);
+    showToast('All archived conversations cleared from local storage.');
   };
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
       <div 
-        className="bg-white dark:bg-slate-900 w-full max-w-3xl h-[92vh] sm:h-[85vh] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+        className="bg-white dark:bg-slate-900 w-full max-w-3xl h-[92vh] sm:h-[85vh] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 relative"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Toast Feedback Banner */}
+        {toastMsg && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[130] bg-slate-900 text-white border border-blue-500/40 px-4 py-2 rounded-xl shadow-2xl text-xs font-medium flex items-center gap-2 animate-in fade-in slide-in-from-top-3 duration-200">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{toastMsg}</span>
+          </div>
+        )}
+
         {/* Header */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -200,13 +383,30 @@ export const GeminiChatbotModal: React.FC<GeminiChatbotModalProps> = ({
 
           {/* Right Action Bar */}
           <div className="flex items-center gap-2 self-end sm:self-auto">
+            {/* View Archives Button */}
             <button
-              onClick={handleClearHistory}
-              className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-              title="Clear conversation history"
+              onClick={() => setShowArchivesModal(true)}
+              className="relative p-2 text-slate-500 dark:text-slate-400 hover:text-[#0057B8] dark:hover:text-blue-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+              title="View & Restore Archived Conversations"
+            >
+              <History className="w-4 h-4 text-[#0057B8]" />
+              <span className="hidden sm:inline">Archives</span>
+              {archives.length > 0 && (
+                <span className="ml-0.5 bg-[#0057B8] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                  {archives.length}
+                </span>
+              )}
+            </button>
+
+            {/* Clear Chat Button */}
+            <button
+              onClick={() => setShowClearConfirmModal(true)}
+              className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
+              title="Clear or Archive Chat"
             >
               <Trash2 className="w-4 h-4" />
             </button>
+
             <button
               onClick={onClose}
               className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
@@ -261,7 +461,7 @@ export const GeminiChatbotModal: React.FC<GeminiChatbotModalProps> = ({
         </div>
 
         {/* Scrollable Conversation Thread */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50/50 dark:bg-slate-900/50">
+        <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50/50 dark:bg-slate-900/50">
           {messages.map((msg) => {
             const isUser = msg.role === 'user';
             return (
@@ -435,7 +635,198 @@ export const GeminiChatbotModal: React.FC<GeminiChatbotModalProps> = ({
             </span>
           </div>
         </div>
+
+        {/* MODAL 1: CLEAR CHAT CONFIRMATION DIALOG */}
+        {showClearConfirmModal && (
+          <div className="absolute inset-0 z-[120] bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div 
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/20">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-slate-900 dark:text-white">Clear Conversation History?</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                    You are about to clear your current active chat containing <strong className="text-slate-900 dark:text-slate-200">{messages.length} message(s)</strong>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Session Preview Box */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/60 text-xs space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Current Session Summary:</span>
+                <p className="font-medium text-slate-800 dark:text-slate-200 line-clamp-2">
+                  {messages.find(m => m.role === 'user')?.content || 'General diagnostic conversation'}
+                </p>
+                <div className="text-[10px] text-slate-400 flex items-center gap-2 pt-1">
+                  <span>Messages: {messages.length}</span>
+                  <span>•</span>
+                  <span>Started: {messages[0]?.timestamp || 'Now'}</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Choose <strong className="text-[#0057B8] dark:text-blue-400">"Archive & Clear"</strong> to save a full backup copy to your browser's local storage so you can restore or reference it anytime later.
+              </p>
+
+              {/* Dialog Actions */}
+              <div className="flex flex-col gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleArchiveAndClear}
+                  className="w-full py-2.5 px-4 bg-[#0057B8] hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Archive className="w-4 h-4" />
+                  <span>Archive & Clear Chat (Recommended)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleClearWithoutArchive}
+                  className="w-full py-2.5 px-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Permanently Without Archiving</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowClearConfirmModal(false)}
+                  className="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-xl transition-all cursor-pointer mt-1"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL 2: ARCHIVED CONVERSATIONS DRAWER / MANAGER */}
+        {showArchivesModal && (
+          <div className="absolute inset-0 z-[120] bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150">
+            <div 
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Archives Header */}
+              <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-[#0057B8] dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20">
+                    <History className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>Archived Conversations</span>
+                      <span className="bg-blue-100 dark:bg-blue-950 text-[#0057B8] dark:text-blue-300 text-xs px-2 py-0.5 rounded-full font-mono">
+                        {archives.length}
+                      </span>
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Saved locally in your browser storage. Restore anytime.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowArchivesModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Archives Content List */}
+              <div className="flex-1 p-4 overflow-y-auto space-y-3">
+                {archives.length === 0 ? (
+                  <div className="text-center py-12 space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+                      <Archive className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1 max-w-sm mx-auto">
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No Archived Conversations</p>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Whenever you clear an active AI chat, select <strong className="text-slate-600 dark:text-slate-200">"Archive & Clear"</strong> to preserve a backup copy here.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  archives.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-xl transition-all space-y-2.5"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-0.5 min-w-0">
+                          <h5 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                            {item.title}
+                          </h5>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
+                            <span>{item.archivedAt}</span>
+                            <span>•</span>
+                            <span className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-1.5 py-0.2 rounded">
+                              {item.messageCount} messages
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Card Action Buttons */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleRestoreArchive(item)}
+                            className="px-3 py-1.5 bg-[#0057B8] hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                            title="Restore this conversation into active chat"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Restore</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteArchive(item.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer"
+                            title="Delete this archive"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Snippet Preview */}
+                      <div className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 italic">
+                        "{item.messages.find(m => m.role === 'user')?.content || item.messages[0]?.content}"
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Archives Footer */}
+              {archives.length > 0 && (
+                <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 flex items-center justify-between">
+                  <span className="text-[11px] text-slate-400">
+                    Total stored archives: {archives.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleClearAllArchives}
+                    className="text-xs text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 font-semibold hover:underline cursor-pointer flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Clear All Archives</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
 };
+
