@@ -26,7 +26,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
   };
 
   return (
-    <footer className="bg-[#002B5B] dark:bg-[#020D1C] text-slate-300 text-xs border-t border-blue-900/80 dark:border-slate-800">
+    <footer className="bg-[#002B5B] dark:bg-[#020D1C] text-slate-300 text-xs border-t border-blue-900/80 dark:border-slate-800 pb-16 md:pb-0">
       
       {/* Upper Footer Columns */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-16">

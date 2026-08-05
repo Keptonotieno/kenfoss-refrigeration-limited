@@ -97,7 +97,7 @@ export const ColdRoomCalculator: React.FC<ColdRoomCalculatorProps> = ({ onOpenBo
               <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                 1. Select Temperature Operating Target
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
                 {[
                   { id: 'chiller', label: 'Chiller Room', temp: '+2°C to +8°C' },
                   { id: 'freezer', label: 'Freezer Room', temp: '-18°C to -22°C' },
@@ -131,7 +131,7 @@ export const ColdRoomCalculator: React.FC<ColdRoomCalculatorProps> = ({ onOpenBo
                 </span>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
                 <div>
                   <label className="block text-[11px] text-slate-400 mb-1">Length (M)</label>
                   <input

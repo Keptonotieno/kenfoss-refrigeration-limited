@@ -505,31 +505,34 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Live Firestore Synchronization Effect
   useEffect(() => {
     const handleSubError = (colName: string, err: any) => {
-      // Gracefully handle missing or insufficient permissions for restricted collections
       if (err?.code === 'permission-denied' || err?.message?.includes('insufficient permissions')) {
         return;
       }
       console.warn(`Firestore ${colName} sub error:`, err);
     };
 
-    // Check and trigger one-time seed if database is brand new
+    const isStaff = !!(currentUser && ['Super Administrator', 'Owner', 'Manager', 'Technician'].includes(currentUser.role));
+
+    // Check and trigger one-time seed for public data if database is brand new
     getDoc(doc(db, 'settings', 'seed_status')).then((seedSnap) => {
       if (!seedSnap.exists()) {
         INITIAL_SERVICES_DATA.forEach(s => setDoc(doc(db, 'services', s.id), s).catch(() => {}));
         PROJECTS_DATA.forEach(p => setDoc(doc(db, 'projects', p.id), p).catch(() => {}));
         TESTIMONIALS_DATA.forEach(t => setDoc(doc(db, 'testimonials', t.id), { ...t, status: 'Approved' }).catch(() => {}));
         BLOG_POSTS_DATA.forEach(b => setDoc(doc(db, 'blogs', b.id), { ...b, status: 'Published' }).catch(() => {}));
-        SEED_BOOKINGS.forEach(b => setDoc(doc(db, 'bookings', b.id), b).catch(() => {}));
-        SEED_QUOTES.forEach(q => setDoc(doc(db, 'quotes', q.id), q).catch(() => {}));
-        SEED_DIAGNOSTICS.forEach(d => setDoc(doc(db, 'diagnostics', d.id), d).catch(() => {}));
-        SEED_CONTACT_MESSAGES.forEach(m => setDoc(doc(db, 'contacts', m.id), m).catch(() => {}));
-        SEED_NOTIFICATIONS.forEach(n => setDoc(doc(db, 'notifications', n.id), n).catch(() => {}));
         SEED_GALLERY.forEach(g => setDoc(doc(db, 'gallery', g.id), g).catch(() => {}));
+        if (isStaff) {
+          SEED_BOOKINGS.forEach(b => setDoc(doc(db, 'bookings', b.id), b).catch(() => {}));
+          SEED_QUOTES.forEach(q => setDoc(doc(db, 'quotes', q.id), q).catch(() => {}));
+          SEED_DIAGNOSTICS.forEach(d => setDoc(doc(db, 'diagnostics', d.id), d).catch(() => {}));
+          SEED_CONTACT_MESSAGES.forEach(m => setDoc(doc(db, 'contacts', m.id), m).catch(() => {}));
+          SEED_NOTIFICATIONS.forEach(n => setDoc(doc(db, 'notifications', n.id), n).catch(() => {}));
+        }
         setDoc(doc(db, 'settings', 'seed_status'), { seeded: true, timestamp: new Date().toISOString() }).catch(() => {});
       }
     }).catch(() => {});
 
-    // 1. Services
+    // 1. Services (Public)
     const unsubServices = onSnapshot(collection(db, 'services'), (snap) => {
       if (snap.empty) {
         setServices([]);
@@ -546,7 +549,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, (err) => handleSubError('services', err));
 
-    // 2. Projects
+    // 2. Projects (Public)
     const unsubProjects = onSnapshot(collection(db, 'projects'), (snap) => {
       if (snap.empty) {
         setProjects([]);
@@ -564,7 +567,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, (err) => handleSubError('projects', err));
 
-    // 3. Testimonials
+    // 3. Testimonials (Public)
     const unsubTestimonials = onSnapshot(collection(db, 'testimonials'), (snap) => {
       if (snap.empty) {
         setTestimonials([]);
@@ -581,7 +584,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, (err) => handleSubError('testimonials', err));
 
-    // 4. Blogs
+    // 4. Blogs (Public)
     const unsubBlogs = onSnapshot(collection(db, 'blogs'), (snap) => {
       if (snap.empty) {
         setBlogs([]);
@@ -602,37 +605,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, (err) => handleSubError('blogs', err));
 
-    // 5. Bookings
-    const unsubBookings = onSnapshot(collection(db, 'bookings'), (snap) => {
-      if (snap.empty) {
-        setBookings([]);
-      } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as BookingRecord));
-        setBookings(items);
-      }
-    }, (err) => handleSubError('bookings', err));
-
-    // 6. Quotes
-    const unsubQuotes = onSnapshot(collection(db, 'quotes'), (snap) => {
-      if (snap.empty) {
-        setQuotes([]);
-      } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as QuoteRecord));
-        setQuotes(items);
-      }
-    }, (err) => handleSubError('quotes', err));
-
-    // 7. Customers
-    const unsubCustomers = onSnapshot(collection(db, 'customers'), (snap) => {
-      if (snap.empty) {
-        setCustomers([]);
-      } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as CustomerRecord));
-        setCustomers(items);
-      }
-    }, (err) => handleSubError('customers', err));
-
-    // 8. Diagnostics
+    // 5. Diagnostics (Public)
     const unsubDiagnostics = onSnapshot(collection(db, 'diagnostics'), (snap) => {
       if (snap.empty) {
         setDiagnostics([]);
@@ -642,7 +615,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, (err) => handleSubError('diagnostics', err));
 
-    // 9. Gallery
+    // 6. Gallery (Public)
     const unsubGallery = onSnapshot(collection(db, 'gallery'), (snap) => {
       if (snap.empty) {
         setGallery([]);
@@ -659,117 +632,124 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, (err) => handleSubError('gallery', err));
 
-    // 10. Contact Messages
-    const unsubContacts = onSnapshot(collection(db, 'contacts'), (snap) => {
-      if (snap.empty) {
-        setContactMessages([]);
-      } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as ContactMessageRecord));
-        setContactMessages(items);
-      }
-    }, (err) => handleSubError('contacts', err));
-
-    // 11. Users & System Setup Status
+    // 7. System Init Status (Public)
     const unsubSystemInit = onSnapshot(doc(db, 'settings', 'system_init'), (snap) => {
       if (snap.exists() && snap.data()?.setupCompleted) {
         setIsSystemInitialized(true);
-      } else {
+      } else if (isStaff) {
         getDocs(collection(db, 'users')).then(uSnap => {
           const superAdmins = uSnap.docs.filter(d => d.data()?.role === 'Super Administrator');
           setSuperAdminCount(superAdmins.length);
           setIsSystemInitialized(superAdmins.length >= 1);
         }).catch(() => setIsSystemInitialized(false));
+      } else {
+        setIsSystemInitialized(false);
       }
     }, (err) => handleSubError('system_init', err));
 
-    const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
-      if (snap.empty) {
-        setUsers([]);
-        setSuperAdminCount(0);
-        setIsSystemInitialized(false);
-      } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as AdminUser));
-        setUsers(items);
-        const superAdmins = items.filter(u => u.role === 'Super Administrator');
-        setSuperAdminCount(superAdmins.length);
-        if (superAdmins.length >= 1) {
-          setIsSystemInitialized(true);
-        } else {
-          getDoc(doc(db, 'settings', 'system_init')).then(initDoc => {
-            if (initDoc.exists() && initDoc.data()?.setupCompleted) {
-              setIsSystemInitialized(true);
-            } else {
-              setIsSystemInitialized(false);
-            }
-          });
-        }
-
-        setCurrentUser(prevMe => {
-          if (!prevMe) return prevMe;
-          const updatedMe = items.find(u => u.id === prevMe.id || u.email.toLowerCase() === prevMe.email.toLowerCase());
-          if (updatedMe && (
-            updatedMe.role !== prevMe.role || 
-            updatedMe.status !== prevMe.status || 
-            updatedMe.name !== prevMe.name ||
-            updatedMe.avatar !== prevMe.avatar ||
-            updatedMe.phone !== prevMe.phone
-          )) {
-            localStorage.setItem('kenfoss_admin_user', JSON.stringify(updatedMe));
-            return updatedMe;
-          }
-          return prevMe;
-        });
-      }
-    }, (err) => handleSubError('users', err));
-
-    // 12. Settings (Contact Info)
+    // 8. Settings Contact Info (Public)
     const unsubContactInfo = onSnapshot(doc(db, 'settings', 'contact_info'), (snap) => {
       if (!snap.exists()) {
-        setDoc(doc(db, 'settings', 'contact_info'), SEED_CONTACT_INFO);
+        if (isStaff) {
+          setDoc(doc(db, 'settings', 'contact_info'), SEED_CONTACT_INFO).catch(() => {});
+        }
       } else {
         setContactInfo(snap.data() as ContactInfoSettings);
       }
     }, (err) => handleSubError('contact_info', err));
 
-    // 13. Settings (Website Settings)
+    // 9. Website Settings (Public)
     const unsubWebSettings = onSnapshot(doc(db, 'settings', 'website_settings'), (snap) => {
       if (!snap.exists()) {
-        setDoc(doc(db, 'settings', 'website_settings'), SEED_WEBSITE_SETTINGS);
+        if (isStaff) {
+          setDoc(doc(db, 'settings', 'website_settings'), SEED_WEBSITE_SETTINGS).catch(() => {});
+        }
       } else {
         setWebsiteSettings(snap.data() as WebsiteSettings);
       }
     }, (err) => handleSubError('website_settings', err));
 
-    // 14. Notifications (Optimized with structured query and limits)
-    const unsubNotifications = onSnapshot(query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(100)), (snap) => {
-      if (snap.empty) {
-        setNotifications([]);
-      } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as NotificationItem));
-        setNotifications(items);
-      }
-    }, (err) => handleSubError('notifications', err));
-
-    // 15. Audit Logs (Optimized with structured query and limits)
-    const unsubAuditLogs = onSnapshot(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(100)), (snap) => {
-      if (snap.empty) {
-        setAuditLogs([]);
-      } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as AuditLogItem));
-        setAuditLogs(items);
-      }
-    }, (err) => handleSubError('auditLogs', err));
-
-    // 16. Roles (RBAC)
+    // 10. Roles (Public Read)
     const unsubRoles = onSnapshot(collection(db, 'roles'), (snap) => {
       if (snap.empty) {
-        DEFAULT_ROLES.forEach(r => setDoc(doc(db, 'roles', r.id), r).catch(() => {}));
+        if (isStaff) {
+          DEFAULT_ROLES.forEach(r => setDoc(doc(db, 'roles', r.id), r).catch(() => {}));
+        }
         setRoles(DEFAULT_ROLES);
       } else {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as RoleDefinition));
         setRoles(items);
       }
     }, (err) => handleSubError('roles', err));
+
+    // Restricted Staff Subscriptions (Only active for authenticated staff)
+    let unsubBookings = () => {};
+    let unsubQuotes = () => {};
+    let unsubCustomers = () => {};
+    let unsubContacts = () => {};
+    let unsubUsers = () => {};
+    let unsubNotifications = () => {};
+    let unsubAuditLogs = () => {};
+
+    if (isStaff) {
+      unsubBookings = onSnapshot(collection(db, 'bookings'), (snap) => {
+        if (snap.empty) setBookings([]);
+        else setBookings(snap.docs.map(d => ({ id: d.id, ...d.data() } as BookingRecord)));
+      }, (err) => handleSubError('bookings', err));
+
+      unsubQuotes = onSnapshot(collection(db, 'quotes'), (snap) => {
+        if (snap.empty) setQuotes([]);
+        else setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() } as QuoteRecord)));
+      }, (err) => handleSubError('quotes', err));
+
+      unsubCustomers = onSnapshot(collection(db, 'customers'), (snap) => {
+        if (snap.empty) setCustomers([]);
+        else setCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() } as CustomerRecord)));
+      }, (err) => handleSubError('customers', err));
+
+      unsubContacts = onSnapshot(collection(db, 'contacts'), (snap) => {
+        if (snap.empty) setContactMessages([]);
+        else setContactMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as ContactMessageRecord)));
+      }, (err) => handleSubError('contacts', err));
+
+      unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
+        if (snap.empty) {
+          setUsers([]);
+          setSuperAdminCount(0);
+        } else {
+          const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as AdminUser));
+          setUsers(items);
+          const superAdmins = items.filter(u => u.role === 'Super Administrator');
+          setSuperAdminCount(superAdmins.length);
+
+          setCurrentUser(prevMe => {
+            if (!prevMe) return prevMe;
+            const updatedMe = items.find(u => u.id === prevMe.id || u.email.toLowerCase() === prevMe.email.toLowerCase());
+            if (updatedMe && (
+              updatedMe.role !== prevMe.role || 
+              updatedMe.status !== prevMe.status || 
+              updatedMe.name !== prevMe.name ||
+              updatedMe.avatar !== prevMe.avatar ||
+              updatedMe.phone !== prevMe.phone
+            )) {
+              localStorage.setItem('kenfoss_admin_user', JSON.stringify(updatedMe));
+              return updatedMe;
+            }
+            return prevMe;
+          });
+        }
+      }, (err) => handleSubError('users', err));
+
+      unsubNotifications = onSnapshot(query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(100)), (snap) => {
+        if (snap.empty) setNotifications([]);
+        else setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as NotificationItem)));
+      }, (err) => handleSubError('notifications', err));
+
+      unsubAuditLogs = onSnapshot(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(100)), (snap) => {
+        if (snap.empty) setAuditLogs([]);
+        else setAuditLogs(snap.docs.map(d => ({ id: d.id, ...d.data() } as AuditLogItem)));
+      }, (err) => handleSubError('auditLogs', err));
+    }
 
     return () => {
       unsubServices();
@@ -790,7 +770,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       unsubAuditLogs();
       unsubRoles();
     };
-  }, [currentUser?.id]);
+  }, [currentUser?.id, currentUser?.role]);
 
   // Sync state to local storage
   useEffect(() => {
