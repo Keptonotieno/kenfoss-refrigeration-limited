@@ -510,6 +510,7 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
                         src={activeProject.imageAfter}
                         alt="Engineered Result"
                         className="absolute inset-0 w-full h-full object-cover"
+                        loading="lazy"
                       />
                       <div className="absolute top-4 right-4 bg-emerald-600 text-white text-[11px] font-black px-3 py-1 rounded-full shadow border border-emerald-400 uppercase tracking-wider z-10">
                         AFTER: KENFOSS ENGINEERED
@@ -525,6 +526,7 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
                           alt="Legacy System Before Repair"
                           className="absolute inset-0 w-full h-full object-cover max-w-none"
                           style={{ width: '100%', height: '100%' }}
+                          loading="lazy"
                         />
                         <div className="absolute top-4 left-4 bg-slate-900/90 text-amber-400 text-[11px] font-black px-3 py-1 rounded-full shadow border border-slate-700 uppercase tracking-wider z-10">
                           BEFORE: LEGACY / FAULTY
@@ -617,6 +619,7 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
                       src={p.imageAfter}
                       alt={p.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
+                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
                     
@@ -728,6 +731,7 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
                 src={selectedProjectModal.imageAfter}
                 alt={selectedProjectModal.title}
                 className="w-full h-full object-cover"
+                loading="lazy"
               />
 
               {/* Touch Swipe Stage Chevron Overlays */}
@@ -845,7 +849,7 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
               {selectedGalleryLightbox.type === 'video' ? (
                 <video src={selectedGalleryLightbox.url} controls autoPlay className="max-w-full max-h-[60vh] object-contain" />
               ) : (
-                <img src={selectedGalleryLightbox.url} alt={selectedGalleryLightbox.title} className="max-w-full max-h-[60vh] object-contain" />
+                <img src={selectedGalleryLightbox.url} alt={selectedGalleryLightbox.title} className="max-w-full max-h-[60vh] object-contain" loading="lazy" />
               )}
 
               {/* Floating Overlay Chevron Navigation Buttons */}

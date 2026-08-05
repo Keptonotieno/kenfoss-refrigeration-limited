@@ -137,7 +137,7 @@ export const ServiceProgressTracker: React.FC<ServiceProgressTrackerProps> = ({
   const userEmail = user?.email?.toLowerCase() || '';
   const contextBookings = bookings.filter(
     (b) =>
-      b.email.toLowerCase() === userEmail ||
+      (b.email || '').toLowerCase() === userEmail ||
       userEmail.includes('kiprop') ||
       userEmail.includes('freshharvest')
   );
@@ -158,10 +158,10 @@ export const ServiceProgressTracker: React.FC<ServiceProgressTrackerProps> = ({
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
-      b.bookingRef.toLowerCase().includes(q) ||
-      b.serviceType.toLowerCase().includes(q) ||
-      b.location.toLowerCase().includes(q) ||
-      (b.assignedTechnicianName && b.assignedTechnicianName.toLowerCase().includes(q))
+      (b.bookingRef || '').toLowerCase().includes(q) ||
+      (b.serviceType || '').toLowerCase().includes(q) ||
+      (b.location || '').toLowerCase().includes(q) ||
+      (b.assignedTechnicianName && (b.assignedTechnicianName || '').toLowerCase().includes(q))
     );
   });
 

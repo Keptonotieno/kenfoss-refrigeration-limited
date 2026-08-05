@@ -68,14 +68,14 @@ export const AuthModal: React.FC = () => {
   // Filter Customer Specific Data
   const userEmail = user?.email?.toLowerCase() || '';
   const customerBookings = bookings.filter(b => 
-    b.email.toLowerCase() === userEmail || userEmail.includes('kiprop') || userEmail.includes('freshharvest')
+    (b.email || '').toLowerCase() === userEmail || userEmail.includes('kiprop') || userEmail.includes('freshharvest')
   );
   
   // If no email match, provide sample customer bookings so customer sees live dashboard functionality
   const displayedBookings = customerBookings.length > 0 ? customerBookings : bookings.slice(0, 3);
 
   const customerQuotes = quotes.filter(q => 
-    q.email.toLowerCase() === userEmail || userEmail.includes('schere') || userEmail.includes('nairobigrandhotel')
+    (q.email || '').toLowerCase() === userEmail || userEmail.includes('schere') || userEmail.includes('nairobigrandhotel')
   );
   const displayedQuotes = customerQuotes.length > 0 ? customerQuotes : quotes.slice(0, 2);
 

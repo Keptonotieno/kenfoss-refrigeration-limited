@@ -295,10 +295,10 @@ export const CustomerManagement: React.FC = () => {
         const matchesCategory = selectedCategory === 'All' || c.customerType === selectedCategory;
         const q = searchTerm.toLowerCase().trim();
         const matchesSearch = !q || (
-          c.name.toLowerCase().includes(q) ||
-          c.phone.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q) ||
-          c.location.toLowerCase().includes(q) ||
+          (c.name || '').toLowerCase().includes(q) ||
+          (c.phone || '').toLowerCase().includes(q) ||
+          (c.email || '').toLowerCase().includes(q) ||
+          (c.location || '').toLowerCase().includes(q) ||
           (c.address && c.address.toLowerCase().includes(q)) ||
           (c.notes && c.notes.toLowerCase().includes(q))
         );

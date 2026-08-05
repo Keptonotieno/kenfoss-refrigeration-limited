@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Clock, Moon, Smile, Globe, MapPin, ExternalLink, Navigation, Car, Bus, Copy, Check, CheckCheck, Phone, Smartphone, Share2, Mail, Mic, MicOff, Bot, Sparkles, RotateCcw, Volume2, VolumeX, Camera, Image, Archive, History, Trash2, AlertTriangle, CheckCircle2, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { MessageSquare, X, Send, Clock, Moon, Smile, Globe, MapPin, ExternalLink, Navigation, Car, Bus, Copy, Check, CheckCheck, Phone, Smartphone, Share2, Mail, Mic, MicOff, Bot, Sparkles, RotateCcw, Volume2, VolumeX, Camera, Image, Archive, History, Trash2, AlertTriangle, CheckCircle2, Wifi, WifiOff, RefreshCw, Search } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 import { db } from '../lib/firebase';
 import { doc, setDoc, onSnapshot, enableNetwork, disableNetwork } from 'firebase/firestore';
@@ -167,7 +167,7 @@ export interface QuickReplyChip {
  * to suggest 3 context-aware Quick Reply chips.
  */
 const getQuickReplies = (lastSupportText: string = '', companyName: string): QuickReplyChip[] => {
-  const text = lastSupportText.toLowerCase();
+  const text = (lastSupportText || '').toLowerCase();
 
   // 1. Price / Quote / Cost / Financial / Payments
   if (/\b(price|pricing|quote|quotation|cost|costs|rate|rates|payment|mpesa|m-pesa|paybill|invoice|shilling|ksh|fee|charges|deposit|budget|costing)\b/i.test(text)) {
@@ -455,6 +455,52 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
   const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
   const [showArchivesModal, setShowArchivesModal] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [isSupportTyping, setIsSupportTyping] = useState(false);
+
+  // Chat Search & Filter States
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterOnlyMatches, setFilterOnlyMatches] = useState(false);
+  const [archiveSearchQuery, setArchiveSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Helper function to highlight matching search text
+  const highlightMatchText = (text: string = '', query: string = '') => {
+    if (!text) return '';
+    if (!query || !query.trim()) return text;
+    const escapedQuery = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedQuery})`, 'gi');
+    const parts = text.split(regex);
+
+    return parts.map((part, i) =>
+      regex.test(part) ? (
+        <mark key={i} className="bg-amber-300 dark:bg-amber-500 text-slate-900 rounded px-0.5 font-bold">
+          {part}
+        </mark>
+      ) : (
+        part
+      )
+    );
+  };
+
+  // Active chat search filtering logic
+  const activeSearchTrimmed = searchQuery.trim().toLowerCase();
+  const matchedActiveMessages = chatHistory.filter((msg) =>
+    activeSearchTrimmed ? (msg?.text || '').toLowerCase().includes(activeSearchTrimmed) : true
+  );
+
+  const visibleChatHistory = (isSearchOpen && searchQuery.trim() && filterOnlyMatches)
+    ? matchedActiveMessages
+    : chatHistory;
+
+  const archiveMatchCount = (whatsappArchives || []).reduce((acc, archive) => {
+    if (!activeSearchTrimmed) return acc;
+    const msgs = archive?.messages || [];
+    const matchesInArchive = msgs.filter((m) =>
+      (m?.text || '').toLowerCase().includes(activeSearchTrimmed)
+    ).length;
+    return acc + (matchesInArchive > 0 ? 1 : 0);
+  }, 0);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -497,7 +543,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
       resizeObserver.disconnect();
       images.forEach((img) => img.removeEventListener('load', handleResize));
     };
-  }, [chatHistory, isOpen]);
+  }, [chatHistory, isOpen, isSupportTyping]);
 
   useEffect(() => {
     try {
@@ -579,6 +625,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
       window.speechSynthesis.cancel();
     }
     setSpeakingMsgId(null);
+    setIsSupportTyping(false);
 
     const firstUserMsg = chatHistory.find(m => m.sender === 'user');
     let title = firstUserMsg 
@@ -615,6 +662,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
       window.speechSynthesis.cancel();
     }
     setSpeakingMsgId(null);
+    setIsSupportTyping(false);
 
     const defaultMsg: ChatMessage[] = [
       {
@@ -866,6 +914,8 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
       setIsListening(false);
     }
 
+    setIsSupportTyping(false);
+
     const hasImage = !!attachedImage;
     const defaultText = hasImage
       ? `📷 Attached photo of faulty equipment for ${companyName} engineering inspection.`
@@ -940,6 +990,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
       setChatHistory((prev) =>
         prev.map((m) => (m.id === newMsgId ? { ...m, status: 'delivered' } : m))
       );
+      setIsSupportTyping(true);
     }, 800);
 
     // 2. Double Tick -> Read (Double Blue Tick 'read') after 2000ms
@@ -947,10 +998,12 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
       setChatHistory((prev) =>
         prev.map((m) => (m.id === newMsgId ? { ...m, status: 'read' } : m))
       );
+      setIsSupportTyping(true);
     }, 2000);
 
-    // 3. Support Acknowledgement & WhatsApp redirection after 3000ms
+    // 3. Support Acknowledgement & WhatsApp redirection after 3200ms
     const t3 = setTimeout(() => {
+      setIsSupportTyping(false);
       const supportReplyText = hasImage
         ? `📷 Equipment photo received! Our ${companyName} engineering team will inspect the image and provide a technical assessment. Opening live WhatsApp...`
         : '✅ Message read by Kenfoss Support! Opening live WhatsApp chat channel...';
@@ -965,7 +1018,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
         },
       ]);
       window.open(`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(textToSend)}`, '_blank');
-    }, 3000);
+    }, 3200);
 
     timeoutsRef.current.push(t1, t2, t3);
   };
@@ -1017,6 +1070,26 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
               </div>
 
               <div className="flex items-center space-x-1">
+                {/* Search Chat Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsSearchOpen((prev) => !prev);
+                    if (!isSearchOpen) {
+                      setTimeout(() => searchInputRef.current?.focus(), 100);
+                    }
+                  }}
+                  className={`relative p-1.5 rounded-full transition-colors cursor-pointer flex items-center justify-center ${
+                    isSearchOpen
+                      ? 'text-[#0057B8] bg-blue-100 dark:bg-blue-900/60 dark:text-blue-300'
+                      : 'text-slate-400 hover:text-[#0057B8] dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                  title="Search Messages in Support History"
+                >
+                  <Search className="w-4 h-4" />
+                </button>
+
                 {/* View Archives Button */}
                 <button
                   type="button"
@@ -1163,9 +1236,95 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
             </button>
           )}
 
+          {/* Search Input Panel for Active Chat Feed */}
+          {isSearchOpen && (
+            <div className="bg-blue-50/90 dark:bg-slate-800/90 p-2.5 rounded-xl border border-blue-200 dark:border-slate-700 space-y-1.5 animate-in slide-in-from-top-2 duration-150 shadow-xs">
+              <div className="relative flex items-center">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search active chat history..."
+                  className="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0057B8] dark:focus:ring-blue-500 placeholder:text-slate-400"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Search Stats & Filter Mode Toggle */}
+              <div className="flex items-center justify-between text-[10px] text-slate-600 dark:text-slate-300 px-1 pt-0.5">
+                <span>
+                  {searchQuery.trim() ? (
+                    matchedActiveMessages.length > 0 ? (
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        {matchedActiveMessages.length} match{matchedActiveMessages.length !== 1 ? 'es' : ''} in active chat
+                      </span>
+                    ) : (
+                      <span className="text-amber-600 dark:text-amber-400 font-medium">
+                        No matches in active chat
+                      </span>
+                    )
+                  ) : (
+                    <span>Type keyword to search chat messages</span>
+                  )}
+                </span>
+
+                {searchQuery.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => setFilterOnlyMatches((prev) => !prev)}
+                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-colors cursor-pointer ${
+                      filterOnlyMatches
+                        ? 'bg-[#0057B8] text-white'
+                        : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200'
+                    }`}
+                  >
+                    {filterOnlyMatches ? 'Filter Feed' : 'Highlight All'}
+                  </button>
+                )}
+              </div>
+
+              {/* Cross-Search in Archived Chats suggestion */}
+              {searchQuery.trim() && archiveMatchCount > 0 && (
+                <div className="pt-1.5 border-t border-blue-200/60 dark:border-slate-700 flex items-center justify-between text-[10px]">
+                  <span className="text-blue-700 dark:text-blue-300 font-medium">
+                    Found in {archiveMatchCount} archived chat{archiveMatchCount !== 1 ? 's' : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setArchiveSearchQuery(searchQuery);
+                      setShowArchivesModal(true);
+                    }}
+                    className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-[9px] flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <span>View Archives</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Chat Messages Feed Display with Status Indicators */}
           <div ref={chatFeedRef} className="bg-slate-100/80 dark:bg-slate-950/80 rounded-xl p-2.5 border border-slate-200/80 dark:border-slate-800 space-y-2 max-h-44 overflow-y-auto text-xs scroll-smooth">
-            {chatHistory.map((msg) => (
+            {visibleChatHistory.length === 0 && (
+              <div className="text-center py-6 px-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5 text-slate-500 dark:text-slate-400">
+                <Search className="w-6 h-6 mx-auto opacity-40 text-amber-500" />
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">No matching messages found</p>
+                <p className="text-[10px]">Try searching for terms like "cold room", "quote", "repair", or "Ruiru".</p>
+              </div>
+            )}
+            {visibleChatHistory.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -1194,7 +1353,9 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                       </div>
                     </div>
                   )}
-                  <p className="whitespace-pre-wrap">{msg.text}</p>
+                  <p className="whitespace-pre-wrap">
+                    {isSearchOpen && searchQuery.trim() ? highlightMatchText(msg.text, searchQuery) : msg.text}
+                  </p>
                   <div
                     className={`flex items-center justify-between gap-2 mt-1 text-[9px] ${
                       msg.sender === 'user' ? 'text-emerald-100' : 'text-slate-400 dark:text-slate-500'
@@ -1244,6 +1405,27 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                 </div>
               </div>
             ))}
+
+            {/* Support Typing Animation Indicator */}
+            {isSupportTyping && (
+              <div className="flex justify-start animate-in fade-in slide-in-from-bottom-1 duration-200">
+                <div className="max-w-[85%] rounded-2xl px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700/80 rounded-bl-xs shadow-2xs flex items-center space-x-2">
+                  <div className="w-5 h-5 rounded-full bg-[#0057B8] flex items-center justify-center text-white text-[9px] font-bold shrink-0">
+                    KF
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 italic">
+                      Support is typing
+                    </span>
+                    <div className="flex items-center space-x-0.5 pt-0.5">
+                      <span className="w-1.5 h-1.5 bg-[#0057B8] dark:bg-sky-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                      <span className="w-1.5 h-1.5 bg-[#0057B8] dark:bg-sky-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                      <span className="w-1.5 h-1.5 bg-[#0057B8] dark:bg-sky-400 rounded-full animate-bounce"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -1858,6 +2040,29 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
               </button>
             </div>
 
+            {/* Archive Search Bar */}
+            {whatsappArchives.length > 0 && (
+              <div className="relative flex items-center">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+                <input
+                  type="text"
+                  value={archiveSearchQuery}
+                  onChange={(e) => setArchiveSearchQuery(e.target.value)}
+                  placeholder="Search archived session titles or message content..."
+                  className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0057B8] dark:focus:ring-blue-500 placeholder:text-slate-400"
+                />
+                {archiveSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setArchiveSearchQuery('')}
+                    className="absolute right-2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-[50vh]">
               {whatsappArchives.length === 0 ? (
                 <div className="text-center py-8 space-y-2 text-slate-400">
@@ -1866,43 +2071,88 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                   <p className="text-[11px]">When you reset a support session, choose "Archive & Clear" to save it here.</p>
                 </div>
               ) : (
-                whatsappArchives.map((item) => (
-                  <div 
-                    key={item.id}
-                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:border-[#0057B8]/40 transition-all space-y-2"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{item.title}</h4>
-                        <div className="flex items-center space-x-2 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          <span>{item.archivedAt}</span>
-                          <span>•</span>
-                          <span>{item.messageCount} messages</span>
+                (() => {
+                  const filteredArchives = (whatsappArchives || []).filter((archive) => {
+                    if (!archiveSearchQuery.trim()) return true;
+                    const q = archiveSearchQuery.trim().toLowerCase();
+                    const titleMatch = (archive?.title || '').toLowerCase().includes(q);
+                    const msgs = archive?.messages || [];
+                    const msgMatch = msgs.some((m) => (m?.text || '').toLowerCase().includes(q));
+                    return titleMatch || msgMatch;
+                  });
+
+                  if (filteredArchives.length === 0) {
+                    return (
+                      <div className="text-center py-8 space-y-2 text-slate-400">
+                        <Search className="w-8 h-8 mx-auto opacity-40 text-amber-500" />
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">No matching archives found</p>
+                        <p className="text-[11px]">No archived sessions match "{archiveSearchQuery}". Try another search term.</p>
+                      </div>
+                    );
+                  }
+
+                  return filteredArchives.map((item) => {
+                    const msgs = item?.messages || [];
+                    const matchingMessages = archiveSearchQuery.trim()
+                      ? msgs.filter((m) =>
+                          (m?.text || '').toLowerCase().includes(archiveSearchQuery.trim().toLowerCase())
+                        )
+                      : [];
+
+                    return (
+                      <div 
+                        key={item.id}
+                        className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:border-[#0057B8]/40 transition-all space-y-2"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
+                              {archiveSearchQuery.trim() ? highlightMatchText(item.title, archiveSearchQuery) : item.title}
+                            </h4>
+                            <div className="flex items-center space-x-2 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              <span>{item.archivedAt}</span>
+                              <span>•</span>
+                              <span>{item.messageCount} messages</span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteWhatsAppArchive(item.id)}
+                            className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors cursor-pointer"
+                            title="Delete archive"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Matching Message Snippets inside Archive */}
+                        {matchingMessages.length > 0 && (
+                          <div className="mt-1 pt-1.5 border-t border-slate-200/80 dark:border-slate-700/80 space-y-1">
+                            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Matching Message Snippet{matchingMessages.length > 1 ? 's' : ''}:</p>
+                            {matchingMessages.slice(0, 2).map((m) => (
+                              <div key={m.id} className="text-[10px] bg-white dark:bg-slate-900 p-1.5 rounded border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-300">
+                                <span className="font-bold text-slate-500 mr-1">{m.sender === 'user' ? 'You:' : 'Support:'}</span>
+                                <span>{highlightMatchText(m.text, archiveSearchQuery)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex justify-end pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleRestoreWhatsAppArchive(item)}
+                            className="py-1 px-3 bg-[#0057B8] hover:bg-[#004494] text-white text-[11px] font-bold rounded-lg shadow-xs flex items-center space-x-1 transition-all cursor-pointer"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            <span>Restore Chat</span>
+                          </button>
                         </div>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteWhatsAppArchive(item.id)}
-                        className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors cursor-pointer"
-                        title="Delete archive"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    <div className="flex justify-end pt-1">
-                      <button
-                        type="button"
-                        onClick={() => handleRestoreWhatsAppArchive(item)}
-                        className="py-1 px-3 bg-[#0057B8] hover:bg-[#004494] text-white text-[11px] font-bold rounded-lg shadow-xs flex items-center space-x-1 transition-all cursor-pointer"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        <span>Restore Chat</span>
-                      </button>
-                    </div>
-                  </div>
-                ))
+                    );
+                  });
+                })()
               )}
             </div>
 
