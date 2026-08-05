@@ -11,46 +11,74 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isStaffOrAdmin() {
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function userDocExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserRole() {
+      return userDocExists() ? getUserData().role : null;
+    }
+
+    function isSuperAdmin() {
       return isSignedIn() && (
-        request.auth.token.email.matches('.*@kenfoss\\.co\\.ke$') ||
-        request.auth.token.role in ['Super Administrator', 'Manager', 'Technician'] ||
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Super Administrator', 'Manager', 'Technician']
+        getUserRole() == 'Super Administrator' ||
+        getUserRole() == 'Owner'
       );
     }
 
-    function isValidString(val, minLen, maxLen) {
-      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    function isStaffOrAdmin() {
+      return isSignedIn() && (
+        getUserRole() in ['Super Administrator', 'Owner', 'Manager', 'Technician']
+      );
     }
 
-    // Default deny catch-all
+    function isSystemInitOpen() {
+      return !exists(/databases/$(database)/documents/settings/system_init) || 
+             get(/databases/$(database)/documents/settings/system_init).data.setupCompleted != true;
+    }
+
+    // Default deny
     match /{document=**} {
       allow read, write: if false;
     }
 
     // 1. Users collection
     match /users/{userId} {
-      allow read: if isOwner(userId) || isStaffOrAdmin();
-      allow create: if isOwner(userId) || isStaffOrAdmin();
-      allow update: if isOwner(userId) || isStaffOrAdmin();
-      allow delete: if isStaffOrAdmin();
+      allow read: if isSignedIn() && (isOwner(userId) || isStaffOrAdmin());
+      allow create: if isSignedIn() && (
+        isStaffOrAdmin() || 
+        (isOwner(userId) && (
+          !('role' in request.resource.data) || 
+          request.resource.data.role == 'Customer' ||
+          isSystemInitOpen()
+        ))
+      );
+      allow update: if isSignedIn() && (
+        isStaffOrAdmin() || 
+        (isOwner(userId) && (
+          !('role' in request.resource.data) || 
+          request.resource.data.role == resource.data.role
+        ))
+      );
+      allow delete: if isSuperAdmin();
     }
 
     // 2. Bookings
     match /bookings/{bookingId} {
-      allow read: if isSignedIn() && (resource.data.email == request.auth.token.email || isStaffOrAdmin());
-      allow create: if isValidString(request.resource.data.bookingRef, 3, 64) 
-                   && isValidString(request.resource.data.serviceType, 2, 128);
+      allow read: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
+      allow create: if true;
       allow update: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
       allow delete: if isStaffOrAdmin();
     }
 
     // 3. Quotes / RFQs
     match /quotes/{quoteId} {
-      allow read: if isSignedIn() && (resource.data.email == request.auth.token.email || isStaffOrAdmin());
-      allow create: if isValidString(request.resource.data.rfqRef, 3, 64) 
-                   && isValidString(request.resource.data.projectType, 2, 128);
+      allow read: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
+      allow create: if true;
       allow update: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
       allow delete: if isStaffOrAdmin();
     }
@@ -60,21 +88,20 @@ service cloud.firestore {
       allow read: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
       allow create: if isStaffOrAdmin() || (isSignedIn() && request.resource.data.email == request.auth.token.email);
       allow update: if isStaffOrAdmin();
-      allow delete: if isStaffOrAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     // 5. Diagnostics
     match /diagnostics/{diagnosticId} {
       allow read: if true;
-      allow create: if isValidString(request.resource.data.applianceType, 1, 128);
+      allow create: if true;
       allow update, delete: if isStaffOrAdmin();
     }
 
     // 6. Contact Messages
     match /contacts/{contactId} {
       allow read: if isStaffOrAdmin();
-      allow create: if isValidString(request.resource.data.name, 1, 128) 
-                   && isValidString(request.resource.data.message, 1, 2000);
+      allow create: if true;
       allow update, delete: if isStaffOrAdmin();
     }
 
@@ -113,7 +140,7 @@ service cloud.firestore {
     // 9. Website & System Settings
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if isStaffOrAdmin();
+      allow write: if isStaffOrAdmin() || isSystemInitOpen();
     }
 
     // 10. Notifications
@@ -126,8 +153,8 @@ service cloud.firestore {
     // 11. System Audit Logs
     match /auditLogs/{logId} {
       allow read: if isStaffOrAdmin();
-      allow create: if isSignedIn() || request.resource.data.action is string;
-      allow update, delete: if isStaffOrAdmin();
+      allow create: if true;
+      allow update, delete: if isSuperAdmin();
     }
 
     // 12. Roles (RBAC)

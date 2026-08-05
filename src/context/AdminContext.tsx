@@ -790,7 +790,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       unsubAuditLogs();
       unsubRoles();
     };
-  }, []);
+  }, [currentUser?.id]);
 
   // Sync state to local storage
   useEffect(() => {
@@ -978,10 +978,40 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (snap.exists()) {
         userData = { id: snap.id, ...snap.data() } as AdminUser;
       } else {
-        const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
-        const qSnap = await getDocs(q);
-        if (!qSnap.empty) {
-          userData = { id: qSnap.docs[0].id, ...qSnap.docs[0].data() } as AdminUser;
+        try {
+          const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
+          const qSnap = await getDocs(q);
+          if (!qSnap.empty) {
+            const docData = qSnap.docs[0].data();
+            userData = { ...docData, id: fbUser.uid } as AdminUser;
+            await setDoc(doc(db, 'users', fbUser.uid), userData, { merge: true }).catch(() => {});
+          }
+        } catch (queryErr) {
+          console.warn('Query users by email error during login:', queryErr);
+        }
+
+        // If no Firestore user profile exists yet, provision Super Administrator profile if system initialization is open
+        if (!userData) {
+          const systemInitSnap = await getDoc(doc(db, 'settings', 'system_init')).catch(() => null);
+          const isSystemOpen = !systemInitSnap?.exists() || !systemInitSnap?.data()?.setupCompleted;
+
+          if (isSystemOpen) {
+            const autoName = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Super Administrator';
+            userData = {
+              id: fbUser.uid,
+              name: autoName,
+              email: cleanEmail,
+              role: 'Super Administrator',
+              phone: '+254 745 411 923',
+              avatar: fbUser.photoURL || '',
+              status: 'Active',
+              createdAt: new Date().toISOString(),
+              lastLogin: new Date().toISOString(),
+              twoFactorEnabled: true,
+              mustChangePassword: false
+            };
+            await setDoc(doc(db, 'users', fbUser.uid), userData, { merge: true }).catch(() => {});
+          }
         }
       }
 
@@ -1077,7 +1107,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const autoName = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Super Administrator';
           const pHash = await hashPassword(pass);
           const newSuperAdminDoc: AdminUser = {
-            id: `usr-admin-${Date.now()}`,
+            id: `usr-admin-${cleanEmail.replace(/[^a-z0-9]/g, '-')}`,
             name: autoName,
             email: cleanEmail,
             role: 'Super Administrator',

@@ -79,7 +79,7 @@ export async function fetchUserProfileFromFirestore(user: User): Promise<UserPro
   const rawEmail = user.email?.trim() || '';
   
   try {
-    // 1. Fetch by user.uid directly from 'users' collection
+    // 1. Fetch directly by user.uid from 'users' collection
     const userRef = doc(db, 'users', user.uid);
     const snap = await getDoc(userRef);
     if (snap.exists()) {
@@ -91,12 +91,12 @@ export async function fetchUserProfileFromFirestore(user: User): Promise<UserPro
         photoURL: data.photoURL || user.photoURL,
         phone: data.phone || '',
         company: data.company || '',
-        role: data.role || (cleanEmail.includes('admin') || cleanEmail === 'keptonromez62@gmail.com' || cleanEmail === 'keptonotieno@gmail.com' ? 'Super Administrator' : 'Customer'),
+        role: data.role || 'Customer',
         status: data.status || 'Active'
       };
     }
 
-    // 2. Query 'users' collection by email
+    // 2. Query 'users' collection by email to link legacy or email-indexed accounts
     if (cleanEmail) {
       let q = query(collection(db, 'users'), where('email', '==', cleanEmail));
       let qSnap = await getDocs(q);
@@ -108,27 +108,33 @@ export async function fetchUserProfileFromFirestore(user: User): Promise<UserPro
 
       if (!qSnap.empty) {
         const d = qSnap.docs[0].data();
-        return {
+        const profile: UserProfile = {
           uid: user.uid,
           email: user.email,
           displayName: d.displayName || d.name || user.displayName || cleanEmail.split('@')[0],
           photoURL: d.photoURL || user.photoURL,
           phone: d.phone || '',
           company: d.company || '',
-          role: d.role || (cleanEmail.includes('admin') || cleanEmail === 'keptonromez62@gmail.com' || cleanEmail === 'keptonotieno@gmail.com' ? 'Super Administrator' : 'Customer'),
+          role: d.role || 'Customer',
           status: d.status || 'Active'
         };
+
+        // Link profile to doc(db, 'users', user.uid) for security rules
+        saveUserProfile(user, {
+          role: profile.role,
+          displayName: profile.displayName,
+          phone: profile.phone,
+          company: profile.company,
+          status: profile.status
+        }).catch(() => {});
+
+        return profile;
       }
     }
 
-    // 3. Save initial user profile if not found
-    let defaultRole = 'Customer';
-    if (cleanEmail === 'keptonotieno@gmail.com' || cleanEmail === 'keptonromez62@gmail.com' || cleanEmail.includes('admin')) {
-      defaultRole = 'Super Administrator';
-    }
-
+    // 3. Auto-save initial user profile if not found
     try {
-      await saveUserProfile(user, { role: defaultRole });
+      await saveUserProfile(user, { role: 'Customer' });
     } catch (saveErr) {
       console.warn('Could not auto-save user profile to Firestore:', saveErr);
     }
@@ -138,23 +144,17 @@ export async function fetchUserProfileFromFirestore(user: User): Promise<UserPro
       email: user.email,
       displayName: user.displayName || cleanEmail.split('@')[0],
       photoURL: user.photoURL,
-      role: defaultRole,
+      role: 'Customer',
       status: 'Active'
     };
   } catch (err) {
     console.error('Error fetching user profile from Firestore:', err);
-    
-    let fallbackRole = 'Customer';
-    if (cleanEmail === 'keptonotieno@gmail.com' || cleanEmail === 'keptonromez62@gmail.com' || cleanEmail.includes('admin')) {
-      fallbackRole = 'Super Administrator';
-    }
-
     return {
       uid: user.uid,
       email: user.email,
       displayName: user.displayName || cleanEmail.split('@')[0] || 'User',
       photoURL: user.photoURL,
-      role: fallbackRole,
+      role: 'Customer',
       status: 'Active'
     };
   }
@@ -246,13 +246,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!role) {
       await new Promise(resolve => setTimeout(resolve, 300));
       role = await attemptFetch();
-    }
-
-    // Role fallback inference for known admin emails if still null
-    if (!role && cleanVal.includes('@')) {
-      if (cleanVal === 'keptonotieno@gmail.com' || cleanVal === 'keptonromez62@gmail.com' || cleanVal.includes('admin')) {
-        return 'Super Administrator';
-      }
     }
 
     return role;
