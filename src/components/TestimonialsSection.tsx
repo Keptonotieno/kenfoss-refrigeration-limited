@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAdmin } from '../context/AdminContext';
+import { ImageWithFallback } from './common/ImageWithFallback';
 import { Star, CheckCircle2, Quote, MessageSquarePlus, X, Send, Sparkles, Building2, MapPin, Check } from 'lucide-react';
 
 const SERVICE_CATEGORIES = [
@@ -180,9 +181,10 @@ export const TestimonialsSection: React.FC = () => {
               {/* Author Footer */}
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between relative z-10">
                 <div className="flex items-center space-x-3">
-                  <img
+                  <ImageWithFallback
                     src={t.avatar}
                     alt={t.name}
+                    category="avatar"
                     className="w-12 h-12 rounded-2xl object-cover border-2 border-blue-100 dark:border-blue-900 shrink-0 bg-slate-100 dark:bg-slate-800"
                   />
                   <div>

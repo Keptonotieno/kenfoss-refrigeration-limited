@@ -24,6 +24,7 @@ import {
 import { db, auth, createSecondaryStaffAuthUser } from '../lib/firebase';
 import { hashPassword, comparePassword } from '../lib/passwordHash';
 import { AdminInvitationService } from '../services/adminService';
+import { resolveImageUrl } from '../utils/imageRegistry';
 import {
   AdminUser,
   BookingRecord,
@@ -533,7 +534,14 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (snap.empty) {
         setServices([]);
       } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as ServiceItem));
+        const items = snap.docs.map(d => {
+          const data = d.data();
+          return {
+            id: d.id,
+            ...data,
+            image: resolveImageUrl(data.image, data.category)
+          } as ServiceItem;
+        });
         setServices(items);
       }
     }, (err) => handleSubError('services', err));
@@ -543,7 +551,15 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (snap.empty) {
         setProjects([]);
       } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as ProjectItem));
+        const items = snap.docs.map(d => {
+          const data = d.data();
+          return {
+            id: d.id,
+            ...data,
+            imageAfter: resolveImageUrl(data.imageAfter, data.category),
+            imageBefore: resolveImageUrl(data.imageBefore || data.imageAfter, data.category)
+          } as ProjectItem;
+        });
         setProjects(items);
       }
     }, (err) => handleSubError('projects', err));
@@ -553,7 +569,14 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (snap.empty) {
         setTestimonials([]);
       } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as TestimonialItem));
+        const items = snap.docs.map(d => {
+          const data = d.data();
+          return {
+            id: d.id,
+            ...data,
+            avatar: resolveImageUrl(data.avatar, 'avatar')
+          } as TestimonialItem;
+        });
         setTestimonials(items);
       }
     }, (err) => handleSubError('testimonials', err));
@@ -563,7 +586,18 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (snap.empty) {
         setBlogs([]);
       } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as BlogPost));
+        const items = snap.docs.map(d => {
+          const data = d.data();
+          return {
+            id: d.id,
+            ...data,
+            image: resolveImageUrl(data.image, data.category),
+            author: data.author ? {
+              ...data.author,
+              avatar: resolveImageUrl(data.author.avatar, 'avatar')
+            } : data.author
+          } as BlogPost;
+        });
         setBlogs(items);
       }
     }, (err) => handleSubError('blogs', err));
@@ -613,7 +647,14 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (snap.empty) {
         setGallery([]);
       } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as GalleryItem));
+        const items = snap.docs.map(d => {
+          const data = d.data();
+          return {
+            id: d.id,
+            ...data,
+            url: resolveImageUrl(data.url, data.category)
+          } as GalleryItem;
+        });
         setGallery(items);
       }
     }, (err) => handleSubError('gallery', err));

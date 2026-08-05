@@ -1,5 +1,6 @@
 import React from 'react';
 import aboutImg from '../assets/images/about_african_engineers_1785117690454.jpg';
+import { ImageWithFallback } from './common/ImageWithFallback';
 import { 
   Award, 
   Zap, 
@@ -67,10 +68,12 @@ export const WhyChooseUs: React.FC = () => {
           {/* Left Column: Feature Image & Experience Card */}
           <div className="lg:col-span-5 relative">
             <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800">
-              <img
+              <ImageWithFallback
                 src={aboutImg}
                 alt="African Kenfoss Lead Engineers Inspecting Cold Room System"
+                category="field"
                 className="w-full h-[520px] object-cover object-center"
+                containerClassName="w-full h-full"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
               

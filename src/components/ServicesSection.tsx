@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useAdmin } from '../context/AdminContext';
 import { ServiceItem, ServiceCategory } from '../types';
+import { ImageWithFallback } from './common/ImageWithFallback';
+import { resolveImageUrl } from '../utils/imageRegistry';
 import { SEO } from './SEO';
 import { 
   Warehouse, 
@@ -67,10 +69,7 @@ const getServiceImage = (service: ServiceItem): string => {
   if (SERVICE_IMAGE_MAP[service.id]) {
     return SERVICE_IMAGE_MAP[service.id];
   }
-  if (service.image && service.image.trim() !== '') {
-    return service.image;
-  }
-  return fridgeRepairNewImg;
+  return resolveImageUrl(service.image, service.category);
 };
 
 interface ServicesSectionProps {
@@ -193,10 +192,12 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
               >
                 {/* Image Header with Badge */}
                 <div className="relative h-48 overflow-hidden bg-slate-900">
-                  <img
+                  <ImageWithFallback
                     src={getServiceImage(service)}
                     alt={service.title}
+                    category={service.category}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
+                    containerClassName="w-full h-full"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
                   
@@ -324,10 +325,12 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking 
 
             {/* Header with image */}
             <div className="relative rounded-xl overflow-hidden bg-slate-900 h-48 sm:h-56 -mx-1 sm:-mx-2 -mt-1 sm:-mt-2">
-              <img 
+              <ImageWithFallback 
                 src={getServiceImage(selectedServiceModal)} 
                 alt={selectedServiceModal.title} 
+                category={selectedServiceModal.category}
                 className="w-full h-full object-cover opacity-85"
+                containerClassName="w-full h-full"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
               

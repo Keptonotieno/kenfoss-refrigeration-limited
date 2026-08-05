@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAdmin } from '../context/AdminContext';
 import { BlogPost } from '../types';
+import { ImageWithFallback } from './common/ImageWithFallback';
 import { SEO } from './SEO';
 import { BookOpen, Clock, Tag, X, User, ArrowRight } from 'lucide-react';
 
@@ -61,10 +62,12 @@ export const BlogSection: React.FC = () => {
               className="bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col justify-between"
             >
               <div className="relative h-48 bg-slate-900 overflow-hidden">
-                <img
+                <ImageWithFallback
                   src={post.image}
                   alt={post.title}
+                  category={post.category}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
+                  containerClassName="w-full h-full"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
                 
@@ -91,7 +94,13 @@ export const BlogSection: React.FC = () => {
                 <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
                   <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                     <div className="flex items-center space-x-2">
-                      <img src={post.author.avatar} alt={post.author.name} className="w-6 h-6 rounded-full" />
+                      <ImageWithFallback
+                        src={post.author.avatar}
+                        alt={post.author.name}
+                        category="avatar"
+                        className="w-6 h-6 rounded-full"
+                        containerClassName="w-6 h-6 shrink-0"
+                      />
                       <span className="font-semibold text-slate-700 dark:text-slate-200">{post.author.name}</span>
                     </div>
                     <span>{post.date}</span>
@@ -165,7 +174,13 @@ export const BlogSection: React.FC = () => {
             </div>
 
             <div className="rounded-xl overflow-hidden h-64 bg-slate-900">
-              <img src={activeArticle.image} alt={activeArticle.title} className="w-full h-full object-cover" />
+              <ImageWithFallback
+                src={activeArticle.image}
+                alt={activeArticle.title}
+                category={activeArticle.category}
+                className="w-full h-full object-cover"
+                containerClassName="w-full h-full"
+              />
             </div>
 
             <div className="prose prose-slate dark:prose-invert max-w-none text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed space-y-3 font-normal">

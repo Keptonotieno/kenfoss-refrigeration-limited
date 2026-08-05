@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, Clock, Moon, Smile, Globe, MapPin, ExternalLink, Navigation, Car, Bus, Copy, Check, CheckCheck, Phone, Smartphone, Share2, Mail, Mic, MicOff, Bot, Sparkles, RotateCcw, Volume2, VolumeX, Camera, Image, Archive, History, Trash2, AlertTriangle, CheckCircle2, Wifi, WifiOff, RefreshCw, Search } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
+import { ImageWithFallback } from './common/ImageWithFallback';
 import { db } from '../lib/firebase';
 import { sanitizeString, sanitizeObject } from '../lib/sanitize';
 import { doc, setDoc, onSnapshot, enableNetwork, disableNetwork } from 'firebase/firestore';
@@ -1339,10 +1340,12 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                 >
                   {msg.imageUrl && (
                     <div className="mb-2 overflow-hidden rounded-xl border border-white/20 dark:border-slate-700 bg-black/10 relative group/img cursor-pointer">
-                      <img
+                      <ImageWithFallback
                         src={msg.imageUrl}
                         alt={msg.imageName || "Faulty Equipment Photo"}
+                        category="equipment"
                         className="w-full max-h-36 object-cover rounded-xl transition-transform duration-200 group-hover/img:scale-105"
+                        containerClassName="w-full max-h-36"
                         onClick={() => setSelectedImageModalUrl(msg.imageUrl!)}
                       />
                       <div
@@ -1506,10 +1509,12 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
             {attachedImage && (
               <div className="flex items-center justify-between p-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex items-center space-x-2 min-w-0">
-                  <img
+                  <ImageWithFallback
                     src={attachedImage.url}
                     alt="Faulty Equipment Preview"
+                    category="equipment"
                     className="w-8 h-8 object-cover rounded-lg border border-emerald-300 dark:border-emerald-700 shrink-0 cursor-pointer"
+                    containerClassName="w-8 h-8 shrink-0"
                     onClick={() => setSelectedImageModalUrl(attachedImage.url)}
                   />
                   <div className="min-w-0">
@@ -1940,10 +1945,12 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
               </button>
             </div>
             <div className="rounded-xl overflow-hidden bg-black flex items-center justify-center max-h-[70vh]">
-              <img
+              <ImageWithFallback
                 src={selectedImageModalUrl}
                 alt="Faulty Equipment Inspection Detail"
+                category="equipment"
                 className="w-full max-h-[70vh] object-contain rounded-xl"
+                containerClassName="w-full h-full flex items-center justify-center"
               />
             </div>
           </div>

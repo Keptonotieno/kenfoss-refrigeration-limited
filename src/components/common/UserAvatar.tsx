@@ -94,6 +94,8 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
         alt={displayName}
         title={title || displayName}
         onClick={onClick}
+        loading="lazy"
+        decoding="async"
         className={`${sizeClasses} rounded-full object-cover border shadow-sm border-slate-700 ${
           onClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''
         } ${className}`}

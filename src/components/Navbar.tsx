@@ -50,6 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { contactInfo, websiteSettings } = useAdmin();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -197,11 +198,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => handleNavClick('home')}
             className="flex items-center space-x-3 text-left group cursor-pointer shrink-0"
           >
-            {websiteSettings?.logoUrl ? (
+            {websiteSettings?.logoUrl && !logoError ? (
               <img 
                 src={websiteSettings.logoUrl} 
                 alt={websiteSettings.companyName || 'Kenfoss Logo'} 
                 className="h-10 max-w-[160px] object-contain"
+                onError={() => setLogoError(true)}
               />
             ) : (
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#0057B8] to-[#00AEEF] flex items-center justify-center text-white shadow-md shadow-blue-500/15 group-hover:scale-105 transition-transform font-black text-xl">

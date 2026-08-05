@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ImageWithFallback } from './common/ImageWithFallback';
 import {
   Wrench,
   CheckCircle2,
@@ -623,13 +624,25 @@ export const ServiceProgressTracker: React.FC<ServiceProgressTrackerProps> = ({
                       {activeBooking.beforeImages && activeBooking.beforeImages.map((img, i) => (
                         <div key={i} className="space-y-1">
                           <span className="text-[10px] text-slate-400 font-bold uppercase block">Before Repair:</span>
-                          <img src={img} alt="Before repair" className="w-full h-28 object-cover rounded-xl border border-slate-200 dark:border-slate-700" />
+                          <ImageWithFallback
+                            src={img}
+                            alt="Before repair"
+                            category="refrigeration"
+                            className="w-full h-28 object-cover rounded-xl border border-slate-200 dark:border-slate-700"
+                            containerClassName="w-full h-28"
+                          />
                         </div>
                       ))}
                       {activeBooking.afterImages && activeBooking.afterImages.map((img, i) => (
                         <div key={i} className="space-y-1">
                           <span className="text-[10px] text-slate-400 font-bold uppercase block">After Repair / Testing:</span>
-                          <img src={img} alt="After repair" className="w-full h-28 object-cover rounded-xl border border-slate-200 dark:border-slate-700" />
+                          <ImageWithFallback
+                            src={img}
+                            alt="After repair"
+                            category="refrigeration"
+                            className="w-full h-28 object-cover rounded-xl border border-slate-200 dark:border-slate-700"
+                            containerClassName="w-full h-28"
+                          />
                         </div>
                       ))}
                     </div>

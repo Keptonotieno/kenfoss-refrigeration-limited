@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAdmin } from '../context/AdminContext';
 import { ProjectItem, GalleryItem } from '../types';
+import { ImageWithFallback } from './common/ImageWithFallback';
 import { 
   Building2, 
   MapPin, 
@@ -30,8 +31,22 @@ interface ProjectsGalleryProps {
 export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking }) => {
   const { projects, gallery } = useAdmin();
 
-  // Navigation View Toggle State: 'gallery' or 'cases'
-  const [activeTab, setActiveTab] = useState<'gallery' | 'cases'>('gallery');
+  // Navigation View Toggle State: 'cases' (Before & After Case Studies) or 'gallery' (Live Media Gallery)
+  const [activeTab, setActiveTab] = useState<'gallery' | 'cases'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('kenfoss_track_record_active_tab');
+      if (saved === 'gallery' || saved === 'cases') {
+        return saved;
+      }
+    }
+    return 'cases';
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('kenfoss_track_record_active_tab', activeTab);
+    }
+  }, [activeTab]);
 
   // Case Studies Filters
   const [activeCaseCategory, setActiveCaseCategory] = useState<string>('all');
@@ -193,17 +208,6 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
           {/* Module View Mode Switcher */}
           <div className="inline-flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 mt-4 shadow-sm">
             <button
-              onClick={() => setActiveTab('gallery')}
-              className={`px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
-                activeTab === 'gallery'
-                  ? 'bg-[#0057B8] text-white shadow-md'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-[#0057B8] dark:hover:text-white'
-              }`}
-            >
-              <ImageIcon className="w-4 h-4" />
-              <span>Live Media Gallery ({gallery.length})</span>
-            </button>
-            <button
               onClick={() => setActiveTab('cases')}
               className={`px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
                 activeTab === 'cases'
@@ -213,6 +217,17 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
             >
               <SlidersHorizontal className="w-4 h-4" />
               <span>Before & After Case Studies</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('gallery')}
+              className={`px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === 'gallery'
+                  ? 'bg-[#0057B8] text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-[#0057B8] dark:hover:text-white'
+              }`}
+            >
+              <ImageIcon className="w-4 h-4" />
+              <span>Live Media Gallery ({gallery.length})</span>
             </button>
           </div>
         </div>
@@ -353,11 +368,12 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
                           </div>
                         </div>
                       ) : (
-                        <img
+                        <ImageWithFallback
                           src={item.url}
                           alt={item.title}
+                          category={item.category}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          loading="lazy"
+                          containerClassName="w-full h-full"
                         />
                       )}
 
@@ -506,11 +522,12 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
                     <div className="relative h-80 sm:h-[400px] rounded-2xl overflow-hidden select-none border border-slate-700 shadow-2xl">
                       
                       {/* AFTER Image (Full background) */}
-                      <img
+                      <ImageWithFallback
                         src={activeProject.imageAfter}
                         alt="Engineered Result"
+                        category={activeProject.category}
                         className="absolute inset-0 w-full h-full object-cover"
-                        loading="lazy"
+                        containerClassName="absolute inset-0 w-full h-full"
                       />
                       <div className="absolute top-4 right-4 bg-emerald-600 text-white text-[11px] font-black px-3 py-1 rounded-full shadow border border-emerald-400 uppercase tracking-wider z-10">
                         AFTER: KENFOSS ENGINEERED
@@ -521,12 +538,13 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
                         className="absolute inset-0 overflow-hidden"
                         style={{ width: `${sliderPosition}%` }}
                       >
-                        <img
+                        <ImageWithFallback
                           src={activeProject.imageBefore || activeProject.imageAfter}
                           alt="Legacy System Before Repair"
+                          category={activeProject.category}
                           className="absolute inset-0 w-full h-full object-cover max-w-none"
                           style={{ width: '100%', height: '100%' }}
-                          loading="lazy"
+                          containerClassName="absolute inset-0 w-full h-full"
                         />
                         <div className="absolute top-4 left-4 bg-slate-900/90 text-amber-400 text-[11px] font-black px-3 py-1 rounded-full shadow border border-slate-700 uppercase tracking-wider z-10">
                           BEFORE: LEGACY / FAULTY
@@ -615,11 +633,12 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
                   className="bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col justify-between"
                 >
                   <div className="relative h-64 bg-slate-900 overflow-hidden">
-                    <img
+                    <ImageWithFallback
                       src={p.imageAfter}
                       alt={p.title}
+                      category={p.category}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
-                      loading="lazy"
+                      containerClassName="w-full h-full"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
                     
@@ -727,11 +746,12 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
               onTouchMove={handleTouchMove}
               onTouchEnd={() => handleTouchEnd(handleNextProjectModal, handlePrevProjectModal)}
             >
-              <img
+              <ImageWithFallback
                 src={selectedProjectModal.imageAfter}
                 alt={selectedProjectModal.title}
+                category={selectedProjectModal.category}
                 className="w-full h-full object-cover"
-                loading="lazy"
+                containerClassName="w-full h-full"
               />
 
               {/* Touch Swipe Stage Chevron Overlays */}
@@ -849,7 +869,13 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onOpenBooking 
               {selectedGalleryLightbox.type === 'video' ? (
                 <video src={selectedGalleryLightbox.url} controls autoPlay className="max-w-full max-h-[60vh] object-contain" />
               ) : (
-                <img src={selectedGalleryLightbox.url} alt={selectedGalleryLightbox.title} className="max-w-full max-h-[60vh] object-contain" loading="lazy" />
+                <ImageWithFallback
+                  src={selectedGalleryLightbox.url}
+                  alt={selectedGalleryLightbox.title}
+                  category={selectedGalleryLightbox.category}
+                  className="max-w-full max-h-[60vh] object-contain"
+                  containerClassName="w-full h-full flex items-center justify-center"
+                />
               )}
 
               {/* Floating Overlay Chevron Navigation Buttons */}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ImageWithFallback } from './common/ImageWithFallback';
 import { 
   X, 
   LogIn, 
@@ -199,7 +200,13 @@ export const AuthModal: React.FC = () => {
                 <div className="flex items-center space-x-3.5">
                   <div className="w-12 h-12 rounded-2xl bg-[#0057B8] text-white flex items-center justify-center text-xl font-black shadow-md shrink-0">
                     {user.photoURL ? (
-                      <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover rounded-2xl" />
+                      <ImageWithFallback
+                        src={user.photoURL}
+                        alt="Profile"
+                        category="avatar"
+                        className="w-full h-full object-cover rounded-2xl"
+                        containerClassName="w-full h-full"
+                      />
                     ) : (
                       user.displayName ? user.displayName.charAt(0).toUpperCase() : 'C'
                     )}

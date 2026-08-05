@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAdmin } from '../context/AdminContext';
 import heroRefrigerationImg from '../assets/images/refrigeration_hero_bg_1785179699828.jpg';
 import kenyanEngineersImg from '../assets/images/kenyan_engineers_refrigeration_1785180429060.jpg';
+import { ImageWithFallback } from './common/ImageWithFallback';
 import { 
   Wrench, 
   Phone, 
@@ -41,11 +42,13 @@ export const Hero: React.FC<HeroProps> = ({
     <section className="relative bg-[#0F172A] text-white overflow-hidden py-16 lg:py-24">
       {/* Background Cinematic Visual Effects with 50% Dark Blue Overlay */}
       <div className="absolute inset-0 z-0">
-        <img 
+        <ImageWithFallback 
           src={heroRefrigerationImg} 
           alt="Kenfoss Commercial & Industrial Refrigeration Equipment" 
-          referrerPolicy="no-referrer"
+          priority
+          category="refrigeration"
           className="w-full h-full object-cover object-center opacity-45 filter brightness-95 saturate-110"
+          containerClassName="w-full h-full"
         />
         {/* 50% Dark Blue Overlay Layer */}
         <div className="absolute inset-0 bg-[#001D4A]/50 backdrop-brightness-95" />
@@ -128,11 +131,12 @@ export const Hero: React.FC<HeroProps> = ({
               
               {/* Featured Refrigeration Equipment & Engineers Image Card */}
               <div className="relative rounded-xl overflow-hidden border border-white/20 shadow-lg h-44 sm:h-48 group">
-                <img 
+                <ImageWithFallback 
                   src={kenyanEngineersImg} 
                   alt="Black African Kenyan Refrigeration Engineers Kenfoss" 
-                  referrerPolicy="no-referrer"
+                  category="field"
                   className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-500"
+                  containerClassName="w-full h-full"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A]/90 via-[#0F172A]/30 to-transparent" />
                 <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-xs font-semibold text-white">

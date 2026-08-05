@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useAdmin } from '../../context/AdminContext';
+import { ImageWithFallback } from '../common/ImageWithFallback';
 import { ProjectItem, ServiceItem, TestimonialItem, ServiceCategory } from '../../types';
 import { 
   Users, 
@@ -486,7 +487,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
                 </div>
               )}
               <div className="relative h-36 bg-slate-900">
-                <img src={p.imageAfter} alt={p.title} className="w-full h-full object-cover" />
+                <ImageWithFallback
+                  src={p.imageAfter}
+                  alt={p.title}
+                  category={p.category}
+                  className="w-full h-full object-cover"
+                  containerClassName="w-full h-full"
+                />
                 <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded text-[9px] font-black uppercase bg-slate-950/90 text-cyan-400">
                   {p.category}
                 </span>
@@ -699,7 +706,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
                 }`}
               >
                 <div className="flex items-center space-x-3 truncate">
-                  <img src={s.image} alt={s.title} className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                  <ImageWithFallback
+                    src={s.image}
+                    alt={s.title}
+                    category={s.category}
+                    className="w-10 h-10 rounded-xl object-cover shrink-0"
+                    containerClassName="w-10 h-10 shrink-0"
+                  />
                   <div className="truncate">
                     <h4 className="font-bold text-white text-xs truncate">{s.title}</h4>
                     <p className="text-[10px] text-slate-400 truncate">{s.category} • {s.startingPrice}</p>
@@ -955,7 +968,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
                 </div>
                 {projectForm.imageAfter && (
                   <div className="mt-2 h-20 w-32 rounded-lg overflow-hidden border border-slate-800 bg-slate-950 relative">
-                    <img src={projectForm.imageAfter} alt="Project Preview" className="w-full h-full object-cover" />
+                    <ImageWithFallback
+                      src={projectForm.imageAfter}
+                      alt="Project Preview"
+                      category={projectForm.category}
+                      className="w-full h-full object-cover"
+                      containerClassName="w-full h-full"
+                    />
                   </div>
                 )}
               </div>
@@ -1073,7 +1092,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
                 </div>
                 {serviceForm.image && (
                   <div className="mt-2 h-20 w-32 rounded-lg overflow-hidden border border-slate-800 bg-slate-950 relative">
-                    <img src={serviceForm.image} alt="Service Preview" className="w-full h-full object-cover" />
+                    <ImageWithFallback
+                      src={serviceForm.image}
+                      alt="Service Preview"
+                      category={serviceForm.category}
+                      className="w-full h-full object-cover"
+                      containerClassName="w-full h-full"
+                    />
                   </div>
                 )}
               </div>

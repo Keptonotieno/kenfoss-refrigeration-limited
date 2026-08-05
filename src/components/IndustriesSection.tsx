@@ -1,4 +1,5 @@
 import React from 'react';
+import { ImageWithFallback } from './common/ImageWithFallback';
 import { 
   Building2, 
   Utensils, 
@@ -119,10 +120,12 @@ export const IndustriesSection: React.FC<IndustriesSectionProps> = ({ onOpenBook
                 className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col justify-between"
               >
                 <div className="relative h-44 overflow-hidden bg-slate-900">
-                  <img
+                  <ImageWithFallback
                     src={item.image}
                     alt={item.name}
+                    category={item.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-85"
+                    containerClassName="w-full h-full"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
                   
