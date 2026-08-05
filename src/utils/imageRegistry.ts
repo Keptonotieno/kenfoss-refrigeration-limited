@@ -129,20 +129,52 @@ export function resolveImageUrl(src?: string | null, category?: string): string 
     return IMAGE_MAP[cleanSrc];
   }
 
-  // 3. Extract filename from paths like `/src/assets/images/filename.jpg` or `../assets/images/filename.jpg`
-  const lastSlashIdx = cleanSrc.lastIndexOf('/');
-  const filename = lastSlashIdx !== -1 ? cleanSrc.slice(lastSlashIdx + 1) : cleanSrc;
+  // 3. Extract filename from paths like `/src/assets/images/filename.jpg` or `/assets/filename-hash.jpg`
+  const rawFileName = cleanSrc.split('?')[0].split('#')[0].split('/').pop() || '';
 
-  if (IMAGE_MAP[filename]) {
-    return IMAGE_MAP[filename];
+  if (IMAGE_MAP[rawFileName]) {
+    return IMAGE_MAP[rawFileName];
   }
 
-  // 4. Fuzzy match based on partial asset names
-  const lowerName = filename.toLowerCase();
-  for (const [key, val] of Object.entries(IMAGE_MAP)) {
-    const keyBase = key.split('_')[0]; // e.g. "kenya" or "coldroom" or "hero"
-    if (keyBase.length > 3 && lowerName.includes(keyBase)) {
-      return val;
+  // Strip Vite asset hash if present (e.g. "-C3x8aY9z.jpg" -> ".jpg")
+  const unhashedFileName = rawFileName.replace(/(-[a-zA-Z0-9_-]{6,12})(\.[a-z0-9]+)$/i, '$2');
+  if (IMAGE_MAP[unhashedFileName]) {
+    return IMAGE_MAP[unhashedFileName];
+  }
+
+  // 4. Match stem against IMAGE_MAP keys with specific stem matching (avoiding false positives)
+  const targetStem = unhashedFileName.toLowerCase().replace(/\.[a-z0-9]+$/i, '');
+
+  if (targetStem) {
+    let bestKey = '';
+    let maxMatchLen = 0;
+
+    for (const key of Object.keys(IMAGE_MAP)) {
+      const keyStem = key.toLowerCase().replace(/\.[a-z0-9]+$/i, '');
+
+      if (keyStem === targetStem) {
+        return IMAGE_MAP[key];
+      }
+
+      // Check without trailing timestamp IDs
+      const keyStemNoTs = keyStem.replace(/_\d{10,}$/g, '');
+      const targetStemNoTs = targetStem.replace(/_\d{10,}$/g, '');
+
+      if (keyStemNoTs === targetStemNoTs && keyStemNoTs.length > maxMatchLen) {
+        bestKey = key;
+        maxMatchLen = keyStemNoTs.length;
+      } else if (
+        keyStemNoTs.length > 5 &&
+        (targetStem.includes(keyStemNoTs) || keyStem.includes(targetStemNoTs)) &&
+        keyStemNoTs.length > maxMatchLen
+      ) {
+        bestKey = key;
+        maxMatchLen = keyStemNoTs.length;
+      }
+    }
+
+    if (bestKey) {
+      return IMAGE_MAP[bestKey];
     }
   }
 
