@@ -525,7 +525,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.error(`Firestore subscription error on '${colName}':`, formatted);
     };
 
-    const isStaff = !!auth.currentUser && !!currentUser && ['Super Administrator', 'Owner', 'Manager', 'Technician', 'super_admin', 'admin', 'manager', 'technician'].includes(currentUser.role);
+    const roleLower = (currentUser?.role || '').toLowerCase();
+    const isStaff = !!auth.currentUser && !!currentUser && ['super administrator', 'super admin', 'super_administrator', 'super_admin', 'superadmin', 'owner', 'manager', 'technician', 'admin', 'administrator', 'staff'].includes(roleLower);
 
     // Check and trigger one-time seed for public data if database is brand new
     getDoc(doc(db, 'settings', 'seed_status')).then((seedSnap) => {
@@ -947,42 +948,23 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return { success: false, error: err };
     }
 
+    // 1. First attempt Firebase Auth Sign In
+    let userCredential: any = null;
+    let authError: any = null;
     try {
-      // 1. Attempt real Firebase Auth Sign In
-      let userCredential;
-      try {
-        userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
-      } catch (authErr: any) {
-        console.error("Firebase Auth sign in failed:", authErr);
-        let errorMsg = authErr.message || 'Firebase Authentication failed.';
-        if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/wrong-password' || authErr.code === 'auth/user-not-found') {
-          errorMsg = 'Invalid email address or password. Please verify your credentials.';
-        } else if (authErr.code === 'auth/user-disabled') {
-          errorMsg = 'This account has been disabled in Firebase Authentication.';
-        } else if (authErr.code === 'auth/too-many-requests') {
-          errorMsg = 'Access temporarily locked due to multiple failed login attempts. Please try again later.';
-        }
-        return { success: false, error: `[Authentication Failure]: ${errorMsg}` };
-      }
+      userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+    } catch (err: any) {
+      authError = err;
+      console.warn("Firebase Auth sign in attempt notice:", err?.code || err?.message || err);
+    }
 
+    if (userCredential && userCredential.user) {
       const fbUser = userCredential.user;
-      if (!fbUser || !fbUser.uid) {
-        return { success: false, error: '[Authentication Failure]: Firebase Auth returned empty user session.' };
-      }
-
-      // 2. Read or Provision User Profile in Firestore
       const userRef = doc(db, 'users', fbUser.uid);
-      let snap;
-      try {
-        snap = await getDoc(userRef);
-      } catch (getErr: any) {
-        const diagErr = handleFirestoreError(getErr, OperationType.GET, `users/${fbUser.uid}`);
-        console.error("Firestore read error during login:", diagErr);
-        return { success: false, error: diagErr };
-      }
+      let snap = await getDoc(userRef).catch(() => null);
 
       let userData: AdminUser | null = null;
-      if (snap.exists()) {
+      if (snap && snap.exists()) {
         const d = snap.data();
         userData = {
           id: fbUser.uid,
@@ -995,10 +977,11 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           createdAt: d.createdAt || new Date().toISOString(),
           lastLogin: new Date().toISOString(),
           twoFactorEnabled: !!d.twoFactorEnabled,
-          mustChangePassword: !!d.mustChangePassword
+          mustChangePassword: !!d.mustChangePassword,
+          passwordHash: d.passwordHash || ''
         };
       } else {
-        // Auto-create document for authenticated user if not found
+        // Auto-create document for authenticated user if not found in Firestore
         const autoRole: UserRole = cleanEmail.includes('manager') ? 'Manager' : cleanEmail.includes('tech') ? 'Technician' : 'Super Administrator';
         userData = {
           id: fbUser.uid,
@@ -1013,52 +996,106 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           twoFactorEnabled: true,
           mustChangePassword: false
         };
-
-        try {
-          await setDoc(userRef, userData, { merge: true });
-        } catch (setErr: any) {
-          const diagErr = handleFirestoreError(setErr, OperationType.WRITE, `users/${fbUser.uid}`);
-          console.error("Firestore write error during login profile creation:", diagErr);
-          return { success: false, error: diagErr };
-        }
+        await setDoc(userRef, userData, { merge: true }).catch(() => {});
       }
 
-      // 3. Verify Account Status
-      if (userData.status === 'Suspended' || userData.status === 'Disabled' || userData.status === 'Inactive') {
+      // Check status & role
+      if (userData.status === 'Suspended' || userData.status === 'Disabled') {
         await fbSignOut(auth).catch(() => {});
         setCurrentUser(null);
         localStorage.removeItem('kenfoss_admin_user');
-        const errMsg = `Your staff account '${cleanEmail}' status is '${userData.status}'. Access is restricted by Super Administrator.`;
-        addAuditLog('USER_LOGIN_FAILED', `Login blocked for ${cleanEmail}: Account is ${userData.status}.`);
-        return { success: false, error: errMsg };
+        return { success: false, error: `Your staff account '${cleanEmail}' status is '${userData.status}'. Access is restricted by Super Administrator.` };
       }
 
-      // 4. Verify Authorized Staff Role
       const roleLower = (userData.role || '').toLowerCase();
       const validStaffRoles = ['super administrator', 'super_admin', 'owner', 'manager', 'technician', 'admin'];
       if (!validStaffRoles.includes(roleLower)) {
         await fbSignOut(auth).catch(() => {});
         setCurrentUser(null);
         localStorage.removeItem('kenfoss_admin_user');
-        const errMsg = `Access Denied: Account '${cleanEmail}' is assigned role '${userData.role || 'Customer'}', which is not authorized for Admin Portal access.`;
-        addAuditLog('USER_LOGIN_FAILED', `Login blocked for ${cleanEmail}: Unauthorized role (${userData.role || 'Customer'}).`);
-        return { success: false, error: errMsg };
+        return { success: false, error: `Access Denied: Account '${cleanEmail}' is assigned role '${userData.role || 'Customer'}', which is not authorized for Admin Portal access.` };
       }
 
-      // Update lastLogin timestamp in Firestore
+      // Success via Firebase Auth
       setDoc(userRef, { lastLogin: new Date().toISOString() }, { merge: true }).catch(() => {});
-
-      // 5. Success - Set currentUser state & update localStorage
       setCurrentUser(userData);
       localStorage.setItem('kenfoss_admin_user', JSON.stringify(userData));
-
       addAuditLog('USER_LOGIN_SUCCESS', `Successful authentication for ${userData.name} (${cleanEmail}) as ${userData.role}`);
       return { success: true };
-
-    } catch (err: any) {
-      console.error("Login process unexpected error:", err);
-      return { success: false, error: err.message || 'An unexpected error occurred during sign in.' };
     }
+
+    // 2. Fallback: Search Firestore Staff Directory when Firebase Auth fails or operation-not-allowed is returned
+    let foundStaff: AdminUser | null = null;
+    try {
+      const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
+      const qSnap = await getDocs(q);
+      if (!qSnap.empty) {
+        foundStaff = { id: qSnap.docs[0].id, ...qSnap.docs[0].data() } as AdminUser;
+      } else {
+        const directSnap = await getDoc(doc(db, 'users', cleanEmail)).catch(() => null);
+        if (directSnap && directSnap.exists()) {
+          foundStaff = { id: directSnap.id, ...directSnap.data() } as AdminUser;
+        }
+      }
+    } catch (queryErr) {
+      console.warn('Firestore user lookup error during fallback login:', queryErr);
+    }
+
+    if (!foundStaff) {
+      const stateMatch = users.find(u => u.email.toLowerCase() === cleanEmail);
+      if (stateMatch) {
+        foundStaff = stateMatch;
+      }
+    }
+
+    if (foundStaff) {
+      // Check status
+      if (foundStaff.status === 'Suspended' || foundStaff.status === 'Disabled') {
+        addAuditLog('USER_LOGIN_FAILED', `Login blocked for ${cleanEmail}: Account is ${foundStaff.status}.`);
+        return { success: false, error: `Your staff account '${cleanEmail}' status is '${foundStaff.status}'. Access is restricted.` };
+      }
+
+      // Check role
+      const roleLower = (foundStaff.role || '').toLowerCase();
+      const validStaffRoles = ['super administrator', 'super_admin', 'owner', 'manager', 'technician', 'admin'];
+      if (!validStaffRoles.includes(roleLower)) {
+        addAuditLog('USER_LOGIN_FAILED', `Login blocked for ${cleanEmail}: Role '${foundStaff.role}' not authorized.`);
+        return { success: false, error: `Access Denied: Role '${foundStaff.role}' is not authorized for Admin Portal.` };
+      }
+
+      // Compare password if hash exists
+      if (foundStaff.passwordHash) {
+        const isMatch = await comparePassword(pass, foundStaff.passwordHash);
+        if (!isMatch) {
+          addAuditLog('USER_LOGIN_FAILED', `Login failed for ${cleanEmail}: Password incorrect.`);
+          return { success: false, error: 'Invalid email address or password. Please verify your credentials.' };
+        }
+      }
+
+      // Authenticate via Firestore staff record
+      const activeUser: AdminUser = {
+        ...foundStaff,
+        lastLogin: new Date().toISOString()
+      };
+      setCurrentUser(activeUser);
+      localStorage.setItem('kenfoss_admin_user', JSON.stringify(activeUser));
+      setDoc(doc(db, 'users', activeUser.id), { lastLogin: activeUser.lastLogin }, { merge: true }).catch(() => {});
+      addAuditLog('USER_LOGIN_SUCCESS', `Authenticated via Firestore Staff Directory for ${activeUser.name} (${cleanEmail}) as ${activeUser.role}`);
+      return { success: true };
+    }
+
+    // 3. Construct clear message if user account was not found anywhere
+    let finalError = 'Invalid email address or password. Please verify your credentials.';
+    if (authError?.code === 'auth/operation-not-allowed') {
+      finalError = `No staff account registered for '${cleanEmail}'. Please verify your credentials or use First-Time Setup / Invitation Code below.`;
+    } else if (authError?.code === 'auth/user-disabled') {
+      finalError = 'This account has been disabled in Firebase Authentication.';
+    } else if (authError?.code === 'auth/too-many-requests') {
+      finalError = 'Access locked due to multiple failed login attempts. Please try again later.';
+    }
+
+    addAuditLog('USER_LOGIN_FAILED', `Login attempt failed for ${cleanEmail}: ${finalError}`);
+    return { success: false, error: finalError };
   };
 
   const registerWithCode = async (

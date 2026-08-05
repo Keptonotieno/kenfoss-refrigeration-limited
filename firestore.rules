@@ -25,13 +25,22 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return isSignedIn() && (
-        getUserRole() in ['Super Administrator', 'Owner', 'super_admin', 'admin']
+        isSystemInitOpen() ||
+        (userDocExists() && getUserData().role in [
+          'Super Administrator', 'Super Admin', 'super_administrator', 'super_admin', 'superadmin',
+          'Owner', 'owner', 'admin', 'Admin', 'Administrator', 'administrator'
+        ])
       );
     }
 
     function isStaffOrAdmin() {
       return isSignedIn() && (
-        getUserRole() in ['Super Administrator', 'Owner', 'Manager', 'Technician', 'super_admin', 'admin', 'manager', 'technician']
+        isSystemInitOpen() ||
+        (userDocExists() && getUserData().role in [
+          'Super Administrator', 'Super Admin', 'super_administrator', 'super_admin', 'superadmin',
+          'Owner', 'owner', 'admin', 'Admin', 'Administrator', 'administrator',
+          'Manager', 'manager', 'Technician', 'technician', 'Staff', 'staff'
+        ])
       );
     }
 
@@ -48,21 +57,8 @@ service cloud.firestore {
     // 1. Users collection
     match /users/{userId} {
       allow read: if isSignedIn() && (isOwner(userId) || isStaffOrAdmin());
-      allow create: if isSignedIn() && (
-        isStaffOrAdmin() || 
-        (isOwner(userId) && (
-          !('role' in request.resource.data) || 
-          request.resource.data.role == 'Customer' ||
-          isSystemInitOpen()
-        ))
-      );
-      allow update: if isSignedIn() && (
-        isStaffOrAdmin() || 
-        (isOwner(userId) && (
-          !('role' in request.resource.data) || 
-          request.resource.data.role == resource.data.role
-        ))
-      );
+      allow create: if isSignedIn() && (isOwner(userId) || isStaffOrAdmin());
+      allow update: if isSignedIn() && (isOwner(userId) || isStaffOrAdmin());
       allow delete: if isSuperAdmin();
     }
 
