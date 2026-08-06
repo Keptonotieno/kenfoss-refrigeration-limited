@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, Clock, Moon, Smile, Globe, MapPin, ExternalLink, Navigation, Car, Bus, Copy, Check, CheckCheck, Phone, Smartphone, Share2, Mail, Mic, MicOff, Bot, Sparkles, RotateCcw, Volume2, VolumeX, Camera, Image, Archive, History, Trash2, AlertTriangle, CheckCircle2, Wifi, WifiOff, RefreshCw, Search } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 import { ImageWithFallback } from './common/ImageWithFallback';
+import { KENYA_47_COUNTIES } from './ServiceAreas';
 import { db } from '../lib/firebase';
 import { sanitizeString, sanitizeObject } from '../lib/sanitize';
 import { doc, setDoc, onSnapshot, enableNetwork, disableNetwork } from 'firebase/firestore';
@@ -306,6 +307,61 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
+  const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('kenfoss_whatsapp_sound') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+  const [selectedCounty, setSelectedCounty] = useState<string>(() => {
+    try {
+      return localStorage.getItem('kenfoss_user_county') || 'Nairobi';
+    } catch {
+      return 'Nairobi';
+    }
+  });
+
+  const playChime = (type: 'send' | 'receive') => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+
+      if (type === 'send') {
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(540, now);
+        osc.frequency.exponentialRampToValueAtTime(820, now + 0.12);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.16);
+      } else {
+        const now = ctx.currentTime;
+        const notes = [523.25, 659.25, 784.00]; // C5, E5, G5 soft chime chord
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const noteTime = now + idx * 0.07;
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, noteTime);
+          gain.gain.setValueAtTime(0.14, noteTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.22);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(noteTime);
+          osc.stop(noteTime + 0.22);
+        });
+      }
+    } catch {
+      // Ignore web audio errors if audio context is blocked
+    }
+  };
 
   const fullRuiruAddress = contactInfo
     ? [contactInfo.address, contactInfo.city].filter(Boolean).join(', ')
@@ -939,26 +995,34 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
     setMsgText('');
     setAttachedImage(null);
     setShowEmojiPicker(false);
+
+    if (isSoundEnabled) {
+      playChime('send');
+    }
     try {
       localStorage.removeItem(DRAFT_STORAGE_KEY);
     } catch {
       // Ignore localStorage errors
     }
 
+    // Format WhatsApp message with County location tag
+    const formattedWaText = `*[Dispatch County: ${selectedCounty} County, Kenya]*\n${textToSend}`;
+
     // Publish Real-Time Notification to Firestore for Admin Portal listener
     const notifId = `notif-wa-${Date.now()}`;
     const notifTitle = hasImage
-      ? '📷 WhatsApp Equipment Photo Received'
-      : '💬 New WhatsApp Live Chat Message';
+      ? `📷 WhatsApp Photo (${selectedCounty} County)`
+      : `💬 WhatsApp Live Chat (${selectedCounty} County)`;
     const notifMessage = hasImage
-      ? `Equipment Photo (${userMsg.imageName || 'Inspection image'}) attached: "${textToSend}"`
-      : `Client Message: "${textToSend}"`;
+      ? `[${selectedCounty} County] Photo (${userMsg.imageName || 'Inspection image'}) attached: "${textToSend}"`
+      : `[${selectedCounty} County] Client Message: "${textToSend}"`;
 
     const realTimeNotif = sanitizeObject({
       id: notifId,
       type: 'whatsapp' as const,
       title: notifTitle,
       message: notifMessage,
+      county: selectedCounty,
       isRead: false,
       createdAt: new Date().toISOString(),
       link: 'contact_info',
@@ -976,8 +1040,10 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
       name: 'WhatsApp Live Visitor',
       email: 'whatsapp-chat@kenfoss.co.ke',
       phone: whatsappPhone,
-      subject: hasImage ? 'WhatsApp Equipment Image Attachment' : 'WhatsApp Live Chat Inquiry',
+      subject: `[${selectedCounty} County] ${hasImage ? 'WhatsApp Equipment Image Attachment' : 'WhatsApp Live Chat Inquiry'}`,
       message: textToSend,
+      county: selectedCounty,
+      location: `${selectedCounty} County, Kenya`,
       ...(userMsg.imageUrl ? { imageUrl: userMsg.imageUrl, imageName: userMsg.imageName } : {}),
       status: 'Unread',
       createdAt: new Date().toISOString(),
@@ -1007,8 +1073,12 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
     const t3 = setTimeout(() => {
       setIsSupportTyping(false);
       const supportReplyText = hasImage
-        ? `📷 Equipment photo received! Our ${companyName} engineering team will inspect the image and provide a technical assessment. Opening live WhatsApp...`
-        : '✅ Message read by Kenfoss Support! Opening live WhatsApp chat channel...';
+        ? `📷 Equipment photo received! Our ${companyName} engineering team will inspect the image and prioritize dispatch to ${selectedCounty} County. Opening live WhatsApp...`
+        : `✅ Message read by Kenfoss Support! Prioritizing dispatch to ${selectedCounty} County. Opening live WhatsApp chat...`;
+
+      if (isSoundEnabled) {
+        playChime('receive');
+      }
 
       setChatHistory((prev) => [
         ...prev,
@@ -1019,7 +1089,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
           timestamp: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date()),
         },
       ]);
-      window.open(`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(textToSend)}`, '_blank');
+      window.open(`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(formattedWaText)}`, '_blank');
     }, 3200);
 
     timeoutsRef.current.push(t1, t2, t3);
@@ -1072,6 +1142,35 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
               </div>
 
               <div className="flex items-center space-x-1">
+                {/* Audio Notification Chime Toggle Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const nextSound = !isSoundEnabled;
+                    setIsSoundEnabled(nextSound);
+                    try {
+                      localStorage.setItem('kenfoss_whatsapp_sound', String(nextSound));
+                    } catch {
+                      // ignore
+                    }
+                    if (nextSound) {
+                      playChime('receive');
+                      showToast('Notification chime enabled 🔔');
+                    } else {
+                      showToast('Notification chime muted 🔕');
+                    }
+                  }}
+                  className={`relative p-1.5 rounded-full transition-colors cursor-pointer flex items-center justify-center ${
+                    isSoundEnabled
+                      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-100/80 dark:bg-emerald-950/80'
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                  title={isSoundEnabled ? "Audio Notification Chime Enabled (Click to Mute)" : "Audio Notification Chime Muted (Click to Enable)"}
+                >
+                  {isSoundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </button>
+
                 {/* Search Chat Button */}
                 <button
                   type="button"
@@ -1150,6 +1249,39 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                     <span>Outside Business Hours</span>
                   </div>
                 )}
+              </div>
+
+              {/* Kenya County Dispatch Location Selector Dropdown */}
+              <div className="pt-1.5 mt-0.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px] bg-emerald-50/80 dark:bg-emerald-950/40 p-2 rounded-lg border border-emerald-200/80 dark:border-emerald-800/60">
+                <div className="flex items-center space-x-1.5 min-w-0 pr-1">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="font-extrabold text-slate-800 dark:text-slate-100 text-[10px] uppercase tracking-wider">
+                    Dispatch County:
+                  </span>
+                </div>
+                <div className="relative">
+                  <select
+                    value={selectedCounty}
+                    onChange={(e) => {
+                      const c = e.target.value;
+                      setSelectedCounty(c);
+                      try {
+                        localStorage.setItem('kenfoss_user_county', c);
+                      } catch {
+                        // ignore
+                      }
+                      showToast(`Dispatch location priority updated to ${c} County 🇰🇪`);
+                    }}
+                    className="bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700/80 text-emerald-900 dark:text-emerald-300 font-bold text-[11px] rounded-md px-2 py-1 outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs"
+                    title="Select your current county in Kenya to prioritize technical dispatch"
+                  >
+                    {KENYA_47_COUNTIES.map((c) => (
+                      <option key={c} value={c}>
+                        🇰🇪 {c} County
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {/* Visitor Local Time Badge (shown if outside Kenya) */}

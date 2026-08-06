@@ -193,10 +193,22 @@ const SERVICE_ZONES: ServiceZone[] = [
   }
 ];
 
+export const KENYA_47_COUNTIES = [
+  'Mombasa', 'Kwale', 'Kilifi', 'Tana River', 'Lamu', 'Taita-Taveta',
+  'Garissa', 'Wajir', 'Mandera', 'Marsabit', 'Isiolo', 'Meru',
+  'Tharaka-Nithi', 'Embu', 'Kitui', 'Machakos', 'Makueni', 'Nyandarua',
+  'Nyeri', 'Kirinyaga', 'Murang\'a', 'Kiambu', 'Turkana', 'West Pokot',
+  'Samburu', 'Trans-Nzoia', 'Uasin Gishu', 'Elgeyo-Marakwet', 'Nandi', 'Baringo',
+  'Laikipia', 'Nakuru', 'Narok', 'Kajiado', 'Kericho', 'Bomet',
+  'Kakamega', 'Vihiga', 'Bungoma', 'Busia', 'Siaya', 'Kisumu',
+  'Homa Bay', 'Migori', 'Kisii', 'Nyamira', 'Nairobi'
+];
+
 export const ServiceAreas: React.FC<ServiceAreasProps> = ({ onOpenBooking }) => {
   const { language } = useLanguage();
   const [selectedCounty, setSelectedCounty] = useState<string>('All');
   const [searchLocation, setSearchLocation] = useState<string>('');
+  const [selectedKenyaCounty, setSelectedKenyaCounty] = useState<string>('All 47 Counties');
   const [activeZoneId, setActiveZoneId] = useState<string>('ruiru-hq');
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
 
@@ -237,23 +249,23 @@ export const ServiceAreas: React.FC<ServiceAreasProps> = ({ onOpenBooking }) => 
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
             {language === 'sw' ? (
               <span>
-                Tunahudumia <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00AEEF] via-blue-300 to-amber-400">Kiambu, Nairobi na Kenya Nzima</span>
+                Tunahudumia <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00AEEF] via-blue-300 to-amber-400">Kaunti Zote 47 Nchini Kenya</span>
               </span>
             ) : (
               <span>
-                Covering <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00AEEF] via-blue-300 to-amber-400">Kiambu, Nairobi & Greater Kenya</span>
+                Enterprise Operations Across <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00AEEF] via-blue-300 to-amber-400">All 47 Counties in Kenya</span>
               </span>
             )}
           </h2>
 
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
             {language === 'sw'
-              ? 'Kituo chetu kikuu cha Ruiru Bypass kinawezesha wahandisi wetu kuwasili kwa kasi ndani ya dakika 15 hadi 45 katika maeneo yote ya viwanda na biashara.'
-              : 'Strategy located along the Ruiru Bypass, our emergency mobile fleet delivers rapid 15–45 minute breakdown SLA across industrial and commercial corridors.'}
+              ? 'Kenfoss Refrigeration Limited inatekeleza miradi ya viwanda, installation ya cold rooms, commercial HVAC na matengenezo ya 24/7 katika kaunti zote 47 za Kenya kutoka Ruiru HQ.'
+              : 'Kenfoss Refrigeration Limited provides turnkey commercial refrigeration, cold room engineering, VRF HVAC systems, and 24/7 mobile emergency dispatch across all 47 counties in Kenya.'}
           </p>
         </div>
 
-        {/* Live Mobile Fleet Status Ticker */}
+        {/* Live Mobile Fleet & 47 Counties Nationwide Badge */}
         <div className="mb-10 p-4 bg-gradient-to-r from-blue-950 via-slate-900 to-blue-950 border border-blue-800/60 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-xl">
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -264,20 +276,70 @@ export const ServiceAreas: React.FC<ServiceAreasProps> = ({ onOpenBooking }) => 
             </div>
             <div className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-2">
               <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
-              <span>12 Mobile HVAC-R Service Vans Active En Route</span>
+              <span>100% Turnkey Coverage Across All 47 Counties in Kenya</span>
             </div>
           </div>
 
           <div className="flex items-center gap-4 text-xs font-bold text-slate-300">
             <span className="flex items-center gap-1.5 text-blue-300">
               <Truck className="w-4 h-4 text-amber-400" />
-              Ruiru HQ Dispatch Active
+              Central Ruiru HQ & Regional Field Teams Active
             </span>
             <span className="hidden sm:inline text-slate-600">|</span>
             <span className="flex items-center gap-1.5 text-emerald-400">
               <Clock className="w-4 h-4" />
-              24/7 Emergency Gas & Compressor Support
+              24/7 Emergency Technical Support
             </span>
+          </div>
+        </div>
+
+        {/* 47 Kenya Counties Quick Select Explorer Bar */}
+        <div className="mb-8 p-4 bg-slate-800/90 border border-slate-700/80 rounded-2xl space-y-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-700/80 pb-2">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-[#00AEEF]" />
+              <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                Kenya 47 Counties Coverage Explorer
+              </h3>
+            </div>
+            <span className="text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded">
+              Active Enterprise Installations & Mobile Teams
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-xs">
+            <div className="col-span-full sm:col-span-1">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                Select Any County in Kenya:
+              </label>
+              <select
+                value={selectedKenyaCounty}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedKenyaCounty(val);
+                  if (val !== 'All 47 Counties') {
+                    setSearchLocation(val);
+                  } else {
+                    setSearchLocation('');
+                  }
+                }}
+                className="w-full bg-slate-900 border border-slate-700 text-white font-bold text-xs rounded-xl p-2.5 outline-none focus:border-[#00AEEF] cursor-pointer"
+              >
+                <option value="All 47 Counties">🇰🇪 All 47 Kenya Counties (Nationwide)</option>
+                {KENYA_47_COUNTIES.map((c) => (
+                  <option key={c} value={c}>
+                    County: {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="col-span-full sm:col-span-1 md:col-span-2 lg:col-span-3 flex items-center bg-slate-900/80 p-3 rounded-xl border border-slate-700/80 text-xs">
+              <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0 mr-2.5" />
+              <p className="text-slate-300 text-[11px] leading-relaxed">
+                <strong className="text-white">Operating in {selectedKenyaCounty}:</strong> Kenfoss deploys mobile engineering teams, turnkey cold storage erection, VRF air conditioning, and emergency compressor repair in <span className="text-amber-300 font-bold">{selectedKenyaCounty === 'All 47 Counties' ? 'all 47 counties of Kenya' : `${selectedKenyaCounty} County`}</span>.
+              </p>
+            </div>
           </div>
         </div>
 
