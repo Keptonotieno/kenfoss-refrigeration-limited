@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Smartphone, X, WifiOff, CheckCircle2, RefreshCw } from 'lucide-react';
+import { forceRefreshIconCache } from '../../registerSW';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -12,6 +13,7 @@ export const PWAInstallPrompt: React.FC = () => {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [iconLoadErrorCount, setIconLoadErrorCount] = useState(0);
 
   useEffect(() => {
     // 1. Detect if already installed as standalone
@@ -87,7 +89,8 @@ export const PWAInstallPrompt: React.FC = () => {
     localStorage.setItem('kenfoss_pwa_dismissed_until', nextWeek.toString());
   };
 
-  const handleReloadApp = () => {
+  const handleReloadApp = async () => {
+    await forceRefreshIconCache();
     window.location.reload();
   };
 
@@ -145,8 +148,26 @@ export const PWAInstallPrompt: React.FC = () => {
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#002B5B] to-slate-800 border border-cyan-500/30 flex items-center justify-center shrink-0 p-1 shadow-inner">
-                <img src="/pwa-192x192.png" alt="Kenfoss App Icon" className="w-full h-full object-contain rounded-lg" />
+              <div className="w-12 h-12 rounded-xl bg-[#002B5B] border border-cyan-500/30 flex items-center justify-center shrink-0 p-1 shadow-inner overflow-hidden">
+                {iconLoadErrorCount >= 2 ? (
+                  /* Stage 3 Inline SVG Badge (Guaranteed zero-failure vector logo) */
+                  <svg viewBox="0 0 512 512" className="w-full h-full rounded-lg">
+                    <rect width="512" height="512" fill="#002B5B" />
+                    <rect x="126" y="90" width="260" height="260" rx="48" fill="#00AEEF" />
+                    <path d="M 176 130 L 216 130 L 216 310 L 176 310 Z M 216 220 L 290 130 L 342 130 L 260 220 L 348 310 L 294 310 Z" fill="#FFFFFF" />
+                    <circle cx="330" cy="220" r="12" fill="#FF7A00" />
+                  </svg>
+                ) : (
+                  <img 
+                    src={iconLoadErrorCount === 0 ? "/pwa-192x192.png?v=3" : "/favicon.svg"} 
+                    alt="Kenfoss App Icon" 
+                    referrerPolicy="no-referrer"
+                    onError={() => {
+                      setIconLoadErrorCount(prev => prev + 1);
+                    }}
+                    className="w-full h-full object-contain rounded-lg" 
+                  />
+                )}
               </div>
               <div>
                 <h4 className="font-bold text-sm text-white flex items-center gap-1.5">

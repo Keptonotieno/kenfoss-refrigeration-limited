@@ -1,5 +1,5 @@
-const CACHE_NAME = 'kenfoss-pwa-v1';
-const DYNAMIC_CACHE_NAME = 'kenfoss-dynamic-v1';
+const CACHE_NAME = 'kenfoss-pwa-v4';
+const DYNAMIC_CACHE_NAME = 'kenfoss-dynamic-v4';
 
 // App shell files pre-cached on install
 const PRECACHE_ASSETS = [
@@ -11,7 +11,17 @@ const PRECACHE_ASSETS = [
   '/favicon.ico',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
+  '/maskable-icon-512.png',
   '/apple-touch-icon.png'
+];
+
+const ICON_ASSETS = [
+  '/pwa-192x192.png',
+  '/pwa-512x512.png',
+  '/maskable-icon-512.png',
+  '/apple-touch-icon.png',
+  '/favicon.svg',
+  '/favicon.ico'
 ];
 
 // Service Worker Installation
@@ -39,6 +49,21 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
+    }).then(() => {
+      // Force refresh icon assets in current cache
+      return caches.open(CACHE_NAME).then((cache) => {
+        return Promise.all(
+          ICON_ASSETS.map((iconUrl) => {
+            return fetch(iconUrl, { cache: 'reload' })
+              .then((res) => {
+                if (res && res.status === 200) {
+                  return cache.put(iconUrl, res);
+                }
+              })
+              .catch((err) => console.warn('[ServiceWorker] Failed to refresh icon:', iconUrl, err));
+          })
+        );
+      });
     }).then(() => self.clients.claim())
   );
 });
@@ -72,7 +97,7 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => {
           return caches.match(req).then((cachedResponse) => {
-            if (cachedResponse) return cachedResponse;
+            if (cachedResponse && cachedResponse.ok) return cachedResponse;
             return caches.match('/offline.html');
           });
         })
@@ -83,6 +108,7 @@ self.addEventListener('fetch', (event) => {
   // Handle Static Assets (JS, CSS, Images, Fonts) with Stale-While-Revalidate
   event.respondWith(
     caches.match(req).then((cachedResponse) => {
+      const isOK = cachedResponse && cachedResponse.ok;
       const fetchPromise = fetch(req)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
@@ -91,16 +117,38 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => cachedResponse);
+        .catch(() => (isOK ? cachedResponse : null));
 
-      return cachedResponse || fetchPromise;
+      if (isOK) {
+        return cachedResponse;
+      }
+      return fetchPromise;
     })
   );
 });
 
 // Message handling for client controls
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.action === 'skipWaiting') {
+  if (!event.data) return;
+  
+  if (event.data.action === 'skipWaiting') {
     self.skipWaiting();
+  }
+
+  if (event.data.action === 'CLEAR_ICON_CACHE' || event.data.action === 'FORCE_REFRESH_ICONS') {
+    console.log('[ServiceWorker] Clearing and re-fetching icon assets in cache...');
+    caches.open(CACHE_NAME).then((cache) => {
+      return Promise.all(
+        ICON_ASSETS.map((iconUrl) => {
+          return fetch(iconUrl, { cache: 'reload' })
+            .then((res) => {
+              if (res && res.status === 200) {
+                return cache.put(iconUrl, res);
+              }
+            })
+            .catch((err) => console.warn('[SW] Failed icon refresh on message:', iconUrl, err));
+        })
+      );
+    });
   }
 });

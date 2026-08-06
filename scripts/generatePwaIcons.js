@@ -3,59 +3,58 @@ import path from 'path';
 import sharp from 'sharp';
 
 async function generateIcons() {
-  const svgPath = path.join(process.cwd(), 'public', 'favicon.svg');
   const publicDir = path.join(process.cwd(), 'public');
+  const stdSvgPath = path.join(publicDir, 'favicon.svg');
+  const maskSvgPath = path.join(publicDir, 'maskable.svg');
 
   if (!fs.existsSync(publicDir)) {
     fs.mkdirSync(publicDir, { recursive: true });
   }
 
-  const svgBuffer = fs.readFileSync(svgPath);
+  const stdSvgBuffer = fs.readFileSync(stdSvgPath);
+  const maskSvgBuffer = fs.readFileSync(maskSvgPath);
 
-  // 192x192
-  await sharp(svgBuffer)
+  console.log('[PWA Icon Generator] Generating official Kenfoss PWA PNG icons...');
+
+  // 1. 192x192 PNG
+  await sharp(stdSvgBuffer)
     .resize(192, 192)
-    .png()
+    .png({ quality: 100, compressionLevel: 9 })
     .toFile(path.join(publicDir, 'pwa-192x192.png'));
-  console.log('Generated pwa-192x192.png');
+  console.log(' ✓ Generated pwa-192x192.png (192x192)');
 
-  // 512x512
-  await sharp(svgBuffer)
+  // 2. 512x512 PNG
+  await sharp(stdSvgBuffer)
     .resize(512, 512)
-    .png()
+    .png({ quality: 100, compressionLevel: 9 })
     .toFile(path.join(publicDir, 'pwa-512x512.png'));
-  console.log('Generated pwa-512x512.png');
+  console.log(' ✓ Generated pwa-512x512.png (512x512)');
 
-  // Maskable 512x512 (with padding for maskable safety zone)
-  await sharp(svgBuffer)
-    .resize(410, 410)
-    .extend({
-      top: 51,
-      bottom: 51,
-      left: 51,
-      right: 51,
-      background: '#002B5B'
-    })
-    .png()
+  // 3. Maskable 512x512 PNG (Full bleed square background)
+  await sharp(maskSvgBuffer)
+    .resize(512, 512)
+    .png({ quality: 100, compressionLevel: 9 })
     .toFile(path.join(publicDir, 'maskable-icon-512.png'));
-  console.log('Generated maskable-icon-512.png');
+  console.log(' ✓ Generated maskable-icon-512.png (512x512 Maskable)');
 
-  // Apple touch icon 180x180
-  await sharp(svgBuffer)
+  // 4. Apple Touch Icon 180x180 PNG
+  await sharp(stdSvgBuffer)
     .resize(180, 180)
-    .png()
+    .png({ quality: 100, compressionLevel: 9 })
     .toFile(path.join(publicDir, 'apple-touch-icon.png'));
-  console.log('Generated apple-touch-icon.png');
+  console.log(' ✓ Generated apple-touch-icon.png (180x180)');
 
-  // Favicon ICO (32x32 png)
-  await sharp(svgBuffer)
+  // 5. Favicon ICO (32x32)
+  await sharp(stdSvgBuffer)
     .resize(32, 32)
     .png()
     .toFile(path.join(publicDir, 'favicon.ico'));
-  console.log('Generated favicon.ico');
+  console.log(' ✓ Generated favicon.ico (32x32)');
+
+  console.log('[PWA Icon Generator] All icons successfully generated!');
 }
 
 generateIcons().catch((err) => {
-  console.error('Error generating icons:', err);
+  console.error('[PWA Icon Generator Error]:', err);
   process.exit(1);
 });
