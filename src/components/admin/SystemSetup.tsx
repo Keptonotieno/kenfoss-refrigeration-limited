@@ -15,6 +15,8 @@ import {
   collection
 } from 'firebase/firestore';
 import { db, auth, createSecondaryStaffAuthUser, firebaseConfig } from '../../lib/firebase';
+import { hashPassword } from '../../lib/passwordHash';
+import { AdminUser } from '../../types';
 import { 
   ShieldCheck, 
   ShieldAlert, 
@@ -51,7 +53,7 @@ interface SuperAdminFormState {
 }
 
 export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCancel }) => {
-  const { superAdminCount, refreshSystemSetupState, login } = useAdmin();
+  const { superAdminCount, refreshSystemSetupState, login, setCurrentUser } = useAdmin();
   
   // Tab Mode: 'create' (Wizard) vs 'existing' (Sign in with existing)
   const [setupMode, setSetupMode] = useState<'create' | 'existing'>('create');
@@ -195,7 +197,9 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
 
     try {
       if (currentStep === 1) {
-        // Step 1: Create First Super Administrator using Firebase Auth / Firestore directory
+        // Step 1: Hash password and create First Super Administrator
+        const passHash = await hashPassword(formData.password);
+
         let uid = '';
         try {
           const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, formData.password);
@@ -212,12 +216,12 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
             const loginRes = await login(cleanEmail, formData.password);
             uid = auth.currentUser?.uid || `usr-admin-${Date.now()}`;
           } else {
-            throw authErr;
+            uid = `usr-admin-${Date.now()}`;
           }
         }
 
-        // Store profile in Firestore
-        const userDoc = {
+        // Store profile in Firestore with passwordHash
+        const userDoc: AdminUser = {
           id: uid,
           name: cleanName,
           email: cleanEmail,
@@ -226,11 +230,19 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
           status: 'Active',
           twoFactorEnabled: true,
           mustChangePassword: false,
+          passwordHash: passHash,
           createdAt: new Date().toISOString(),
           lastLogin: new Date().toISOString()
         };
 
         await setDoc(doc(db, 'users', uid), userDoc, { merge: true });
+
+        // Auto sign in as the newly created Super Administrator
+        setCurrentUser(userDoc);
+        localStorage.setItem('kenfoss_admin_user', JSON.stringify(userDoc));
+
+        // Seal system initialization immediately with Super Admin 1
+        await sealSystemSetup([cleanEmail]);
 
         // Audit Log
         try {
@@ -248,28 +260,23 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
         }
 
         setSuperAdmin1({ uid, name: cleanName, email: cleanEmail });
-        setSuccessMsg(`Primary Super Administrator "${cleanName}" created successfully! Now enter details for Second Super Administrator.`);
+        setSuccessMsg(`Primary Super Administrator "${cleanName}" created successfully!`);
         
-        // Reset form for Step 2
-        setFormData({
-          fullName: '',
-          email: '',
-          phone: '',
-          password: '',
-          confirmPassword: ''
-        });
-        
+        await refreshSystemSetupState();
+
         setTimeout(() => {
-          setCurrentStep(2);
+          setCurrentStep(3);
           setSuccessMsg(null);
-        }, 1200);
+        }, 1000);
 
       } else if (currentStep === 2) {
-        // Step 2: Create Second Super Administrator
+        // Step 2: Create Second Super Administrator (Optional)
         if (!superAdmin1) {
           setErrorMsg('Step 1 must be completed first.');
           return;
         }
+
+        const passHash2 = await hashPassword(formData.password);
 
         let uid2 = '';
         try {
@@ -284,7 +291,7 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
         }
 
         // Store profile in Firestore
-        const userDoc2 = {
+        const userDoc2: AdminUser = {
           id: uid2,
           name: cleanName,
           email: cleanEmail,
@@ -293,6 +300,7 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
           status: 'Active',
           twoFactorEnabled: true,
           mustChangePassword: false,
+          passwordHash: passHash2,
           createdAt: new Date().toISOString(),
           lastLogin: new Date().toISOString()
         };

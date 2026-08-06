@@ -17,7 +17,8 @@ import {
   ShieldAlert, 
   History,
   X,
-  ExternalLink
+  ExternalLink,
+  MessageSquare
 } from 'lucide-react';
 
 export type AdminTab = 
@@ -26,6 +27,7 @@ export type AdminTab =
   | 'quotes' 
   | 'customers' 
   | 'diagnostics' 
+  | 'messages'
   | 'technician_jobs' 
   | 'services' 
   | 'projects' 
@@ -52,10 +54,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onCloseMobile,
   onCloseAdmin
 }) => {
-  const { currentUser, bookings, quotes, notifications, setIsAdminOpen } = useAdmin();
+  const { currentUser, bookings, quotes, contactMessages, setIsAdminOpen } = useAdmin();
 
   const newBookingsCount = bookings.filter(b => b.status === 'New').length;
   const newQuotesCount = quotes.filter(q => q.status === 'Received' || q.status === 'Under Review').length;
+  const unreadMessagesCount = contactMessages.filter(m => m.status === 'Unread').length;
 
   const isSuperAdmin = currentUser?.role === 'Super Administrator';
   const isManager = currentUser?.role === 'Manager' || isSuperAdmin;
@@ -70,6 +73,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Super Administrator', 'Manager', 'Technician'] },
     { id: 'bookings', label: 'Bookings', icon: CalendarCheck, badge: newBookingsCount, roles: ['Super Administrator', 'Manager'] },
     { id: 'quotes', label: 'Quotations / RFQs', icon: FileSpreadsheet, badge: newQuotesCount, roles: ['Super Administrator', 'Manager'] },
+    { id: 'messages', label: 'Support & Chat Desk', icon: MessageSquare, badge: unreadMessagesCount, roles: ['Super Administrator', 'Manager'] },
     { id: 'customers', label: 'Customer CRM', icon: Users, roles: ['Super Administrator', 'Manager'] },
     { id: 'diagnostics', label: 'AI Diagnostics', icon: Cpu, roles: ['Super Administrator', 'Manager'] },
     { id: 'technician_jobs', label: 'Technician Portal', icon: Wrench, roles: ['Super Administrator', 'Manager', 'Technician'] },

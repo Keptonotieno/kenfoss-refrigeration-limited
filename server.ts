@@ -305,16 +305,70 @@ REQUIRED JSON OUTPUT SCHEMA (no markdown tags, valid JSON only):
     });
   });
 
+  // Sentiment Analysis Layer Helper
+  function analyzeSentiment(messageText: string): 'urgent' | 'frustrated' | 'inquiring' | 'general' {
+    if (!messageText || typeof messageText !== 'string') return 'general';
+    const text = messageText.toLowerCase();
+
+    // Urgent indicators (safety, critical faults, emergency, food spoilage)
+    const urgentKeywords = [
+      'urgent', 'emergency', 'asap', 'immediately', 'critical', 'stopped working',
+      'spoiling', 'spoiled', 'rotten', 'flooding', 'leak', 'leaking', 'smoke', 'fire',
+      'alarm', 'power outage', 'overheating', 'danger', 'exploded', 'dying',
+      'food spoiling', 'broken down', 'completely down', 'cannot cool', 'temperature rising',
+      'warm freezer', 'ice melting', 'hot compressor', 'sparking', 'electric shock'
+    ];
+
+    const alphaChars = messageText.replace(/[^a-zA-Z]/g, '');
+    const uppercaseRatio = alphaChars.length > 0 ? (alphaChars.match(/[A-Z]/g) || []).length / alphaChars.length : 0;
+    const multipleExclamations = /!{2,}/.test(messageText);
+
+    if (
+      urgentKeywords.some(kw => text.includes(kw)) || 
+      (uppercaseRatio > 0.65 && messageText.length > 12) || 
+      (multipleExclamations && (text.includes('help') || text.includes('now') || text.includes('please')))
+    ) {
+      return 'urgent';
+    }
+
+    // Frustrated indicators (complaints, delays, dissatisfaction)
+    const frustratedKeywords = [
+      'frustrated', 'angry', 'disappointed', 'terrible', 'worst', 'broken again',
+      'unacceptable', 'refund', 'complaint', 'awful', 'useless', 'scam', 'waiting forever',
+      'no response', 'late', 'horrible', 'fed up', 'waste of money', 'poor service',
+      'nobody showed up', 'still not fixed', 'unprofessional', 'bad service', 'delay', 'overcharged'
+    ];
+
+    if (frustratedKeywords.some(kw => text.includes(kw))) {
+      return 'frustrated';
+    }
+
+    // Inquiring indicators (questions, specs, rates, quotes)
+    const inquiringKeywords = [
+      'how', 'what', 'why', 'when', 'where', 'price', 'cost', 'quote', 'rate', 'fee',
+      'spec', 'can you', 'do you', 'location', 'hours', 'info', 'explain', 'question',
+      'available', 'estimate', 'charge', 'warranty', 'guarantee', 'catalog', 'services', 'rfq'
+    ];
+
+    if (text.includes('?') || inquiringKeywords.some(kw => text.includes(kw))) {
+      return 'inquiring';
+    }
+
+    return 'general';
+  }
+
   // API Route: Contact Enquiry Submission
   app.post('/api/contact', (req, res) => {
     const { name, email, phone, subject, message } = req.body;
     if (!name || !phone || !message) {
       return res.status(400).json({ error: 'Name, phone number, and message are required.' });
     }
+    const sentiment = analyzeSentiment(`${subject || ''} ${message}`);
     return res.json({
       success: true,
       message: 'Thank you for reaching out! Our Kenfoss service desk team has received your inquiry and will respond shortly.',
-      id: `msg-${Date.now()}`
+      id: `msg-${Date.now()}`,
+      sentiment
     });
   });
 
@@ -326,6 +380,9 @@ REQUIRED JSON OUTPUT SCHEMA (no markdown tags, valid JSON only):
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ error: 'Message content is required.' });
       }
+
+      // Perform automated sentiment classification
+      const sentiment = analyzeSentiment(message);
 
       const apiKey = process.env.GEMINI_API_KEY;
 
@@ -410,6 +467,7 @@ Provide advanced technical calculations, refrigeration load sizing, enthalpy/P-T
             reply: responseText,
             modelUsed: selectedModel,
             role,
+            sentiment,
             sources: sources.slice(0, 4)
           });
         } catch (genErr: any) {
@@ -439,6 +497,7 @@ Provide advanced technical calculations, refrigeration load sizing, enthalpy/P-T
         reply,
         modelUsed: selectedModel,
         role,
+        sentiment,
         sources: []
       });
     } catch (err: any) {

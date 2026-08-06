@@ -26,12 +26,15 @@ import {
 } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 
+import { MessageSentiment } from '../types';
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'model';
   content: string;
   timestamp: string;
   modelUsed?: string;
+  sentiment?: MessageSentiment;
   sources?: { title: string; uri: string }[];
 }
 
@@ -75,7 +78,7 @@ export const GeminiChatbotModal: React.FC<GeminiChatbotModalProps> = ({
   onClose,
   onBookService
 }) => {
-  const { contactInfo } = useAdmin();
+  const { contactInfo, addContactMessage } = useAdmin();
   const [activeRole, setActiveRole] = useState<AssistantRole>('general');
   
   // Persistent active messages
@@ -242,9 +245,22 @@ export const GeminiChatbotModal: React.FC<GeminiChatbotModalProps> = ({
           content: data.reply || 'No response generated.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           modelUsed: data.modelUsed || requestedModel,
+          sentiment: data.sentiment,
           sources: data.sources
         };
         setMessages((prev) => [...prev, botMsg]);
+
+        // Auto-tag and log to Admin Support Portal if message is urgent, frustrated, or inquiring
+        if (data.sentiment && ['urgent', 'frustrated'].includes(data.sentiment)) {
+          addContactMessage({
+            name: 'Website AI Chat User',
+            email: 'chat@kenfoss.co.ke',
+            phone: contactInfo.mainPhone,
+            subject: `AI Chat [${data.sentiment.toUpperCase()}]: ${query.slice(0, 40)}...`,
+            message: query,
+            sentiment: data.sentiment
+          });
+        }
       } else {
         const errorMsg: ChatMessage = {
           id: `err-${Date.now()}`,

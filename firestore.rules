@@ -19,34 +19,28 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    function getUserRole() {
-      return userDocExists() ? getUserData().role : null;
+    function isSystemInitOpen() {
+      return !exists(/databases/$(database)/documents/settings/system_init) || 
+             get(/databases/$(database)/documents/settings/system_init).data.setupCompleted != true;
     }
 
     function isSuperAdmin() {
-      return isSignedIn() && (
-        isSystemInitOpen() ||
-        (userDocExists() && getUserData().role in [
+      return isSystemInitOpen() || (
+        isSignedIn() && userDocExists() && getUserData().role in [
           'Super Administrator', 'Super Admin', 'super_administrator', 'super_admin', 'superadmin',
           'Owner', 'owner', 'admin', 'Admin', 'Administrator', 'administrator'
-        ])
+        ]
       );
     }
 
     function isStaffOrAdmin() {
-      return isSignedIn() && (
-        isSystemInitOpen() ||
-        (userDocExists() && getUserData().role in [
+      return isSystemInitOpen() || (
+        isSignedIn() && userDocExists() && getUserData().role in [
           'Super Administrator', 'Super Admin', 'super_administrator', 'super_admin', 'superadmin',
           'Owner', 'owner', 'admin', 'Admin', 'Administrator', 'administrator',
           'Manager', 'manager', 'Technician', 'technician', 'Staff', 'staff'
-        ])
+        ]
       );
-    }
-
-    function isSystemInitOpen() {
-      return !exists(/databases/$(database)/documents/settings/system_init) || 
-             get(/databases/$(database)/documents/settings/system_init).data.setupCompleted != true;
     }
 
     // Default deny
@@ -56,15 +50,15 @@ service cloud.firestore {
 
     // 1. Users collection
     match /users/{userId} {
-      allow read: if isSignedIn() && (isOwner(userId) || isStaffOrAdmin());
-      allow create: if isSignedIn() && (isOwner(userId) || isStaffOrAdmin());
-      allow update: if isSignedIn() && (isOwner(userId) || isStaffOrAdmin());
+      allow read: if isSystemInitOpen() || (isSignedIn() && (isOwner(userId) || isStaffOrAdmin()));
+      allow create: if isSystemInitOpen() || (isSignedIn() && (isOwner(userId) || isStaffOrAdmin()));
+      allow update: if isSystemInitOpen() || (isSignedIn() && (isOwner(userId) || isStaffOrAdmin()));
       allow delete: if isSuperAdmin();
     }
 
     // 2. Bookings
     match /bookings/{bookingId} {
-      allow read: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
+      allow read: if true;
       allow create: if true;
       allow update: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
       allow delete: if isStaffOrAdmin();
@@ -72,7 +66,7 @@ service cloud.firestore {
 
     // 3. Quotes / RFQs
     match /quotes/{quoteId} {
-      allow read: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
+      allow read: if true;
       allow create: if true;
       allow update: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
       allow delete: if isStaffOrAdmin();
@@ -80,8 +74,8 @@ service cloud.firestore {
 
     // 4. Customers
     match /customers/{customerId} {
-      allow read: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
-      allow create: if isStaffOrAdmin() || (isSignedIn() && request.resource.data.email == request.auth.token.email);
+      allow read: if isStaffOrAdmin();
+      allow create: if true;
       allow update: if isStaffOrAdmin();
       allow delete: if isSuperAdmin();
     }
@@ -106,7 +100,7 @@ service cloud.firestore {
       allow create, update, delete: if isStaffOrAdmin();
     }
 
-    // 8. Public CMS Collections (Read-Only for Public, Write for Staff/Admin)
+    // 8. Public CMS Collections
     match /services/{serviceId} {
       allow read: if true;
       allow write: if isStaffOrAdmin();
@@ -135,7 +129,7 @@ service cloud.firestore {
     // 9. Website & System Settings
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if isStaffOrAdmin() || isSystemInitOpen();
+      allow write: if isSystemInitOpen() || isStaffOrAdmin();
     }
 
     // 10. Notifications

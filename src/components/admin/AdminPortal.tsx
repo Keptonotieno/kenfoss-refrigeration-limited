@@ -12,6 +12,7 @@ import { BookingsManagement } from './BookingsManagement';
 import { QuotesManagement } from './QuotesManagement';
 import { CustomerManagement } from './CustomerManagement';
 import { AiDiagnosticsManagement } from './AiDiagnosticsManagement';
+import { SupportMessagesManagement } from './SupportMessagesManagement';
 import { TechnicianPortalView } from './TechnicianPortalView';
 import { ServicesManagement } from './ServicesManagement';
 import { ProjectsManagement } from './ProjectsManagement';
@@ -60,8 +61,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
     }
   }, [currentUser?.role, currentUser?.id]);
 
-  // If system initialization is pending (no Super Admins provisioned yet), show SystemSetup page
-  if (!isSystemInitialized || showSetup) {
+  // If system is NOT initialized (no Super Admins provisioned yet), force First-Time Setup
+  if (!isSystemInitialized) {
     return (
       <SystemSetup 
         onSetupCompleted={() => {
@@ -70,7 +71,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
         }} 
         onCancel={() => {
           setShowSetup(false);
-          if (!isSystemInitialized && onCloseAdmin) {
+          if (onCloseAdmin) {
             onCloseAdmin();
           }
         }} 
@@ -79,11 +80,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
   }
 
   // Allow only authorized staff (Super Administrator, Owner, Manager, Technician)
-  const isStaff = currentUser && ['super administrator', 'owner', 'manager', 'technician', 'super_admin', 'admin'].includes((currentUser.role || '').toLowerCase());
+  const isStaff = currentUser && ['super administrator', 'owner', 'manager', 'technician', 'super_admin', 'super_administrator', 'admin', 'administrator', 'staff'].includes((currentUser.role || '').toLowerCase());
 
   // If not logged in, render secure login view
   if (!isAuthenticated || !currentUser) {
-    return <AdminLogin onCancel={onCloseAdmin} onSwitchToSetup={() => setShowSetup(true)} />;
+    return <AdminLogin onCancel={onCloseAdmin} onSwitchToSetup={!isSystemInitialized ? () => setShowSetup(true) : undefined} />;
   }
 
   // If authenticated but user role is not staff level, block with explicit feedback
@@ -172,6 +173,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
             isManager ? <AiDiagnosticsManagement /> : <AccessDeniedCard role={role} moduleName="AI Diagnostics" />
           )}
 
+          {activeTab === 'messages' && (
+            isManager ? <SupportMessagesManagement /> : <AccessDeniedCard role={role} moduleName="Support Messages & Sentiment" />
+          )}
+
           {(activeTab === 'technician_jobs' || activeTab === 'technician-portal' || activeTab === 'technician_portal') && (
             <TechnicianPortalView />
           )}
@@ -217,7 +222,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
           )}
 
           {/* Fallback to Dashboard if an unknown tab is selected */}
-          {!['dashboard', 'bookings', 'quotes', 'customers', 'diagnostics', 'technician_jobs', 'technician-portal', 'technician_portal', 'services', 'projects', 'gallery', 'testimonials', 'blogs', 'contact_info', 'contact-info', 'website_settings', 'website-settings', 'users', 'user-management', 'user_management', 'roles', 'rbac', 'audit_logs', 'audit-logs'].includes(activeTab) && (
+          {!['dashboard', 'bookings', 'quotes', 'customers', 'diagnostics', 'messages', 'technician_jobs', 'technician-portal', 'technician_portal', 'services', 'projects', 'gallery', 'testimonials', 'blogs', 'contact_info', 'contact-info', 'website_settings', 'website-settings', 'users', 'user-management', 'user_management', 'roles', 'rbac', 'audit_logs', 'audit-logs'].includes(activeTab) && (
             <AdminDashboardView setActiveTab={(tab) => setActiveTab(tab as any)} />
           )}
           </ErrorBoundary>

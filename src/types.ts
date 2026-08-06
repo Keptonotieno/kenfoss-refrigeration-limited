@@ -266,6 +266,8 @@ export interface GalleryItem {
   updatedAt?: string;
 }
 
+export type MessageSentiment = 'urgent' | 'frustrated' | 'inquiring' | 'general';
+
 export interface ContactMessageRecord {
   id: string;
   name: string;
@@ -274,6 +276,7 @@ export interface ContactMessageRecord {
   subject: string;
   message: string;
   status: 'Unread' | 'Read' | 'Replied';
+  sentiment?: MessageSentiment;
   createdAt: string;
 }
 

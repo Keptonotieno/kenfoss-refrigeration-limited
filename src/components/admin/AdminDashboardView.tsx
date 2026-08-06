@@ -28,7 +28,11 @@ import {
   ArrowRight,
   Star,
   Globe,
-  Upload
+  Upload,
+  MessageSquare,
+  AlertTriangle,
+  Frown,
+  HelpCircle
 } from 'lucide-react';
 import { AdminTab } from './AdminSidebar';
 
@@ -42,6 +46,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
     quotes, 
     customers, 
     diagnostics, 
+    contactMessages,
     auditLogs, 
     currentUser,
     projects,
@@ -646,6 +651,51 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
                       <span>{d.location}</span>
                       <span>{new Date(d.createdAt).toLocaleDateString()}</span>
                     </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Customer Support Messages & Sentiment Feed */}
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-cyan-400" />
+                Customer Messages & Sentiment
+              </h2>
+              <button
+                onClick={() => setActiveTab('messages' as any)}
+                className="text-[11px] text-cyan-400 hover:underline font-bold"
+              >
+                View Support Desk
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {contactMessages.length === 0 ? (
+                <div className="p-6 text-center text-slate-500 italic text-xs bg-slate-950 rounded-2xl border border-slate-800">
+                  No customer messages recorded.
+                </div>
+              ) : (
+                contactMessages.slice(0, 3).map(m => (
+                  <div key={m.id} className="p-3 bg-slate-950 border border-slate-800 rounded-2xl space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white truncate max-w-[150px]">{m.name}</span>
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase inline-flex items-center gap-0.5 ${
+                        m.sentiment === 'urgent' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse' :
+                        m.sentiment === 'frustrated' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                        m.sentiment === 'inquiring' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                        'bg-slate-800 text-slate-300'
+                      }`}>
+                        {m.sentiment === 'urgent' && <AlertTriangle className="w-2.5 h-2.5" />}
+                        {m.sentiment === 'frustrated' && <Frown className="w-2.5 h-2.5" />}
+                        {m.sentiment === 'inquiring' && <HelpCircle className="w-2.5 h-2.5" />}
+                        {m.sentiment || 'general'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 font-medium line-clamp-1">{m.subject}</p>
+                    <p className="text-[10px] text-slate-400 line-clamp-2">{m.message}</p>
                   </div>
                 ))
               )}

@@ -143,8 +143,53 @@ const SEED_CUSTOMERS: CustomerRecord[] = [];
 // Seed AI Diagnostics
 const SEED_DIAGNOSTICS: StoredDiagnosticRecord[] = [];
 
-// Seed Contact Messages
-const SEED_CONTACT_MESSAGES: ContactMessageRecord[] = [];
+// Seed Contact Messages with Sentiment Classification
+const SEED_CONTACT_MESSAGES: ContactMessageRecord[] = [
+  {
+    id: 'msg-seed-101',
+    name: 'Dr. Sarah Mutua',
+    email: 'smutua@nairobihospital.org',
+    phone: '+254 712 345 678',
+    subject: 'CRITICAL: Cold Room Temperature Spike at Vaccine Facility',
+    message: 'URGENT EMERGENCY! Our central pharmaceutical walk-in freezer temperature has jumped from -20°C to +4°C! We have over KES 3 Million worth of vaccines at risk of spoiling. Please dispatch a senior technician immediately!',
+    status: 'Unread',
+    sentiment: 'urgent',
+    createdAt: new Date(Date.now() - 1000 * 60 * 25).toISOString()
+  },
+  {
+    id: 'msg-seed-102',
+    name: 'Jackson Ochieng',
+    email: 'j.ochieng@kikuyusupermarket.co.ke',
+    phone: '+254 722 889 900',
+    subject: 'Extremely frustrated with delayed repair on display chiller',
+    message: 'I am very disappointed and angry. We reported our dairy display chiller breakdown 2 days ago and paid the diagnostic deposit, but nobody showed up yesterday! Our milk packages are leaking and going bad. This delay is completely unacceptable!',
+    status: 'Unread',
+    sentiment: 'frustrated',
+    createdAt: new Date(Date.now() - 1000 * 60 * 180).toISOString()
+  },
+  {
+    id: 'msg-seed-103',
+    name: 'Grace Wambui',
+    email: 'grace@naivashafarms.com',
+    phone: '+254 733 112 233',
+    subject: 'Inquiry: Quotation for 10-Ton Flower Export Blast Chiller',
+    message: 'Hello Kenfoss Team, what is the estimated cost and lead time for constructing a 10-Ton modular flower blast chiller in Naivasha? Do you provide Danfoss inverter compressor options and EPRA compliance certificates?',
+    status: 'Read',
+    sentiment: 'inquiring',
+    createdAt: new Date(Date.now() - 1000 * 60 * 720).toISOString()
+  },
+  {
+    id: 'msg-seed-104',
+    name: 'Kevin Kiprono',
+    email: 'kevin.k@eldoretmeats.co.ke',
+    phone: '+254 701 445 566',
+    subject: 'Routine Maintenance Agreement Inquiry for Slaughterhouse',
+    message: 'Good morning. We would like to inquire about your quarterly preventative maintenance packages for Bitzer multi-compressor racks at our meat processing factory in Eldoret. Please send your service agreement catalog.',
+    status: 'Read',
+    sentiment: 'inquiring',
+    createdAt: new Date(Date.now() - 1000 * 60 * 1440).toISOString()
+  }
+];
 
 // Seed Notifications
 const SEED_NOTIFICATIONS: NotificationItem[] = [];
@@ -276,6 +321,7 @@ const SEED_WEBSITE_SETTINGS: WebsiteSettings = {
 
 interface AdminContextType {
   currentUser: AdminUser | null;
+  setCurrentUser: (user: AdminUser | null) => void;
   isAuthenticated: boolean;
   isSystemInitialized: boolean;
   superAdminCount: number;
@@ -393,19 +439,25 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setSuperAdminCount(initDoc.data().totalSuperAdmins);
         }
       } else {
-        if (auth.currentUser) {
-          try {
-            const uSnap = await getDocs(collection(db, 'users'));
-            const superAdmins = uSnap.docs.filter(d => {
-              const r = (d.data()?.role || '').toLowerCase();
-              return r === 'super administrator' || r === 'super_admin' || r === 'owner';
-            });
-            setSuperAdminCount(superAdmins.length);
-            setIsSystemInitialized(superAdmins.length >= 1);
-          } catch {
+        try {
+          const uSnap = await getDocs(collection(db, 'users'));
+          const superAdmins = uSnap.docs.filter(d => {
+            const r = (d.data()?.role || '').toLowerCase();
+            return r === 'super administrator' || r === 'super_admin' || r === 'super_administrator' || r === 'owner' || r === 'admin';
+          });
+          setSuperAdminCount(superAdmins.length);
+          if (superAdmins.length >= 1) {
+            setIsSystemInitialized(true);
+            setDoc(doc(db, 'settings', 'system_init'), {
+              setupCompleted: true,
+              completedAt: new Date().toISOString(),
+              totalSuperAdmins: superAdmins.length,
+              superAdminEmails: superAdmins.map(a => a.data()?.email).filter(Boolean)
+            }, { merge: true }).catch(() => {});
+          } else {
             setIsSystemInitialized(false);
           }
-        } else {
+        } catch {
           setIsSystemInitialized(false);
         }
       }
@@ -414,13 +466,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Load initial state safely (only when Firebase Auth user is present)
+  // Load initial state safely from localStorage
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
-    if (auth.currentUser) {
-      const saved = localStorage.getItem('kenfoss_admin_user');
-      return saved ? JSON.parse(saved) : null;
-    }
-    return null;
+    const saved = localStorage.getItem('kenfoss_admin_user');
+    return saved ? JSON.parse(saved) : null;
   });
 
   const [users, setUsers] = useState<AdminUser[]>(() => {
@@ -2101,8 +2150,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addContactMessage = (msg: Omit<ContactMessageRecord, 'id' | 'createdAt' | 'status'>) => {
+    const sentimentTag = msg.sentiment || 'general';
     const newMsg: ContactMessageRecord = {
       ...msg,
+      sentiment: sentimentTag,
       id: `msg-${Date.now()}`,
       status: 'Unread',
       createdAt: new Date().toISOString()
@@ -2110,10 +2161,14 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setContactMessages(prev => [newMsg, ...prev]);
     setDoc(doc(db, 'contacts', newMsg.id), newMsg).catch(err => console.error('Firestore addContactMessage error:', err));
 
+    const sentimentBadge = sentimentTag === 'urgent' ? '🚨 [URGENT]' :
+                           sentimentTag === 'frustrated' ? '⚠️ [FRUSTRATED]' :
+                           sentimentTag === 'inquiring' ? '💬 [INQUIRY]' : '✉️ [MESSAGE]';
+
     const newNotif: NotificationItem = {
       id: `notif-${Date.now()}`,
       type: 'contact',
-      title: 'New Contact Enquiry Message',
+      title: `${sentimentBadge} New Customer Message`,
       message: `From ${msg.name}: ${msg.subject}`,
       isRead: false,
       createdAt: new Date().toISOString(),
@@ -2126,7 +2181,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       name: msg.name,
       phone: msg.phone,
       email: msg.email,
-      notes: `Contact Enquiry [${msg.subject}]: ${msg.message}`
+      notes: `Contact Enquiry (${sentimentTag.toUpperCase()}) [${msg.subject}]: ${msg.message}`
     });
   };
 
@@ -2188,6 +2243,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <AdminContext.Provider
       value={{
         currentUser,
+        setCurrentUser,
         isAuthenticated: !!currentUser,
         isSystemInitialized,
         superAdminCount,
