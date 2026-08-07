@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Clock, Moon, Smile, Globe, MapPin, ExternalLink, Navigation, Car, Bus, Copy, Check, CheckCheck, Phone, Smartphone, Share2, Mail, Mic, MicOff, Bot, Sparkles, RotateCcw, Volume2, VolumeX, Camera, Image, Archive, History, Trash2, AlertTriangle, CheckCircle2, Wifi, WifiOff, RefreshCw, Search, Headphones, UserCheck, PhoneCall } from 'lucide-react';
+import { MessageSquare, X, Send, Clock, Moon, Smile, Globe, MapPin, ExternalLink, Navigation, Car, Bus, Copy, Check, CheckCheck, Phone, Smartphone, Share2, Mail, Mic, MicOff, Bot, Sparkles, RotateCcw, Volume2, VolumeX, Camera, Image, Archive, History, Trash2, AlertTriangle, CheckCircle2, Wifi, WifiOff, RefreshCw, Search, Headphones, UserCheck, PhoneCall, Map } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 import { ImageWithFallback } from './common/ImageWithFallback';
 import { KENYA_47_COUNTIES } from './ServiceAreas';
 import { db } from '../lib/firebase';
 import { sanitizeString, sanitizeObject } from '../lib/sanitize';
 import { doc, setDoc, onSnapshot, enableNetwork, disableNetwork, collection, query, getDocs } from 'firebase/firestore';
+import { TechnicianMapTracker } from './TechnicianMapTracker';
 
 interface FloatingWhatsAppProps {
   onOpenChatbot?: () => void;
@@ -414,6 +415,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
   const [isOpen, setIsOpen] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showTechMap, setShowTechMap] = useState(true);
   const [addressCopied, setAddressCopied] = useState(false);
   const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(() => {
     try {
@@ -1570,6 +1572,40 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                 </div>
               </div>
 
+              {/* Real-Time Google Maps Technician Location Tracker */}
+              <div className="pt-1 mt-1 border-t border-slate-200/60 dark:border-slate-700/60 space-y-1">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setShowTechMap((prev) => !prev)}
+                    className="flex items-center space-x-1.5 text-[10px] font-bold text-amber-800 dark:text-amber-300 hover:underline cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3 text-amber-500 animate-pulse" />
+                    <span>Live GPS Technician Map ({selectedCounty})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowTechMap((prev) => !prev)}
+                    className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 cursor-pointer"
+                  >
+                    {showTechMap ? 'Hide Map' : 'Show Map'}
+                  </button>
+                </div>
+
+                {showTechMap && (
+                  <div className="mt-1 animate-in fade-in duration-200">
+                    <TechnicianMapTracker
+                      county={selectedCounty}
+                      technician={suggestedTechnician}
+                      isLoading={isLoadingTech}
+                      compact={true}
+                      onCallTechnician={(phone) => window.open(`tel:${phone.replace(/\s+/g, '')}`)}
+                      onRequestDispatch={() => setShowHandoffModal(true)}
+                    />
+                  </div>
+                )}
+              </div>
+
               {/* Visitor Local Time Badge (shown if outside Kenya) */}
               {kenyaTime.isOutsideKenya && kenyaTime.userTimeString && (
                 <div className="pt-1.5 mt-0.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[10px] bg-blue-50/80 dark:bg-blue-950/40 px-2 py-1 rounded-md border border-blue-100 dark:border-blue-900/50">
@@ -2686,6 +2722,17 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                       <span className="font-mono text-emerald-400 font-bold shrink-0">{suggestedTechnician.phone}</span>
                     </div>
                   </div>
+                </div>
+
+                {/* Google Maps Real-Time Location Tracker inside Modal */}
+                <div className="pt-2">
+                  <TechnicianMapTracker
+                    county={selectedCounty}
+                    technician={suggestedTechnician}
+                    isLoading={isLoadingTech}
+                    compact={true}
+                    onCallTechnician={(phone) => window.open(`tel:${phone.replace(/\s+/g, '')}`)}
+                  />
                 </div>
               </div>
 

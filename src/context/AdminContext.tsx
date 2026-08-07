@@ -342,6 +342,7 @@ interface AdminContextType {
   projects: ProjectItem[];
   auditLogs: AuditLogItem[];
   roles: RoleDefinition[];
+  resetAdminAuthSystem: () => Promise<{ success: boolean; message: string }>;
   isAdminOpen: boolean;
   setIsAdminOpen: (open: boolean) => void;
   
@@ -432,37 +433,75 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const refreshSystemSetupState = async () => {
     try {
-      const initDoc = await getDoc(doc(db, 'settings', 'system_init'));
-      if (initDoc.exists() && initDoc.data()?.setupCompleted) {
+      const initDoc = await getDoc(doc(db, 'settings', 'system_init')).catch(() => null);
+      const uSnap = await getDocs(collection(db, 'users')).catch(() => null);
+      const superAdmins = uSnap ? uSnap.docs.filter(d => {
+        const r = (d.data()?.role || '').toLowerCase();
+        return (r === 'super administrator' || r === 'super_admin' || r === 'super_administrator') && d.data()?.status !== 'Disabled' && d.data()?.status !== 'Suspended';
+      }) : [];
+
+      setSuperAdminCount(superAdmins.length);
+
+      if (initDoc && initDoc.exists() && initDoc.data()?.setupCompleted && superAdmins.length >= 1) {
         setIsSystemInitialized(true);
-        if (typeof initDoc.data()?.totalSuperAdmins === 'number') {
-          setSuperAdminCount(initDoc.data().totalSuperAdmins);
-        }
       } else {
-        try {
-          const uSnap = await getDocs(collection(db, 'users'));
-          const superAdmins = uSnap.docs.filter(d => {
-            const r = (d.data()?.role || '').toLowerCase();
-            return r === 'super administrator' || r === 'super_admin' || r === 'super_administrator' || r === 'owner' || r === 'admin';
-          });
-          setSuperAdminCount(superAdmins.length);
-          if (superAdmins.length >= 1) {
-            setIsSystemInitialized(true);
-            setDoc(doc(db, 'settings', 'system_init'), {
-              setupCompleted: true,
-              completedAt: new Date().toISOString(),
-              totalSuperAdmins: superAdmins.length,
-              superAdminEmails: superAdmins.map(a => a.data()?.email).filter(Boolean)
-            }, { merge: true }).catch(() => {});
-          } else {
-            setIsSystemInitialized(false);
-          }
-        } catch {
-          setIsSystemInitialized(false);
-        }
+        setIsSystemInitialized(false);
       }
     } catch (err) {
       console.warn("Error checking system init state:", err);
+      setIsSystemInitialized(false);
+    }
+  };
+
+  const resetAdminAuthSystem = async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      // 1. Delete all user profile documents from Firestore 'users' collection
+      const usersSnap = await getDocs(collection(db, 'users')).catch(() => null);
+      if (usersSnap && !usersSnap.empty) {
+        const deletePromises = usersSnap.docs.map(d => deleteDoc(doc(db, 'users', d.id)));
+        await Promise.all(deletePromises);
+      }
+
+      // 2. Delete all pending invitation documents from 'admin_invitations' collection
+      const invSnap = await getDocs(collection(db, 'admin_invitations')).catch(() => null);
+      if (invSnap && !invSnap.empty) {
+        const invDeletePromises = invSnap.docs.map(d => deleteDoc(doc(db, 'admin_invitations', d.id)));
+        await Promise.all(invDeletePromises);
+      }
+
+      // 3. Mark settings/system_init as setupCompleted: false
+      await setDoc(doc(db, 'settings', 'system_init'), {
+        setupCompleted: false,
+        totalSuperAdmins: 0,
+        superAdminEmails: [],
+        lastResetAt: new Date().toISOString()
+      });
+
+      // 4. Sign out current Firebase Auth session
+      await fbSignOut(auth).catch(() => {});
+
+      // 5. Purge local storage
+      localStorage.removeItem('kenfoss_admin_user');
+      localStorage.removeItem('kenfoss_users');
+
+      // 6. Reset local state
+      setCurrentUser(null);
+      setUsers([]);
+      setSuperAdminCount(0);
+      setIsSystemInitialized(false);
+
+      addAuditLog('SYSTEM_AUTH_RESET', 'Admin authentication system reset: All accounts purged, setup wizard unsealed.');
+
+      return {
+        success: true,
+        message: 'Admin authentication system successfully reset. System Initialization Wizard is now required to provision new Super Administrators.'
+      };
+    } catch (err: any) {
+      console.error('Error in resetAdminAuthSystem:', err);
+      return {
+        success: false,
+        message: err?.message || 'Failed to complete system reset.'
+      };
     }
   };
 
@@ -967,29 +1006,28 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               console.warn("Notice: Email lookup during profile sync:", qErr);
             }
 
-            const staffRole: UserRole = existingProfile?.role || (
-              cleanEmail.includes('manager') ? 'Manager' :
-              cleanEmail.includes('tech') ? 'Technician' :
-              (cleanEmail.includes('admin') || cleanEmail.includes('super')) ? 'Super Administrator' : 'Customer'
-            );
-            const staffName = existingProfile?.name || fbUser.displayName || cleanEmail.split('@')[0].replace('.', ' ') || 'Staff Member';
-
-            const newDoc: AdminUser = {
-              id: fbUser.uid,
-              name: staffName,
-              email: cleanEmail,
-              role: staffRole,
-              phone: existingProfile?.phone || '',
-              avatar: existingProfile?.avatar || fbUser.photoURL || '',
-              status: existingProfile?.status || 'Active',
-              createdAt: existingProfile?.createdAt || new Date().toISOString(),
-              lastLogin: new Date().toISOString(),
-              twoFactorEnabled: existingProfile?.twoFactorEnabled || false,
-              mustChangePassword: existingProfile?.mustChangePassword || false
-            };
-            await setDoc(userRef, newDoc, { merge: true });
-            setCurrentUser(newDoc);
-            localStorage.setItem('kenfoss_admin_user', JSON.stringify(newDoc));
+            if (existingProfile) {
+              const activeUser: AdminUser = {
+                id: fbUser.uid,
+                name: existingProfile.name || fbUser.displayName || cleanEmail.split('@')[0].replace('.', ' ') || 'Staff Member',
+                email: cleanEmail,
+                role: existingProfile.role || 'Super Administrator',
+                phone: existingProfile.phone || '',
+                avatar: existingProfile.avatar || fbUser.photoURL || '',
+                status: existingProfile.status || 'Active',
+                createdAt: existingProfile.createdAt || new Date().toISOString(),
+                lastLogin: new Date().toISOString(),
+                twoFactorEnabled: !!existingProfile.twoFactorEnabled,
+                mustChangePassword: !!existingProfile.mustChangePassword
+              };
+              await setDoc(userRef, activeUser, { merge: true });
+              setCurrentUser(activeUser);
+              localStorage.setItem('kenfoss_admin_user', JSON.stringify(activeUser));
+            } else {
+              // Account is purged or unregistered
+              setCurrentUser(null);
+              localStorage.removeItem('kenfoss_admin_user');
+            }
           }
         } catch (err: any) {
           const formatted = handleFirestoreError(err, OperationType.GET, `users/${fbUser.uid}`);
@@ -1048,22 +1086,23 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           passwordHash: d.passwordHash || ''
         };
       } else {
-        // Auto-create document for authenticated user if not found in Firestore
-        const autoRole: UserRole = cleanEmail.includes('manager') ? 'Manager' : cleanEmail.includes('tech') ? 'Technician' : 'Super Administrator';
-        userData = {
-          id: fbUser.uid,
-          name: fbUser.displayName || cleanEmail.split('@')[0].replace('.', ' ') || 'Staff Member',
-          email: cleanEmail,
-          role: autoRole,
-          phone: '',
-          avatar: fbUser.photoURL || '',
-          status: 'Active',
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
-          twoFactorEnabled: true,
-          mustChangePassword: false
-        };
-        await setDoc(userRef, userData, { merge: true }).catch(() => {});
+        let profileByEmail: AdminUser | null = null;
+        try {
+          const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
+          const qSnap = await getDocs(q);
+          if (!qSnap.empty) {
+            profileByEmail = { id: qSnap.docs[0].id, ...qSnap.docs[0].data() } as AdminUser;
+          }
+        } catch (e) {}
+
+        if (profileByEmail) {
+          userData = profileByEmail;
+        } else {
+          await fbSignOut(auth).catch(() => {});
+          setCurrentUser(null);
+          localStorage.removeItem('kenfoss_admin_user');
+          return { success: false, error: `Account '${cleanEmail}' is not registered in the Staff Directory. Please use System Initialization / Create New Admin.` };
+        }
       }
 
       // Check status & role
@@ -1355,43 +1394,44 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const validateInvitationCode = async (code: string): Promise<{ success: boolean; message: string; user?: AdminUser }> => {
     const trimmed = code.trim().toUpperCase();
     if (!trimmed) {
-      return { success: false, message: 'Please enter a valid invitation code.' };
+      return { success: false, message: 'Please enter a valid single-use invitation code.' };
     }
 
-    let targetEmail = 'admin@kenfoss.co.ke';
-    let role: UserRole = 'Super Administrator';
-
-    if (trimmed.includes('SUPER') || trimmed === 'KEN-SUPER-2026') {
-      targetEmail = 'admin@kenfoss.co.ke';
-      role = 'Super Administrator';
-    } else if (trimmed.includes('MGR') || trimmed.includes('MANAGER') || trimmed === 'KEN-MGR-2026') {
-      targetEmail = 'manager@kenfoss.co.ke';
-      role = 'Manager';
-    } else if (trimmed.includes('TECH') || trimmed === 'KEN-TECH-2026') {
-      targetEmail = 'tech.john@kenfoss.co.ke';
-      role = 'Technician';
-    } else {
-      try {
-        const invRes = await AdminInvitationService.validateInvitationCode(trimmed);
-        if (invRes.valid && invRes.invitation) {
-          targetEmail = invRes.invitation.email;
-          role = invRes.invitation.role;
-          await AdminInvitationService.redeemInvitationCode(trimmed, 'staff-uid', targetEmail);
-        }
-      } catch (err) {
-        console.error("Invitation check error:", err);
+    try {
+      const invRes = await AdminInvitationService.validateInvitationCode(trimmed);
+      if (!invRes.valid || !invRes.invitation) {
+        return { success: false, message: invRes.reason || 'Invalid or expired invitation code.' };
       }
-    }
 
-    const res = await login(targetEmail, 'Kenfoss2026!');
-    if (res.success) {
-      return { 
-        success: true, 
-        message: `Invitation code ${trimmed} validated! Authenticated as ${role}.`,
-        user: currentUser || undefined
-      };
-    } else {
-      return { success: false, message: res.error || 'Invalid or expired invitation code.' };
+      const inv = invRes.invitation;
+      // Look up user document in Firestore users collection
+      const q = query(collection(db, 'users'), where('email', '==', inv.email.toLowerCase()));
+      const qSnap = await getDocs(q);
+
+      let targetUser: AdminUser | null = null;
+      if (!qSnap.empty) {
+        targetUser = { id: qSnap.docs[0].id, ...qSnap.docs[0].data() } as AdminUser;
+      }
+
+      if (targetUser) {
+        setCurrentUser(targetUser);
+        localStorage.setItem('kenfoss_admin_user', JSON.stringify(targetUser));
+        await AdminInvitationService.redeemInvitationCode(trimmed, targetUser.id, targetUser.email);
+        addAuditLog('INVITATION_REDEEMED', `Staff invitation code '${trimmed}' redeemed for ${targetUser.name} (${targetUser.email})`);
+        return {
+          success: true,
+          message: `Invitation code accepted! Authenticated as ${targetUser.role} (${targetUser.email}).`,
+          user: targetUser
+        };
+      } else {
+        return {
+          success: true,
+          message: `Valid invitation code for ${inv.email} (${inv.role}). Please enter your account credentials to complete sign-in.`
+        };
+      }
+    } catch (err: any) {
+      console.error("Invitation check error:", err);
+      return { success: false, message: err?.message || 'Invalid or expired invitation code.' };
     }
   };
 
@@ -2266,6 +2306,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isSystemInitialized,
         superAdminCount,
         refreshSystemSetupState,
+        resetAdminAuthSystem,
         users,
         bookings,
         quotes,

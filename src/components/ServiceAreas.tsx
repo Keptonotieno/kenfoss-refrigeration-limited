@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   MapPin,
   Navigation,
@@ -17,214 +17,111 @@ import {
   X,
   UserCheck,
   Mail,
-  Info
+  Info,
+  Globe,
+  Crosshair
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import {
+  getServiceZonesForCounty,
+  getAllFeaturedZones,
+  getAll47CountyZones,
+  KENYA_47_COUNTIES,
+  COUNTY_CODES_MAP,
+  cleanCountySearchString,
+  ServiceZone
+} from '../data/kenyaServiceZonesData';
+import { getCountyCoords } from '../data/countyCoordinates';
+import { getTownsForCounty } from '../data/kenyaCountiesAndTowns';
+import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
+
+export { KENYA_47_COUNTIES };
 
 interface ServiceAreasProps {
   onOpenBooking?: (type?: string, details?: any) => void;
 }
 
-interface ServiceZone {
-  id: string;
-  name: string;
-  nameSw: string;
-  county: 'Kiambu' | 'Nairobi' | 'Machakos' | 'Regional';
-  distanceFromHQ: string;
-  emergencySLA: string;
-  standardSLA: string;
-  status: 'Primary Hub' | 'Express Coverage' | 'Extended Zone' | 'On-Demand Nationwide';
-  keyEstates: string[];
-  keyIndustries: string[];
-  isHQ?: boolean;
-  serviceHours: string;
-  contactDetails: {
-    hotline: string;
-    dispatchLead: string;
-    email: string;
-  };
-}
-
-const SERVICE_ZONES: ServiceZone[] = [
-  {
-    id: 'ruiru-hq',
-    name: 'Ruiru Bypass & Industrial Park (HQ)',
-    nameSw: 'Ruiru Bypass na Eneo la Viwanda (Makao Makuu)',
-    county: 'Kiambu',
-    distanceFromHQ: '0 km (Central Dispatch)',
-    emergencySLA: '< 15 Mins',
-    standardSLA: 'Immediate Dispatch',
-    status: 'Primary Hub',
-    keyEstates: ['Ruiru Town', 'Kenyatta University', 'Kimbo', 'Kahawa Sukari', 'Tatu City Industrial Park', 'Membley'],
-    keyIndustries: ['Cold Storage Warehouses', 'Food Processing Facilities', 'Supermarket Distribution'],
-    isHQ: true,
-    serviceHours: '24/7 Non-Stop Emergency & Routine Dispatch',
-    contactDetails: {
-      hotline: '+254 745 411 923',
-      dispatchLead: 'Eng. John Mwangi (Central HQ Commander)',
-      email: 'dispatch@kenfoss.co.ke'
-    }
-  },
-  {
-    id: 'thika-corridor',
-    name: 'Thika Superhighway & Juja Corridor',
-    nameSw: 'Njia Kuu ya Thika na Sehemu ya Juja',
-    county: 'Kiambu',
-    distanceFromHQ: '12 - 25 km',
-    emergencySLA: '20 - 30 Mins',
-    standardSLA: 'Same Day (< 2 Hours)',
-    status: 'Express Coverage',
-    keyEstates: ['Thika Town', 'Juja HighPoint', 'Gatundu', 'Witeithie', 'Del Monte Processing Zone', 'Kalimoni'],
-    keyIndustries: ['Pineapple & Horticultural Packhouses', 'Macadamia Oil Cooling', 'Dairy Farms'],
-    serviceHours: '24 Hours Emergency / 07:00 - 19:00 Regular',
-    contactDetails: {
-      hotline: '+254 745 411 923',
-      dispatchLead: 'Tech. Peter Njuguna (Thika Response Team)',
-      email: 'thika@kenfoss.co.ke'
-    }
-  },
-  {
-    id: 'nairobi-industrial',
-    name: 'Nairobi Industrial Area & Sameer Park',
-    nameSw: 'Eneo la Viwanda Nairobi na Sameer Park',
-    county: 'Nairobi',
-    distanceFromHQ: '22 km',
-    emergencySLA: '25 - 35 Mins',
-    standardSLA: 'Same Day (< 2 Hours)',
-    status: 'Express Coverage',
-    keyEstates: ['Industrial Area Road A/B/C', 'Mombasa Road', 'Sameer Business Park', 'Imara Daima', 'Syokimau Industrial'],
-    keyIndustries: ['Meat Processing Plants', 'Pharmaceutical Cold Stores', 'Logistics Depots'],
-    serviceHours: '24/7 Industrial Rapid Response Support',
-    contactDetails: {
-      hotline: '+254 745 411 923',
-      dispatchLead: 'Eng. David Ochieng (Industrial Specialist)',
-      email: 'industrial@kenfoss.co.ke'
-    }
-  },
-  {
-    id: 'westlands-cbd',
-    name: 'Nairobi CBD, Westlands & Kilimani',
-    nameSw: 'Nairobi CBD, Westlands na Kilimani',
-    county: 'Nairobi',
-    distanceFromHQ: '20 - 28 km',
-    emergencySLA: '30 - 40 Mins',
-    standardSLA: 'Scheduled / Priority',
-    status: 'Express Coverage',
-    keyEstates: ['Westlands', 'Kilimani', 'Lavington', 'Upper Hill', 'Nairobi CBD', 'Parklands', 'Kileleshwa'],
-    keyIndustries: ['Five-Star Hotels & Restaurants', 'Private Hospitals & Labs', 'Supermarket Chains'],
-    serviceHours: '06:00 - 22:00 Daily + 24/7 Emergency Gas Support',
-    contactDetails: {
-      hotline: '+254 745 411 923',
-      dispatchLead: 'Tech. Kelvin Mutua (CBD & Hotel Lead)',
-      email: 'nairobi@kenfoss.co.ke'
-    }
-  },
-  {
-    id: 'kiambu-limuru',
-    name: 'Kiambu Town, Banana & Limuru',
-    nameSw: 'Mji wa Kiambu, Banana na Limuru',
-    county: 'Kiambu',
-    distanceFromHQ: '18 - 35 km',
-    emergencySLA: '30 - 45 Mins',
-    standardSLA: 'Same Day',
-    status: 'Express Coverage',
-    keyEstates: ['Kiambu Town', 'Banana Hill', 'Limuru Tea Zone', 'Tigoni', 'Ndenderu', 'Kikuyu'],
-    keyIndustries: ['Tea Factory Chillers', 'Floriculture Export Cold Rooms', 'Poultry Cold Storage'],
-    serviceHours: '06:30 - 20:00 Mon-Sat / Emergency On-Call',
-    contactDetails: {
-      hotline: '+254 745 411 923',
-      dispatchLead: 'Eng. Samuel Kamau (Agri-Cold Lead)',
-      email: 'kiambu@kenfoss.co.ke'
-    }
-  },
-  {
-    id: 'karen-langata',
-    name: 'Karen, Langata & Ngong Road',
-    nameSw: 'Karen, Langata na Barabara ya Ngong',
-    county: 'Nairobi',
-    distanceFromHQ: '35 - 42 km',
-    emergencySLA: '40 - 55 Mins',
-    standardSLA: 'Same Day',
-    status: 'Extended Zone',
-    keyEstates: ['Karen Shopping Centre', 'Langata', 'Bulls Café', 'Ngong Town', 'Dagoretti Corner'],
-    keyIndustries: ['Boutique Hotels', 'Dairy Processing', 'Private Estates & Estates HVAC'],
-    serviceHours: '07:00 - 19:00 Daily / On-Call Breakdown Van',
-    contactDetails: {
-      hotline: '+254 745 411 923',
-      dispatchLead: 'Tech. Brian Otieno (South West Fleet)',
-      email: 'karen@kenfoss.co.ke'
-    }
-  },
-  {
-    id: 'athi-river',
-    name: 'Athi River, Kitengela & EPZ Zone',
-    nameSw: 'Athi River, Kitengela na Eneo la EPZ',
-    county: 'Machakos',
-    distanceFromHQ: '40 - 50 km',
-    emergencySLA: '45 - 60 Mins',
-    standardSLA: 'Same Day',
-    status: 'Extended Zone',
-    keyEstates: ['Athi River EPZ', 'Kitengela Town', 'Mlolongo', 'Daystar', 'Lukenya'],
-    keyIndustries: ['Export EPZ Cold Storage', 'Flower Export Hubs', 'Beverage Bottling Chillers'],
-    serviceHours: '24 Hours EPZ Export Refrigeration Support',
-    contactDetails: {
-      hotline: '+254 745 411 923',
-      dispatchLead: 'Eng. Francis Wambua (EPZ & Machakos Lead)',
-      email: 'epz@kenfoss.co.ke'
-    }
-  },
-  {
-    id: 'nationwide-kenya',
-    name: 'Regional & Countrywide Kenya Projects',
-    nameSw: 'Miradi ya Kitaifa kote Kenya',
-    county: 'Regional',
-    distanceFromHQ: '100 - 500+ km',
-    emergencySLA: '24 Hours Flight/Vehicle',
-    standardSLA: 'Turnkey Project Team',
-    status: 'On-Demand Nationwide',
-    keyEstates: ['Eldoret', 'Nakuru', 'Mombasa', 'Kisumu', 'Meru', 'Nanyuki', 'Naivasha', 'Machakos'],
-    keyIndustries: ['Flower Farms (Naivasha)', 'Fish Cold Chains (Kisumu)', 'Horticulture (Meru/Nanyuki)'],
-    serviceHours: '08:00 - 18:00 Project Team / 24/7 Emergency Flight Team',
-    contactDetails: {
-      hotline: '+254 745 411 923',
-      dispatchLead: 'Eng. James Kiptoo (National Projects Mgr)',
-      email: 'projects@kenfoss.co.ke'
-    }
-  }
-];
-
-export const KENYA_47_COUNTIES = [
-  'Mombasa', 'Kwale', 'Kilifi', 'Tana River', 'Lamu', 'Taita-Taveta',
-  'Garissa', 'Wajir', 'Mandera', 'Marsabit', 'Isiolo', 'Meru',
-  'Tharaka-Nithi', 'Embu', 'Kitui', 'Machakos', 'Makueni', 'Nyandarua',
-  'Nyeri', 'Kirinyaga', 'Murang\'a', 'Kiambu', 'Turkana', 'West Pokot',
-  'Samburu', 'Trans-Nzoia', 'Uasin Gishu', 'Elgeyo-Marakwet', 'Nandi', 'Baringo',
-  'Laikipia', 'Nakuru', 'Narok', 'Kajiado', 'Kericho', 'Bomet',
-  'Kakamega', 'Vihiga', 'Bungoma', 'Busia', 'Siaya', 'Kisumu',
-  'Homa Bay', 'Migori', 'Kisii', 'Nyamira', 'Nairobi'
-];
-
 export const ServiceAreas: React.FC<ServiceAreasProps> = ({ onOpenBooking }) => {
   const { language } = useLanguage();
-  const [selectedCounty, setSelectedCounty] = useState<string>('All');
-  const [searchLocation, setSearchLocation] = useState<string>('');
+  const [selectedRegionTab, setSelectedRegionTab] = useState<string>('All');
   const [selectedKenyaCounty, setSelectedKenyaCounty] = useState<string>('All 47 Counties');
-  const [activeZoneId, setActiveZoneId] = useState<string>('ruiru-hq');
+  const [searchLocation, setSearchLocation] = useState<string>('');
+  const [activeZoneId, setActiveZoneId] = useState<string>('kiambu-ruiru');
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
 
-  // Filtered zones
-  const filteredZones = SERVICE_ZONES.filter((zone) => {
-    const matchesCounty = selectedCounty === 'All' || zone.county === selectedCounty;
-    const matchesSearch =
-      !searchLocation.trim() ||
-      zone.name.toLowerCase().includes(searchLocation.toLowerCase()) ||
-      zone.keyEstates.some((e) => e.toLowerCase().includes(searchLocation.toLowerCase())) ||
-      zone.keyIndustries.some((i) => i.toLowerCase().includes(searchLocation.toLowerCase()));
-    return matchesCounty && matchesSearch;
-  });
+  // Google Maps Key resolution
+  const API_KEY =
+    process.env.GOOGLE_MAPS_PLATFORM_KEY ||
+    (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
+    (globalThis as any).GOOGLE_MAPS_PLATFORM_KEY ||
+    '';
+  const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY';
 
-  const activeZone = SERVICE_ZONES.find((z) => z.id === activeZoneId) || SERVICE_ZONES[0];
-  const tooltipZone = SERVICE_ZONES.find((z) => z.id === (hoveredZoneId || activeZoneId)) || activeZone;
+  // Base county zones resolution
+  const activeCountyZones = useMemo(() => {
+    if (selectedKenyaCounty !== 'All 47 Counties') {
+      return getServiceZonesForCounty(selectedKenyaCounty);
+    }
+    if (selectedRegionTab !== 'All') {
+      const regionCountiesMap: Record<string, string[]> = {
+        'Central': ['Kiambu', 'Nairobi', 'Murang\'a', 'Nyeri', 'Kirinyaga', 'Nyandarua'],
+        'Rift Valley': ['Nakuru', 'Uasin Gishu', 'Kajiado', 'Narok', 'Kericho', 'Bomet', 'Trans-Nzoia', 'Elgeyo-Marakwet', 'Nandi', 'Baringo', 'Laikipia', 'Samburu', 'Turkana', 'West Pokot'],
+        'Coast': ['Mombasa', 'Kilifi', 'Kwale', 'Lamu', 'Taita-Taveta', 'Tana River'],
+        'Western & Nyanza': ['Kisumu', 'Kakamega', 'Kisii', 'Bungoma', 'Busia', 'Siaya', 'Homa Bay', 'Migori', 'Vihiga', 'Nyamira'],
+        'Eastern & Northern': ['Embu', 'Meru', 'Machakos', 'Makueni', 'Kitui', 'Garissa', 'Wajir', 'Mandera', 'Marsabit', 'Isiolo', 'Tharaka-Nithi']
+      };
+      const counties = regionCountiesMap[selectedRegionTab] || [];
+      const zones: ServiceZone[] = [];
+      counties.forEach(c => zones.push(...getServiceZonesForCounty(c)));
+      return zones;
+    }
+    if (searchLocation.trim()) {
+      return getAll47CountyZones();
+    }
+    return getAllFeaturedZones();
+  }, [selectedKenyaCounty, selectedRegionTab, searchLocation]);
+
+  // Apply search filter
+  const filteredZones = useMemo(() => {
+    if (!searchLocation.trim()) return activeCountyZones;
+    const term = searchLocation.toLowerCase().trim();
+    const cleanTerm = cleanCountySearchString(term);
+    return activeCountyZones.filter(zone => {
+      const code = COUNTY_CODES_MAP[zone.county] || '';
+      return (
+        zone.county.toLowerCase().includes(term) ||
+        cleanCountySearchString(zone.county).includes(cleanTerm) ||
+        zone.subCounty.toLowerCase().includes(term) ||
+        cleanCountySearchString(zone.subCounty).includes(cleanTerm) ||
+        zone.name.toLowerCase().includes(term) ||
+        zone.keyEstates.some(e => e.toLowerCase().includes(term) || cleanCountySearchString(e).includes(cleanTerm)) ||
+        zone.keyIndustries.some(i => i.toLowerCase().includes(term)) ||
+        getTownsForCounty(zone.county).some(t => t.toLowerCase().includes(term)) ||
+        code === term || code === term.padStart(3, '0')
+      );
+    });
+  }, [activeCountyZones, searchLocation]);
+
+  // Safe active zone resolution
+  const activeZone = useMemo(() => {
+    if (filteredZones.length === 0) return null;
+    const found = filteredZones.find((z) => z.id === activeZoneId);
+    return found || filteredZones[0];
+  }, [filteredZones, activeZoneId]);
+
+  const tooltipZone = useMemo(() => {
+    if (filteredZones.length === 0) return null;
+    const hovered = filteredZones.find((z) => z.id === hoveredZoneId);
+    return hovered || activeZone || filteredZones[0];
+  }, [filteredZones, hoveredZoneId, activeZone]);
+
+  // Map coordinates for active zone
+  const activeZoneCoords = useMemo(() => {
+    if (!activeZone) return { lat: -1.1461, lng: 36.9602 };
+    if (activeZone.coordinates) return activeZone.coordinates;
+    const countyLoc = getCountyCoords(activeZone.county);
+    return { lat: countyLoc.lat, lng: countyLoc.lng };
+  }, [activeZone]);
 
   return (
     <section id="service-areas" className="py-16 sm:py-24 bg-slate-900 text-white relative overflow-hidden">
@@ -318,8 +215,6 @@ export const ServiceAreas: React.FC<ServiceAreasProps> = ({ onOpenBooking }) => 
                   const val = e.target.value;
                   setSelectedKenyaCounty(val);
                   if (val !== 'All 47 Counties') {
-                    setSearchLocation(val);
-                  } else {
                     setSearchLocation('');
                   }
                 }}
@@ -343,100 +238,106 @@ export const ServiceAreas: React.FC<ServiceAreasProps> = ({ onOpenBooking }) => 
           </div>
         </div>
 
-          {/* Location Search & Filter Controls */}
-          <div className="space-y-3 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              
-              {/* Search Box */}
-              <div className="md:col-span-8 relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
-                <input
-                  type="text"
-                  value={searchLocation}
-                  onChange={(e) => setSearchLocation(e.target.value)}
-                  placeholder={
-                    language === 'sw'
-                      ? 'Tafuta mtaa au mji wako (k.m. Thika, Kilimani, Ruiru, Westlands, Tatu City, Juja)...'
-                      : 'Type your neighborhood or town (e.g., Thika, Kilimani, Tatu City, Westlands, Juja, EPZ)...'
-                  }
-                  className="w-full pl-11 pr-10 py-3 bg-slate-800/90 border border-slate-700/80 rounded-xl text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#00AEEF] shadow-inner"
-                />
-                {searchLocation && (
-                  <button
-                    onClick={() => setSearchLocation('')}
-                    className="absolute right-3 top-3 text-slate-400 hover:text-white p-1 rounded-full transition-colors"
-                    title="Clear search"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* County Selector Tabs */}
-              <div className="md:col-span-4 flex items-center bg-slate-800/90 p-1 border border-slate-700/80 rounded-xl">
-                {['All', 'Kiambu', 'Nairobi', 'Machakos'].map((county) => (
-                  <button
-                    key={county}
-                    onClick={() => setSelectedCounty(county)}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                      selectedCounty === county
-                        ? 'bg-[#0057B8] text-white shadow-md'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {county}
-                  </button>
-                ))}
-              </div>
-
-            </div>
-
-            {/* Quick Neighborhood & Town Suggestion Chips */}
-            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-400">
-              <span className="font-bold text-slate-300 text-[11px] uppercase tracking-wider flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-[#00AEEF]" />
-                {language === 'sw' ? 'Miji Mashuhuri:' : 'Popular Towns:'}
-              </span>
-              {['Ruiru', 'Thika', 'Westlands', 'Kilimani', 'Tatu City', 'Juja', 'Industrial Area', 'Karen', 'Limuru'].map((town) => (
-                <button
-                  key={town}
-                  onClick={() => setSearchLocation(town)}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all cursor-pointer ${
-                    searchLocation.toLowerCase() === town.toLowerCase()
-                      ? 'bg-[#00AEEF] text-slate-950 border-[#00AEEF] font-extrabold shadow-sm'
-                      : 'bg-slate-800/60 border-slate-700/80 text-slate-300 hover:border-slate-500 hover:text-white'
-                  }`}
-                >
-                  {town}
-                </button>
-              ))}
+        {/* Location Search & Regional Filter Controls */}
+        <div className="space-y-3 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+            
+            {/* Search Box */}
+            <div className="md:col-span-7 relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
+              <input
+                type="text"
+                value={searchLocation}
+                onChange={(e) => setSearchLocation(e.target.value)}
+                placeholder={
+                  language === 'sw'
+                    ? 'Tafuta mtaa, mji au kaunti yako (k.m. Embu, Mombasa, Kisumu, Eldoret, Thika, Westlands)...'
+                    : 'Search any county, town, ward or estate (e.g., Embu, Mombasa, Kisumu, Eldoret, Thika, Westlands)...'
+                }
+                className="w-full pl-11 pr-10 py-3 bg-slate-800/90 border border-slate-700/80 rounded-xl text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#00AEEF] shadow-inner"
+              />
               {searchLocation && (
-                <span className="ml-auto text-[11px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2.5 py-0.5 rounded-full">
-                  {filteredZones.length} {filteredZones.length === 1 ? 'Zone Found' : 'Zones Found'}
-                </span>
+                <button
+                  onClick={() => setSearchLocation('')}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-white p-1 rounded-full transition-colors"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               )}
             </div>
+
+            {/* Region Selector Filter Tabs */}
+            <div className="md:col-span-5 flex items-center bg-slate-800/90 p-1 border border-slate-700/80 rounded-xl overflow-x-auto no-scrollbar">
+              {['All', 'Central', 'Rift Valley', 'Coast', 'Western & Nyanza', 'Eastern & Northern'].map((region) => (
+                <button
+                  key={region}
+                  onClick={() => {
+                    setSelectedRegionTab(region);
+                    setSelectedKenyaCounty('All 47 Counties');
+                  }}
+                  className={`flex-1 min-w-[70px] py-2 px-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-center whitespace-nowrap ${
+                    selectedRegionTab === region && selectedKenyaCounty === 'All 47 Counties'
+                      ? 'bg-[#0057B8] text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {region}
+                </button>
+              ))}
+            </div>
+
           </div>
+
+          {/* Quick Town Suggestion Chips */}
+          <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-400">
+            <span className="font-bold text-slate-300 text-[11px] uppercase tracking-wider flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-[#00AEEF]" />
+              {language === 'sw'
+                ? 'Miji & Vituo Mashuhuri:'
+                : `Popular Hubs (${selectedKenyaCounty === 'All 47 Counties' ? 'Nationwide' : `${selectedKenyaCounty} County`}):`}
+            </span>
+            {getTownsForCounty(selectedKenyaCounty).map((town) => (
+              <button
+                key={town}
+                onClick={() => {
+                  setSearchLocation(town);
+                }}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all cursor-pointer ${
+                  searchLocation.toLowerCase() === town.toLowerCase()
+                    ? 'bg-[#00AEEF] text-slate-950 border-[#00AEEF] font-extrabold shadow-sm'
+                    : 'bg-slate-800/60 border-slate-700/80 text-slate-300 hover:border-slate-500 hover:text-white'
+                }`}
+              >
+                {town}
+              </button>
+            ))}
+            <span className="ml-auto text-[11px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2.5 py-0.5 rounded-full">
+              {filteredZones.length} {filteredZones.length === 1 ? 'Zone Found' : 'Zones Active'}
+            </span>
+          </div>
+        </div>
 
         {/* Interactive Map Layout & Details Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
-          {/* Left Side: Interactive Coverage Hub Diagram & Zone Cards (7 Cols) */}
+          {/* Left Side: Interactive Coverage Hub Cards (7 Cols) */}
           <div className="lg:col-span-7 space-y-4">
             
-            {/* Visual SVG Map / Hub Schema Card */}
+            {/* Visual Coverage Container Card */}
             <div className="p-5 bg-slate-800/80 border border-slate-700/80 rounded-2xl relative overflow-hidden shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-700/80 pb-3 mb-4">
                 <h3 className="text-xs font-black uppercase tracking-wider text-blue-300 flex items-center gap-2">
                   <Navigation className="w-4 h-4 text-amber-400" />
-                  <span>Interactive Dispatch Matrix (Nairobi - Kiambu Corridor)</span>
+                  <span>
+                    Dispatch Matrix ({selectedKenyaCounty === 'All 47 Counties' ? `${selectedRegionTab} Region` : `${selectedKenyaCounty} County`})
+                  </span>
                 </h3>
                 <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-900/80 text-blue-200 rounded border border-blue-700">
-                  Ruiru HQ Hub
+                  {filteredZones.length} Dispatch Stations
                 </span>
               </div>
 
-              {/* Graphic Representation of Dispatch Distance Nodes with Interactive Hover Tooltips */}
               {filteredZones.length === 0 ? (
                 <div className="p-8 text-center bg-slate-900/90 border border-dashed border-slate-700 rounded-xl space-y-3">
                   <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto" />
@@ -447,15 +348,19 @@ export const ServiceAreas: React.FC<ServiceAreasProps> = ({ onOpenBooking }) => 
                     <p className="text-[11px] text-slate-400 mt-0.5">
                       {language === 'sw'
                         ? 'Tunafika kote Kenya kwa miradi ya viwanda. Wasiliana nasi kwa uthibitisho.'
-                        : 'We cover all of Kenya for cold room & HVAC projects! Clear search or call dispatch directly.'}
+                        : 'We cover all 47 counties in Kenya! Clear search or call dispatch directly.'}
                     </p>
                   </div>
                   <div className="flex justify-center gap-2 pt-1">
                     <button
-                      onClick={() => setSearchLocation('')}
+                      onClick={() => {
+                        setSearchLocation('');
+                        setSelectedKenyaCounty('All 47 Counties');
+                        setSelectedRegionTab('All');
+                      }}
                       className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white rounded-lg border border-slate-600 transition-colors cursor-pointer"
                     >
-                      {language === 'sw' ? 'Odosha Tuta' : 'Clear Search'}
+                      {language === 'sw' ? 'Ondoa Tuta' : 'Clear Filters'}
                     </button>
                     <button
                       onClick={() => onOpenBooking?.('service', { location: searchLocation })}
@@ -467,9 +372,9 @@ export const ServiceAreas: React.FC<ServiceAreasProps> = ({ onOpenBooking }) => 
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[520px] overflow-y-auto pr-1 no-scrollbar">
                     {filteredZones.map((zone) => {
-                      const isActive = zone.id === activeZoneId;
+                      const isActive = activeZone && zone.id === activeZone.id;
                       const isHovered = zone.id === hoveredZoneId;
                       return (
                         <button
@@ -479,7 +384,7 @@ export const ServiceAreas: React.FC<ServiceAreasProps> = ({ onOpenBooking }) => 
                           onMouseLeave={() => setHoveredZoneId(null)}
                           onFocus={() => setHoveredZoneId(zone.id)}
                           onBlur={() => setHoveredZoneId(null)}
-                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between h-28 group ${
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between h-32 group ${
                             isActive
                               ? 'bg-gradient-to-b from-[#0057B8] to-blue-900 border-[#00AEEF] ring-2 ring-[#00AEEF]/40 shadow-lg scale-[1.02]'
                               : isHovered
@@ -493,37 +398,44 @@ export const ServiceAreas: React.FC<ServiceAreasProps> = ({ onOpenBooking }) => 
                             </span>
                           )}
 
-                          <div className="flex items-center gap-1.5">
-                            <MapPin
-                              className={`w-4 h-4 shrink-0 ${
-                                zone.isHQ
-                                  ? 'text-amber-400'
-                                  : isActive || isHovered
-                                  ? 'text-white'
-                                  : 'text-[#00AEEF]'
-                              }`}
-                            />
-                            <span className="text-xs font-black text-white line-clamp-1">
-                              {zone.county}
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <MapPin
+                                className={`w-3.5 h-3.5 shrink-0 ${
+                                  zone.isHQ
+                                    ? 'text-amber-400'
+                                    : isActive || isHovered
+                                    ? 'text-white'
+                                    : 'text-[#00AEEF]'
+                                }`}
+                              />
+                              <span className="text-xs font-black text-white line-clamp-1">
+                                {zone.county} County
+                              </span>
+                            </div>
+
+                            <div className="text-[11px] font-bold text-slate-200 line-clamp-2 leading-tight">
+                              {language === 'sw' ? zone.nameSw : zone.name}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[10px] text-slate-300/90 block line-clamp-1">
+                              • {zone.keyEstates[0] || zone.subCounty}
                             </span>
-                          </div>
-
-                          <div className="text-[11px] font-bold text-slate-200 line-clamp-2 leading-tight">
-                            {language === 'sw' ? zone.nameSw : zone.name}
-                          </div>
-
-                          <div className="flex items-center justify-between text-[10px] text-slate-300 font-medium pt-1 border-t border-white/10">
-                            <span>SLA: {zone.emergencySLA}</span>
-                            <span className="text-amber-300 font-bold">{zone.distanceFromHQ}</span>
+                            <div className="flex items-center justify-between text-[10px] text-slate-300 font-medium pt-1 border-t border-white/10">
+                              <span>SLA: {zone.emergencySLA}</span>
+                              <span className="text-amber-300 font-bold">{zone.distanceFromHQ}</span>
+                            </div>
                           </div>
                         </button>
                       );
                     })}
                   </div>
 
-                  {/* Interactive Live Tooltip Card for Hovered/Selected Zone */}
+                  {/* Tooltip Quick-View Component */}
                   {tooltipZone && (
-                    <div className="p-3.5 bg-slate-900/95 border border-[#00AEEF]/50 rounded-xl space-y-2 shadow-xl animate-in fade-in duration-200">
+                    <div className="p-3.5 bg-slate-900/95 border border-[#00AEEF]/50 rounded-xl space-y-2 shadow-xl animate-in fade-in duration-200 mt-3">
                       <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                         <div className="flex items-center gap-2">
                           <Info className="w-4 h-4 text-[#00AEEF]" />
@@ -532,7 +444,7 @@ export const ServiceAreas: React.FC<ServiceAreasProps> = ({ onOpenBooking }) => 
                           </span>
                         </div>
                         <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-950 text-[#00AEEF] rounded border border-blue-800">
-                          {tooltipZone.county} • {tooltipZone.status}
+                          {tooltipZone.county} County • {tooltipZone.status}
                         </span>
                       </div>
 
@@ -548,7 +460,7 @@ export const ServiceAreas: React.FC<ServiceAreasProps> = ({ onOpenBooking }) => 
                         <div className="flex items-start gap-2 text-slate-300">
                           <PhoneCall className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                           <div>
-                            <span className="font-bold text-emerald-300 block text-[10px] uppercase">Zone Contact & Hotline:</span>
+                            <span className="font-bold text-emerald-300 block text-[10px] uppercase">Zone Hotline:</span>
                             <a href={`tel:${tooltipZone.contactDetails.hotline.replace(/\s+/g, '')}`} className="text-[11px] font-bold text-white hover:underline">
                               {tooltipZone.contactDetails.hotline}
                             </a>
@@ -580,175 +492,231 @@ export const ServiceAreas: React.FC<ServiceAreasProps> = ({ onOpenBooking }) => 
             </div>
 
             {/* Quick Verification Banner */}
-            <div className="p-4 bg-emerald-950/40 border border-emerald-800/60 rounded-2xl flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
-                <div>
-                  <h4 className="text-xs font-extrabold text-white">
-                    {language === 'sw' ? 'Mji au Mtaa Wako Upo Kwenye Orodha?' : 'Found Your Estate or Industrial Zone?'}
-                  </h4>
-                  <p className="text-[11px] text-emerald-200">
-                    {language === 'sw'
-                      ? 'Fundi wetu anaweza kufika eneo lako haraka. Omba huduma sasa.'
-                      : 'Our emergency service vehicles are on standby for immediate cold room & chiller dispatch.'}
-                  </p>
+            {activeZone && (
+              <div className="p-4 bg-emerald-950/40 border border-emerald-800/60 rounded-2xl flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
+                  <div>
+                    <h4 className="text-xs font-extrabold text-white">
+                      {language === 'sw' ? 'Mji au Mtaa Wako Upo Kwenye Orodha?' : `Found Your Site in ${activeZone.county} County?`}
+                    </h4>
+                    <p className="text-[11px] text-emerald-200">
+                      {language === 'sw'
+                        ? 'Fundi wetu anaweza kufika eneo lako haraka. Omba huduma sasa.'
+                        : `Our mobile engineering units cover ${activeZone.subCounty} & surrounding wards.`}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <button
-                onClick={() =>
-                  onOpenBooking?.('service', {
-                    location: `${activeZone.name} (${activeZone.county} County)`
-                  })
-                }
-                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all whitespace-nowrap shrink-0 cursor-pointer"
-              >
-                {language === 'sw' ? 'Omba Fundi Eneo Hilo' : 'Book Tech for This Area'}
-              </button>
-            </div>
+                <button
+                  onClick={() =>
+                    onOpenBooking?.('service', {
+                      county: activeZone.county,
+                      subCounty: activeZone.subCounty,
+                      area: activeZone.keyEstates[0] || 'Central',
+                      location: `${activeZone.name} (${activeZone.county} County)`
+                    })
+                  }
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all whitespace-nowrap shrink-0 cursor-pointer"
+                >
+                  {language === 'sw' ? 'Omba Fundi Eneo Hilo' : 'Book Tech for This Area'}
+                </button>
+              </div>
+            )}
 
           </div>
 
           {/* Right Side: Detailed Selected Zone Breakdown (5 Cols) */}
-          <div className="lg:col-span-5 bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700/80 rounded-2xl p-6 space-y-6 shadow-2xl">
-            
-            {/* Active Zone Header */}
-            <div className="border-b border-slate-700/80 pb-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="px-2.5 py-1 bg-blue-900/80 text-[#00AEEF] text-xs font-extrabold rounded-lg border border-blue-700">
-                  {activeZone.county} County Zone
-                </span>
-                <span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 text-xs font-extrabold rounded-lg border border-amber-500/20">
-                  {activeZone.status}
-                </span>
-              </div>
-
-              <h3 className="text-xl font-black text-white leading-snug">
-                {language === 'sw' ? activeZone.nameSw : activeZone.name}
-              </h3>
-
-              <p className="text-xs text-slate-300 flex items-center gap-1.5 font-medium">
-                <Compass className="w-3.5 h-3.5 text-[#00AEEF]" />
-                <span>Distance from Ruiru Bypass HQ: <strong>{activeZone.distanceFromHQ}</strong></span>
-              </p>
-            </div>
-
-            {/* SLA Response Times & Service Hours Metrics */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3.5 bg-slate-900/90 border border-slate-700 rounded-xl space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-amber-400" /> Emergency SLA:
-                </span>
-                <span className="text-sm font-black text-amber-400 block">
-                  {activeZone.emergencySLA}
-                </span>
-                <span className="text-[10px] text-slate-400 block">
-                  For gas leaks & temp alarms
-                </span>
-              </div>
-
-              <div className="p-3.5 bg-slate-900/90 border border-slate-700 rounded-xl space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-emerald-400" /> Routine Service:
-                </span>
-                <span className="text-sm font-black text-emerald-400 block">
-                  {activeZone.standardSLA}
-                </span>
-                <span className="text-[10px] text-slate-400 block">
-                  Maintenance & audits
-                </span>
-              </div>
-            </div>
-
-            {/* Zone Service Hours & Dispatch Commander Card */}
-            <div className="p-3.5 bg-slate-900/80 border border-slate-700/90 rounded-xl space-y-2.5">
-              <div className="flex items-start gap-2.5">
-                <Clock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    {language === 'sw' ? 'Masaa Ya Huduma Katika Eneo Hili:' : 'Zone Operating Hours:'}
+          {activeZone && (
+            <div className="lg:col-span-5 bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700/80 rounded-2xl p-6 space-y-6 shadow-2xl">
+              
+              {/* Active Zone Header */}
+              <div className="border-b border-slate-700/80 pb-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-1 bg-blue-900/80 text-[#00AEEF] text-xs font-extrabold rounded-lg border border-blue-700">
+                    {activeZone.county} County
                   </span>
-                  <p className="text-xs font-bold text-amber-300">
-                    {activeZone.serviceHours}
-                  </p>
+                  <span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 text-xs font-extrabold rounded-lg border border-amber-500/20">
+                    {activeZone.status}
+                  </span>
+                </div>
+
+                <h3 className="text-xl font-black text-white leading-snug">
+                  {language === 'sw' ? activeZone.nameSw : activeZone.name}
+                </h3>
+
+                <p className="text-xs text-slate-300 flex items-center gap-1.5 font-medium">
+                  <Compass className="w-3.5 h-3.5 text-[#00AEEF]" />
+                  <span>Distance from Ruiru HQ: <strong>{activeZone.distanceFromHQ}</strong></span>
+                </p>
+              </div>
+
+              {/* SLA Response Times & Service Hours Metrics */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3.5 bg-slate-900/90 border border-slate-700 rounded-xl space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-amber-400" /> Emergency SLA:
+                  </span>
+                  <span className="text-sm font-black text-amber-400 block">
+                    {activeZone.emergencySLA}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block">
+                    Gas leaks & temp alarms
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-slate-900/90 border border-slate-700 rounded-xl space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-emerald-400" /> Routine Service:
+                  </span>
+                  <span className="text-sm font-black text-emerald-400 block">
+                    {activeZone.standardSLA}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block">
+                    Maintenance & audits
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-start gap-2.5 pt-2 border-t border-slate-800">
-                <UserCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    {language === 'sw' ? 'Mkuu wa Uhusiano na Dispatch:' : 'Zone Dispatch Lead:'}
+              {/* Interactive Google Map Preview / Site Coordinate Visualizer */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-[#00AEEF]" />
+                    <span>Zone Coordinates & Live Location</span>
                   </span>
-                  <p className="text-xs font-bold text-white">
-                    {activeZone.contactDetails.dispatchLead}
-                  </p>
-                  <a href={`tel:${activeZone.contactDetails.hotline.replace(/\s+/g, '')}`} className="text-xs text-[#00AEEF] hover:underline font-extrabold flex items-center gap-1 mt-0.5">
-                    <PhoneCall className="w-3 h-3" />
-                    <span>Direct: {activeZone.contactDetails.hotline}</span>
-                  </a>
+                  <span className="text-[10px] text-slate-400 font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                    {activeZoneCoords.lat.toFixed(4)}, {activeZoneCoords.lng.toFixed(4)}
+                  </span>
+                </div>
+
+                <div className="h-44 w-full rounded-xl overflow-hidden border border-slate-700 bg-slate-950 relative">
+                  {hasValidKey ? (
+                    <APIProvider apiKey={API_KEY}>
+                      <Map
+                        center={activeZoneCoords}
+                        zoom={11}
+                        gestureHandling="cooperative"
+                        disableDefaultUI={true}
+                        className="w-full h-full"
+                      >
+                        <AdvancedMarker position={activeZoneCoords}>
+                          <Pin background="#0057B8" borderColor="#00AEEF" glyphColor="#ffffff" />
+                        </AdvancedMarker>
+                      </Map>
+                    </APIProvider>
+                  ) : (
+                    <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center p-4 text-center space-y-2 bg-[radial-gradient(#0057B8_1px,transparent_1px)] [background-size:16px_16px]">
+                      <Crosshair className="w-8 h-8 text-[#00AEEF] animate-pulse" />
+                      <div>
+                        <div className="text-xs font-bold text-white">
+                          {activeZone.county} County Dispatch Station
+                        </div>
+                        <div className="text-[10px] text-amber-300 font-mono mt-0.5">
+                          GPS: {activeZoneCoords.lat.toFixed(4)}° N, {activeZoneCoords.lng.toFixed(4)}° E
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        Central Ruiru HQ Dispatch Vector Locked
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* Key Covered Estates List */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-rose-400" />
-                <span>{language === 'sw' ? 'Mitaa na Maeneo Yanayofunikwa' : 'Key Covered Estates & Centres:'}</span>
-              </h4>
-              <div className="flex flex-wrap gap-1.5">
-                {activeZone.keyEstates.map((estate, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2.5 py-1 bg-slate-800 text-slate-200 border border-slate-700 text-xs font-semibold rounded-lg"
-                  >
-                    • {estate}
-                  </span>
-                ))}
+              {/* Zone Operating Hours & Dispatch Commander Card */}
+              <div className="p-3.5 bg-slate-900/80 border border-slate-700/90 rounded-xl space-y-2.5">
+                <div className="flex items-start gap-2.5">
+                  <Clock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      {language === 'sw' ? 'Masaa Ya Huduma Katika Eneo Hili:' : 'Zone Operating Hours:'}
+                    </span>
+                    <p className="text-xs font-bold text-amber-300">
+                      {activeZone.serviceHours}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5 pt-2 border-t border-slate-800">
+                  <UserCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      {language === 'sw' ? 'Mkuu wa Uhusiano na Dispatch:' : 'Zone Dispatch Lead:'}
+                    </span>
+                    <p className="text-xs font-bold text-white">
+                      {activeZone.contactDetails.dispatchLead}
+                    </p>
+                    <a href={`tel:${activeZone.contactDetails.hotline.replace(/\s+/g, '')}`} className="text-xs text-[#00AEEF] hover:underline font-extrabold flex items-center gap-1 mt-0.5">
+                      <PhoneCall className="w-3 h-3" />
+                      <span>Direct: {activeZone.contactDetails.hotline}</span>
+                    </a>
+                  </div>
+                </div>
               </div>
+
+              {/* Key Covered Estates List */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-rose-400" />
+                  <span>{language === 'sw' ? 'Mitaa na Maeneo Yanayofunikwa' : 'Key Wards & Estates Covered:'}</span>
+                </h4>
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto no-scrollbar">
+                  {activeZone.keyEstates.map((estate, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2.5 py-1 bg-slate-800 text-slate-200 border border-slate-700 text-[11px] font-semibold rounded-lg"
+                    >
+                      • {estate}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Key Industries Served */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-blue-400" />
+                  <span>{language === 'sw' ? 'Sekta Zilizopo Eneo Hilo' : 'Primary Sector Installations:'}</span>
+                </h4>
+                <ul className="space-y-1">
+                  {activeZone.keyIndustries.map((ind, idx) => (
+                    <li key={idx} className="text-xs text-slate-300 flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#00AEEF] shrink-0" />
+                      <span>{ind}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 space-y-2">
+                <button
+                  onClick={() =>
+                    onOpenBooking?.('service', {
+                      county: activeZone.county,
+                      subCounty: activeZone.subCounty,
+                      area: activeZone.keyEstates[0] || 'Central',
+                      location: `${activeZone.name} (${activeZone.county} County)`
+                    })
+                  }
+                  className="w-full py-3 bg-[#0057B8] hover:bg-blue-600 text-white font-black text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>{language === 'sw' ? 'Mwekee Fundi Wako Sasa' : 'Dispatch Technician to This Area'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
+                <a
+                  href={`tel:${activeZone.contactDetails.hotline.replace(/\s+/g, '')}`}
+                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Call Hotline: {activeZone.contactDetails.hotline}</span>
+                </a>
+              </div>
+
             </div>
-
-            {/* Key Industries Served */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5 text-blue-400" />
-                <span>{language === 'sw' ? 'Sekta Zilizopo Eneo Hilo' : 'Primary Sector Installations:'}</span>
-              </h4>
-              <ul className="space-y-1">
-                {activeZone.keyIndustries.map((ind, idx) => (
-                  <li key={idx} className="text-xs text-slate-300 flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#00AEEF] shrink-0" />
-                    <span>{ind}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="pt-2 space-y-2">
-              <button
-                onClick={() =>
-                  onOpenBooking?.('service', {
-                    location: `${activeZone.name} (${activeZone.county})`
-                  })
-                }
-                className="w-full py-3 bg-[#0057B8] hover:bg-blue-600 text-white font-black text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>{language === 'sw' ? 'Mwekee Fundi Wako Sasa' : 'Dispatch Technician to This Area'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-
-              <a
-                href="tel:+254745411923"
-                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Call Hotline: +254 745 411 923</span>
-              </a>
-            </div>
-
-          </div>
+          )}
 
         </div>
 

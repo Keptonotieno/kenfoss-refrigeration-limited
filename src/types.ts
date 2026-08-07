@@ -174,6 +174,18 @@ export interface BookingRecord {
   phone: string;
   email: string;
   location: string;
+  county?: string;
+  subCounty?: string;
+  ward?: string;
+  town?: string;
+  selectedArea?: string;
+  exactAddress?: string;
+  landmark?: string;
+  latitude?: number;
+  longitude?: number;
+  gpsAccuracy?: number;
+  gpsCaptured?: boolean;
+  googleMapsUrl?: string;
   address?: string;
   serviceType: string;
   date: string;
@@ -302,6 +314,7 @@ export interface NotificationItem {
   status?: 'pending' | 'responded' | 'resolved' | string;
   respondedAt?: string;
   respondedBy?: string;
+  responseNotes?: string;
   slaMinutes?: number;
 }
 

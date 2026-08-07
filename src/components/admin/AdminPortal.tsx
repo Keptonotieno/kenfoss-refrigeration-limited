@@ -61,8 +61,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
     }
   }, [currentUser?.role, currentUser?.id]);
 
-  // If system is NOT initialized (no Super Admins provisioned yet), force First-Time Setup
-  if (!isSystemInitialized) {
+  // If system is NOT initialized or setup wizard explicitly opened
+  if (!isSystemInitialized || showSetup) {
     return (
       <SystemSetup 
         onSetupCompleted={() => {
@@ -71,7 +71,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
         }} 
         onCancel={() => {
           setShowSetup(false);
-          if (onCloseAdmin) {
+          if (!isSystemInitialized && onCloseAdmin) {
             onCloseAdmin();
           }
         }} 
@@ -84,7 +84,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
 
   // If not logged in, render secure login view
   if (!isAuthenticated || !currentUser) {
-    return <AdminLogin onCancel={onCloseAdmin} onSwitchToSetup={!isSystemInitialized ? () => setShowSetup(true) : undefined} />;
+    return <AdminLogin onCancel={onCloseAdmin} onSwitchToSetup={() => setShowSetup(true)} />;
   }
 
   // If authenticated but user role is not staff level, block with explicit feedback
@@ -92,6 +92,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onCloseAdmin }) => {
     return (
       <AdminLogin 
         onCancel={onCloseAdmin} 
+        onSwitchToSetup={() => setShowSetup(true)}
         initialError={`Account '${currentUser.email}' is currently assigned the '${currentUser.role || 'Customer'}' role. Authorized staff credentials (Super Administrator, Manager, or Technician) are required to access the Admin Portal.`}
       />
     );

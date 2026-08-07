@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
-import { AdminProvider } from './context/AdminContext';
+import { AdminProvider, useAdmin } from './context/AdminContext';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationToastContainer } from './components/NotificationToast';
@@ -31,7 +31,8 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { AdminPortal } from './components/admin/AdminPortal';
 import { PWAInstallPrompt } from './components/pwa/PWAInstallPrompt';
 
-export default function App() {
+function MainAppContent() {
+  const { isAdminOpen, setIsAdminOpen } = useAdmin();
   const [activeTab, setActiveTab] = useState('home');
 
   // Booking Modal State
@@ -48,9 +49,6 @@ export default function App() {
   // Gemini Image Studio Modal State
   const [geminiImageStudioOpen, setGeminiImageStudioOpen] = useState(false);
 
-  // Admin Portal State
-  const [isAdminPortalOpen, setIsAdminPortalOpen] = useState(false);
-
   const handleOpenBooking = (type: string = 'service', prefill: string = '') => {
     setBookingType(type as 'service' | 'quote');
     setPrefillDetails(prefill);
@@ -66,129 +64,135 @@ export default function App() {
   };
 
   return (
+    <ToastProvider>
+      {/* Dynamic SEO Meta Tag Injector */}
+      <SEO pageKey={isAdminOpen ? 'admin' : activeTab} />
+
+      {isAdminOpen ? (
+        <AdminPortal onCloseAdmin={() => setIsAdminOpen(false)} />
+      ) : (
+        <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-[#1E293B] dark:text-slate-100 font-sans antialiased selection:bg-[#0057B8] selection:text-white pb-14 md:pb-0 transition-colors duration-200">
+          
+          {/* Sticky Navigation Header */}
+          <Navbar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            onOpenBooking={handleOpenBooking}
+            onOpenAiDiagnostic={() => setGeminiChatbotOpen(true)}
+            onOpenImageStudio={() => setGeminiImageStudioOpen(true)}
+            onOpenCalculator={handleOpenCalculator}
+            onOpenAdmin={() => setIsAdminOpen(true)}
+          />
+
+          {/* Main Page Sections */}
+          <main id="home" className="pt-[84px] md:pt-[116px] lg:pt-[120px] scroll-mt-[84px] md:scroll-mt-[116px] lg:scroll-mt-[120px]">
+            
+            {/* Hero Section */}
+            <Hero
+              onOpenBooking={handleOpenBooking}
+              onOpenCalculator={handleOpenCalculator}
+              onOpenAiDiagnostic={() => setGeminiChatbotOpen(true)}
+            />
+
+            {/* Trust Statistics Bar */}
+            <TrustStats />
+
+            {/* Services & Repair Section */}
+            <ServicesSection onOpenBooking={handleOpenBooking} />
+
+            {/* Cold Room Sizing & Energy Calculator */}
+            <ColdRoomCalculator onOpenBooking={handleOpenBooking} />
+
+            {/* Why Choose Kenfoss Split Layout */}
+            <WhyChooseUs />
+
+            {/* Industries Served */}
+            <IndustriesSection onOpenBooking={handleOpenBooking} />
+
+            {/* Coverage Area & Dispatch Network */}
+            <ServiceAreas onOpenBooking={handleOpenBooking} />
+
+            {/* Featured Projects & Before/After Comparison */}
+            <ProjectsGallery onOpenBooking={handleOpenBooking} />
+
+            {/* OEM Partner Brands */}
+            <BrandsSection />
+
+            {/* Customer Testimonials & Verified Google Reviews */}
+            <TestimonialsSection />
+
+            {/* Call To Action Banner */}
+            <CtaBanner onOpenBooking={handleOpenBooking} />
+
+            {/* Knowledge Hub / Blog */}
+            <BlogSection />
+
+            {/* Contact & Office Locations */}
+            <ContactSection />
+
+          </main>
+
+          {/* Corporate Footer */}
+          <Footer onOpenAdmin={() => setIsAdminOpen(true)} />
+
+          {/* Modals & Floating Lead Generation Tools */}
+          <BookingModal
+            isOpen={bookingModalOpen}
+            onClose={() => setBookingModalOpen(false)}
+            initialType={bookingType}
+            prefillDetails={prefillDetails}
+          />
+
+          <AiDiagnosticModal
+            isOpen={aiModalOpen}
+            onClose={() => setAiModalOpen(false)}
+            onBookService={(prefill) => handleOpenBooking('service', prefill)}
+            onOpenChatbot={() => {
+              setAiModalOpen(false);
+              setGeminiChatbotOpen(true);
+            }}
+          />
+
+          <GeminiChatbotModal
+            isOpen={geminiChatbotOpen}
+            onClose={() => setGeminiChatbotOpen(false)}
+            onBookService={(prefill) => handleOpenBooking('service', prefill)}
+          />
+
+          <GeminiImageStudioModal
+            isOpen={geminiImageStudioOpen}
+            onClose={() => setGeminiImageStudioOpen(false)}
+            onBookService={(prefill) => handleOpenBooking('service', prefill)}
+          />
+
+          <AuthModal />
+
+          <FloatingWhatsApp onOpenChatbot={() => setGeminiChatbotOpen(true)} />
+
+          <MobileBottomNav onOpenBooking={handleOpenBooking} />
+
+        </div>
+      )}
+
+      {/* Floating Toast Notification Stack */}
+      <NotificationToastContainer />
+
+      {/* PWA Install Banner & Offline Status Manager */}
+      <PWAInstallPrompt />
+    </ToastProvider>
+  );
+}
+
+export default function App() {
+  return (
     <ThemeProvider>
       <LanguageProvider>
         <AuthProvider>
           <AdminProvider>
-            <ToastProvider>
-            {/* Dynamic SEO Meta Tag Injector */}
-            <SEO pageKey={isAdminPortalOpen ? 'admin' : activeTab} />
-
-            {isAdminPortalOpen ? (
-              <AdminPortal onCloseAdmin={() => setIsAdminPortalOpen(false)} />
-            ) : (
-              <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-[#1E293B] dark:text-slate-100 font-sans antialiased selection:bg-[#0057B8] selection:text-white pb-14 md:pb-0 transition-colors duration-200">
-                
-                {/* Sticky Navigation Header */}
-                <Navbar
-                  activeTab={activeTab}
-                  setActiveTab={setActiveTab}
-                  onOpenBooking={handleOpenBooking}
-                  onOpenAiDiagnostic={() => setGeminiChatbotOpen(true)}
-                  onOpenImageStudio={() => setGeminiImageStudioOpen(true)}
-                  onOpenCalculator={handleOpenCalculator}
-                  onOpenAdmin={() => setIsAdminPortalOpen(true)}
-                />
-
-                {/* Main Page Sections */}
-                <main id="home" className="pt-[84px] md:pt-[116px] lg:pt-[120px] scroll-mt-[84px] md:scroll-mt-[116px] lg:scroll-mt-[120px]">
-                  
-                  {/* Hero Section */}
-                  <Hero
-                    onOpenBooking={handleOpenBooking}
-                    onOpenCalculator={handleOpenCalculator}
-                    onOpenAiDiagnostic={() => setGeminiChatbotOpen(true)}
-                  />
-
-                  {/* Trust Statistics Bar */}
-                  <TrustStats />
-
-                  {/* Services & Repair Section */}
-                  <ServicesSection onOpenBooking={handleOpenBooking} />
-
-                  {/* Cold Room Sizing & Energy Calculator */}
-                  <ColdRoomCalculator onOpenBooking={handleOpenBooking} />
-
-                  {/* Why Choose Kenfoss Split Layout */}
-                  <WhyChooseUs />
-
-                  {/* Industries Served */}
-                  <IndustriesSection onOpenBooking={handleOpenBooking} />
-
-                  {/* Coverage Area & Dispatch Network */}
-                  <ServiceAreas onOpenBooking={handleOpenBooking} />
-
-                  {/* Featured Projects & Before/After Comparison */}
-                  <ProjectsGallery onOpenBooking={handleOpenBooking} />
-
-                  {/* OEM Partner Brands */}
-                  <BrandsSection />
-
-                  {/* Customer Testimonials & Verified Google Reviews */}
-                  <TestimonialsSection />
-
-                  {/* Call To Action Banner */}
-                  <CtaBanner onOpenBooking={handleOpenBooking} />
-
-                  {/* Knowledge Hub / Blog */}
-                  <BlogSection />
-
-                  {/* Contact & Office Locations */}
-                  <ContactSection />
-
-                </main>
-
-                {/* Corporate Footer */}
-                <Footer onOpenAdmin={() => setIsAdminPortalOpen(true)} />
-
-                {/* Modals & Floating Lead Generation Tools */}
-                <BookingModal
-                  isOpen={bookingModalOpen}
-                  onClose={() => setBookingModalOpen(false)}
-                  initialType={bookingType}
-                  prefillDetails={prefillDetails}
-                />
-
-                <AiDiagnosticModal
-                  isOpen={aiModalOpen}
-                  onClose={() => setAiModalOpen(false)}
-                  onBookService={(prefill) => handleOpenBooking('service', prefill)}
-                  onOpenChatbot={() => {
-                    setAiModalOpen(false);
-                    setGeminiChatbotOpen(true);
-                  }}
-                />
-
-                <GeminiChatbotModal
-                  isOpen={geminiChatbotOpen}
-                  onClose={() => setGeminiChatbotOpen(false)}
-                  onBookService={(prefill) => handleOpenBooking('service', prefill)}
-                />
-
-                <GeminiImageStudioModal
-                  isOpen={geminiImageStudioOpen}
-                  onClose={() => setGeminiImageStudioOpen(false)}
-                  onBookService={(prefill) => handleOpenBooking('service', prefill)}
-                />
-
-                <AuthModal />
-
-                <FloatingWhatsApp onOpenChatbot={() => setGeminiChatbotOpen(true)} />
-
-                <MobileBottomNav onOpenBooking={handleOpenBooking} />
-
-              </div>
-            )}
-
-            {/* Floating Toast Notification Stack */}
-            <NotificationToastContainer />
-
-            {/* PWA Install Banner & Offline Status Manager */}
-            <PWAInstallPrompt />
-          </ToastProvider>
-        </AdminProvider>
-      </AuthProvider>
-    </LanguageProvider>
-  </ThemeProvider>
-);
+            <MainAppContent />
+          </AdminProvider>
+        </AuthProvider>
+      </LanguageProvider>
+    </ThemeProvider>
+  );
 }

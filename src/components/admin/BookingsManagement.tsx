@@ -20,8 +20,23 @@ import {
   Printer,
   Image,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  Navigation,
+  Compass,
+  Crosshair
 } from 'lucide-react';
+import { getCountyCoords } from '../../data/countyCoordinates';
+
+function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return Math.round(R * c * 10) / 10;
+}
 
 export const BookingsManagement: React.FC = () => {
   const { 
@@ -796,17 +811,72 @@ export const BookingsManagement: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-slate-500 uppercase font-extrabold text-[10px]">Phone Number</span>
-                    <p className="font-bold text-white text-sm mt-0.5">{selectedBooking.phone}</p>
+                    <a href={`tel:${selectedBooking.phone}`} className="font-bold text-blue-400 hover:underline text-sm mt-0.5 block">
+                      {selectedBooking.phone}
+                    </a>
                   </div>
                   <div>
                     <span className="text-slate-500 uppercase font-extrabold text-[10px]">Email</span>
-                    <p className="text-slate-300 mt-0.5">{selectedBooking.email}</p>
+                    <p className="text-slate-300 mt-0.5">{selectedBooking.email || 'N/A'}</p>
                   </div>
                   <div>
-                    <span className="text-slate-500 uppercase font-extrabold text-[10px]">Location</span>
-                    <p className="text-slate-300 mt-0.5">{selectedBooking.location}</p>
+                    <span className="text-slate-500 uppercase font-extrabold text-[10px]">County & Zone</span>
+                    <p className="text-slate-200 font-bold mt-0.5">
+                      {selectedBooking.county ? `${selectedBooking.county} County` : 'Kenya Nationwide'}
+                    </p>
                   </div>
                 </div>
+
+                {/* Extended Location & Navigation Panel */}
+                {(() => {
+                  const countyCoords = getCountyCoords(selectedBooking.county || selectedBooking.location || 'Kiambu');
+                  const targetLat = selectedBooking.latitude || countyCoords.lat;
+                  const targetLng = selectedBooking.longitude || countyCoords.lng;
+                  const distanceKm = getHaversineDistance(-1.1461, 36.9602, targetLat, targetLng);
+                  const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${targetLat},${targetLng}`;
+
+                  return (
+                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3 text-xs">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <div className="flex items-center space-x-1.5 font-extrabold text-white">
+                          <MapPin className="w-4 h-4 text-[#FF7A00]" />
+                          <span>Dispatch Address & Site Map</span>
+                        </div>
+                        {selectedBooking.gpsCaptured && (
+                          <span className="text-emerald-400 font-bold text-[10px] bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800 flex items-center gap-1">
+                            <Crosshair className="w-3 h-3" /> Live GPS Pin Captured
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5 text-slate-300">
+                        <p><strong>Full Address Summary:</strong> {selectedBooking.location}</p>
+                        {selectedBooking.exactAddress && <p><strong>Building/Gate:</strong> {selectedBooking.exactAddress}</p>}
+                        {selectedBooking.landmark && <p><strong>Landmark:</strong> {selectedBooking.landmark}</p>}
+                        
+                        <div className="flex items-center justify-between text-[11px] pt-1">
+                          <span className="text-slate-400 flex items-center gap-1">
+                            <Compass className="w-3.5 h-3.5 text-emerald-400" />
+                            Distance from Ruiru HQ: <strong className="text-emerald-400">{distanceKm} km</strong>
+                          </span>
+                          <span className="font-mono text-slate-400">
+                            Lat: {targetLat.toFixed(4)}, Lng: {targetLng.toFixed(4)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <a
+                        href={navUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl flex items-center justify-center space-x-2 cursor-pointer transition-transform hover:scale-[1.01]"
+                      >
+                        <Navigation className="w-4 h-4 text-amber-300" />
+                        <span>Open Turn-by-Turn GPS Navigation on Google Maps</span>
+                      </a>
+                    </div>
+                  );
+                })()}
 
                 <div className="grid grid-cols-3 gap-3 bg-slate-950 p-3 rounded-2xl border border-slate-800 text-xs">
                   <div>

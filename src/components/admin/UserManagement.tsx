@@ -80,7 +80,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
     deleteUser,
     addRole,
     updateRole,
-    deleteRole
+    deleteRole,
+    resetAdminAuthSystem
   } = useAdmin();
 
   const [activeTab, setActiveTab] = useState<'users' | 'roles' | 'invitations' | 'audit'>(initialTab);
@@ -88,6 +89,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
   const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
   const [deletingRoleItem, setDeletingRoleItem] = useState<RoleDefinition | null>(null);
   const [revokingInv, setRevokingInv] = useState<AdminInvitation | null>(null);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   // Sync activeTab if initialTab changes
   useEffect(() => {
@@ -363,7 +366,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => setIsResetModalOpen(true)}
+            className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-colors cursor-pointer border border-rose-500/30"
+            title="Reset Admin Authentication System"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Reset System Auth</span>
+          </button>
           <button
             onClick={handleRunDiagnostic}
             className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-colors cursor-pointer border border-amber-500/30"
@@ -1343,6 +1354,59 @@ export const UserManagement: React.FC<UserManagementProps> = ({ initialTab = 'us
                 className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-lg shadow-rose-600/20"
               >
                 Revoke Code
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SYSTEM AUTHENTICATION RESET MODAL */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-rose-500/30 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl text-center">
+            <div className="w-14 h-14 bg-rose-500/10 text-rose-400 rounded-2xl flex items-center justify-center mx-auto border border-rose-500/30">
+              <AlertTriangle className="w-7 h-7 text-rose-400" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-black text-white">Reset Admin Authentication System</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                This operation will <strong className="text-rose-400">permanently remove all existing admin, manager, technician, and Super Administrator accounts</strong> from Firestore and unseal the System Initialization Wizard.
+              </p>
+              <p className="text-[11px] text-slate-400 font-mono bg-slate-950 p-3 rounded-xl border border-slate-800">
+                You will be signed out immediately and required to complete First-Time System Initialization to provision new accounts.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                disabled={isResetting}
+                onClick={() => setIsResetModalOpen(false)}
+                className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={isResetting}
+                onClick={async () => {
+                  setIsResetting(true);
+                  const res = await resetAdminAuthSystem();
+                  setIsResetting(false);
+                  setIsResetModalOpen(false);
+                  if (res.success) {
+                    alert(res.message);
+                  } else {
+                    alert(res.message || 'Reset failed.');
+                  }
+                }}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-lg shadow-rose-600/30 flex items-center justify-center gap-1.5"
+              >
+                {isResetting ? (
+                  <span>Resetting...</span>
+                ) : (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Reset System Now</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

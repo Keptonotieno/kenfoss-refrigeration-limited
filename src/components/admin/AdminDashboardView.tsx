@@ -35,6 +35,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { AdminTab } from './AdminSidebar';
+import { EmergencySlaTracker } from './EmergencySlaTracker';
 
 interface AdminDashboardViewProps {
   setActiveTab: (tab: AdminTab) => void;
@@ -248,6 +249,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setActiv
           </button>
         </div>
       )}
+
+      {/* EMERGENCY 15-MINUTE RESPONSE SLA COUNTDOWN TRACKER */}
+      <EmergencySlaTracker />
 
       {/* EDITABLE BRANDING & CONTACT INFO SECTION */}
       <div 

@@ -14,7 +14,7 @@ import {
   UserPlus,
   User as UserIcon,
   Phone,
-  Sparkles
+  Settings
 } from 'lucide-react';
 
 interface AdminLoginProps {
@@ -306,14 +306,17 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onClose, onCancel, onSwi
               </button>
 
               {onSwitchToSetup && (
-                <button
-                  type="button"
-                  onClick={onSwitchToSetup}
-                  className="text-xs text-amber-400 hover:text-amber-300 hover:underline cursor-pointer font-medium flex items-center justify-center gap-1.5 mx-auto pt-1"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>First-Time Setup / Create Super Administrator</span>
-                </button>
+                <div className="pt-3 border-t border-slate-800/30 mt-4 text-center">
+                  <button
+                    type="button"
+                    onClick={onSwitchToSetup}
+                    className="text-[10px] text-slate-500/70 hover:text-slate-400 transition-colors cursor-pointer inline-flex items-center gap-1 py-0.5 px-1 font-normal opacity-60 hover:opacity-100"
+                    title="First-time system provisioning & setup wizard"
+                  >
+                    <Settings className="w-2.5 h-2.5 text-slate-600" />
+                    <span>System Initialization / Create New Admin</span>
+                  </button>
+                </div>
               )}
             </div>
           </form>
