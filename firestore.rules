@@ -151,6 +151,12 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isStaffOrAdmin();
     }
+
+    // 13. Technicians & Engineers
+    match /technicians/{techId} {
+      allow read: if true;
+      allow write: if isStaffOrAdmin();
+    }
   }
 }
 

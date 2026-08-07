@@ -954,20 +954,38 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             localStorage.setItem('kenfoss_admin_user', JSON.stringify(activeUser));
           } else {
             const cleanEmail = (fbUser.email || '').toLowerCase();
-            const staffRole: UserRole = cleanEmail.includes('manager') ? 'Manager' : cleanEmail.includes('tech') ? 'Technician' : 'Super Administrator';
-            const staffName = fbUser.displayName || cleanEmail.split('@')[0].replace('.', ' ') || 'Staff Member';
+            
+            // Check if user document was created under an email query or custom staff ID
+            let existingProfile: any = null;
+            try {
+              const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
+              const qSnap = await getDocs(q);
+              if (!qSnap.empty) {
+                existingProfile = qSnap.docs[0].data();
+              }
+            } catch (qErr) {
+              console.warn("Notice: Email lookup during profile sync:", qErr);
+            }
+
+            const staffRole: UserRole = existingProfile?.role || (
+              cleanEmail.includes('manager') ? 'Manager' :
+              cleanEmail.includes('tech') ? 'Technician' :
+              (cleanEmail.includes('admin') || cleanEmail.includes('super')) ? 'Super Administrator' : 'Customer'
+            );
+            const staffName = existingProfile?.name || fbUser.displayName || cleanEmail.split('@')[0].replace('.', ' ') || 'Staff Member';
 
             const newDoc: AdminUser = {
               id: fbUser.uid,
               name: staffName,
               email: cleanEmail,
               role: staffRole,
-              phone: '',
-              avatar: fbUser.photoURL || '',
-              status: 'Active',
-              createdAt: new Date().toISOString(),
+              phone: existingProfile?.phone || '',
+              avatar: existingProfile?.avatar || fbUser.photoURL || '',
+              status: existingProfile?.status || 'Active',
+              createdAt: existingProfile?.createdAt || new Date().toISOString(),
               lastLogin: new Date().toISOString(),
-              twoFactorEnabled: false
+              twoFactorEnabled: existingProfile?.twoFactorEnabled || false,
+              mustChangePassword: existingProfile?.mustChangePassword || false
             };
             await setDoc(userRef, newDoc, { merge: true });
             setCurrentUser(newDoc);

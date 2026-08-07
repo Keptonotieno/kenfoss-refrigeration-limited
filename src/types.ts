@@ -282,7 +282,7 @@ export interface ContactMessageRecord {
 
 export interface NotificationItem {
   id: string;
-  type: 'booking' | 'quote' | 'diagnostic' | 'contact' | 'system' | 'whatsapp';
+  type: 'booking' | 'quote' | 'diagnostic' | 'contact' | 'system' | 'whatsapp' | 'human_agent_handoff' | string;
   title: string;
   message: string;
   isRead: boolean;
@@ -290,6 +290,19 @@ export interface NotificationItem {
   link?: string;
   imageUrl?: string;
   imageName?: string;
+  phone?: string;
+  email?: string;
+  reason?: string;
+  county?: string;
+  callbackTime?: string;
+  assignedTechnician?: string;
+  assignedTechnicianPhone?: string;
+  assignedTechnicianId?: string;
+  notes?: string;
+  status?: 'pending' | 'responded' | 'resolved' | string;
+  respondedAt?: string;
+  respondedBy?: string;
+  slaMinutes?: number;
 }
 
 export interface ContactInfoSettings {

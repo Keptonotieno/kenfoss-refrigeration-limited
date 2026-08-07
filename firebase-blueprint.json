@@ -149,6 +149,23 @@
       },
       "required": ["title", "message", "createdAt"]
     },
+    "technicians": {
+      "title": "Technicians & Engineers",
+      "description": "Technician and engineer profiles assigned to Kenya regional counties",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "specialty": { "type": "string" },
+        "phone": { "type": "string" },
+        "baseLocation": { "type": "string" },
+        "rating": { "type": "number" },
+        "experienceYears": { "type": "number" },
+        "status": { "type": "string" },
+        "counties": { "type": "array" }
+      },
+      "required": ["name", "phone", "role"]
+    },
     "roles": {
       "title": "Role Definitions",
       "description": "Role definitions and permission rules for RBAC",

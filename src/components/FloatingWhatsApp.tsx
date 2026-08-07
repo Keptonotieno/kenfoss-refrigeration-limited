@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Clock, Moon, Smile, Globe, MapPin, ExternalLink, Navigation, Car, Bus, Copy, Check, CheckCheck, Phone, Smartphone, Share2, Mail, Mic, MicOff, Bot, Sparkles, RotateCcw, Volume2, VolumeX, Camera, Image, Archive, History, Trash2, AlertTriangle, CheckCircle2, Wifi, WifiOff, RefreshCw, Search } from 'lucide-react';
+import { MessageSquare, X, Send, Clock, Moon, Smile, Globe, MapPin, ExternalLink, Navigation, Car, Bus, Copy, Check, CheckCheck, Phone, Smartphone, Share2, Mail, Mic, MicOff, Bot, Sparkles, RotateCcw, Volume2, VolumeX, Camera, Image, Archive, History, Trash2, AlertTriangle, CheckCircle2, Wifi, WifiOff, RefreshCw, Search, Headphones, UserCheck, PhoneCall } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 import { ImageWithFallback } from './common/ImageWithFallback';
 import { KENYA_47_COUNTIES } from './ServiceAreas';
 import { db } from '../lib/firebase';
 import { sanitizeString, sanitizeObject } from '../lib/sanitize';
-import { doc, setDoc, onSnapshot, enableNetwork, disableNetwork } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, enableNetwork, disableNetwork, collection, query, getDocs } from 'firebase/firestore';
 
 interface FloatingWhatsAppProps {
   onOpenChatbot?: () => void;
@@ -36,6 +36,114 @@ export interface ChatMessage {
   status?: 'sent' | 'delivered' | 'read';
   imageUrl?: string;
   imageName?: string;
+}
+
+export interface Technician {
+  id: string;
+  name: string;
+  role: string;
+  specialty: string;
+  phone: string;
+  baseLocation: string;
+  rating: number;
+  experienceYears: number;
+  status: 'Available' | 'On-Call' | 'In-Field';
+  counties: string[];
+}
+
+export const DEFAULT_KENYA_TECHNICIANS: Record<string, Technician> = {
+  central: {
+    id: 'tech-001',
+    name: 'Eng. David Mwangi',
+    role: 'Senior Cold Storage & VRF Lead',
+    specialty: 'Bitzer Compressors & Chiller Racks',
+    phone: '+254 722 000 111',
+    baseLocation: 'Ruiru Bypass Central HQ',
+    rating: 4.9,
+    experienceYears: 12,
+    status: 'Available',
+    counties: ['Ruiru HQ', 'Kiambu', 'Nairobi', 'Murang\'a', 'Machakos', 'Kirinyaga', 'Nyandarua']
+  },
+  coast: {
+    id: 'tech-002',
+    name: 'Eng. Hassan Said',
+    role: 'Marine Cold Storage & Ammonia Lead',
+    specialty: 'Port Chillers & Marine Refrigeration',
+    phone: '+254 733 222 333',
+    baseLocation: 'Mombasa Port Regional Hub',
+    rating: 4.9,
+    experienceYears: 10,
+    status: 'Available',
+    counties: ['Mombasa', 'Kwale', 'Kilifi', 'Lamu', 'Tana River', 'Taita-Taveta']
+  },
+  rift: {
+    id: 'tech-003',
+    name: 'Eng. Kipchumba Bett',
+    role: 'Horticultural & Packhouse Specialist',
+    specialty: 'Flower Farm Cold Rooms & Pre-Cooling',
+    phone: '+254 711 444 555',
+    baseLocation: 'Nakuru Industrial Depot',
+    rating: 4.8,
+    experienceYears: 11,
+    status: 'On-Call',
+    counties: ['Nakuru', 'Uasin Gishu', 'Trans-Nzoia', 'Kericho', 'Bomet', 'Narok', 'Kajiado', 'Laikipia', 'Baringo', 'Elgeyo-Marakwet', 'Nandi', 'Samburu']
+  },
+  lake: {
+    id: 'tech-004',
+    name: 'Eng. Otieno Ochieng',
+    role: 'Post-Harvest Cold Chain Lead',
+    specialty: 'Fish Freezing & Fresh Agriculture Rooms',
+    phone: '+254 720 666 777',
+    baseLocation: 'Kisumu Lake Basin Depot',
+    rating: 4.9,
+    experienceYears: 9,
+    status: 'Available',
+    counties: ['Kisumu', 'Siaya', 'Homa Bay', 'Migori', 'Kisii', 'Nyamira']
+  },
+  mtkenya: {
+    id: 'tech-005',
+    name: 'Eng. Peter Karanja',
+    role: 'Supermarket & Industrial Chiller Lead',
+    specialty: 'Blast Freezers & Commercial HVAC',
+    phone: '+254 725 888 999',
+    baseLocation: 'Nyeri Regional Hub',
+    rating: 4.8,
+    experienceYears: 10,
+    status: 'Available',
+    counties: ['Meru', 'Nyeri', 'Embu', 'Tharaka-Nithi', 'Isiolo']
+  },
+  western: {
+    id: 'tech-006',
+    name: 'Eng. Wycliffe Barasa',
+    role: 'Commercial HVAC & Mobile SLA Lead',
+    specialty: 'VRF Systems & Emergency Gas Charging',
+    phone: '+254 701 112 233',
+    baseLocation: 'Kakamega Response Unit',
+    rating: 4.7,
+    experienceYears: 8,
+    status: 'On-Call',
+    counties: ['Kakamega', 'Bungoma', 'Busia', 'Vihiga', 'West Pokot', 'Turkana']
+  },
+  arid: {
+    id: 'tech-007',
+    name: 'Eng. Abdi Mohamed',
+    role: 'Solar Off-Grid Cold Storage Lead',
+    specialty: 'Solar PV Cold Rooms & Vaccine Coolers',
+    phone: '+254 715 334 455',
+    baseLocation: 'Garissa North-Eastern Station',
+    rating: 4.9,
+    experienceYears: 9,
+    status: 'Available',
+    counties: ['Garissa', 'Wajir', 'Mandera', 'Marsabit', 'Kitui', 'Makueni']
+  }
+};
+
+export function getDefaultTechnicianForCounty(county: string): Technician {
+  const c = (county || '').trim();
+  for (const group of Object.values(DEFAULT_KENYA_TECHNICIANS)) {
+    if (group.counties.includes(c)) return group;
+  }
+  return DEFAULT_KENYA_TECHNICIANS.central;
 }
 
 // Auto-correction dictionary for common HVAC & Kenfoss dictation & typing terms
@@ -321,6 +429,162 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
       return 'Nairobi';
     }
   });
+
+  const [suggestedTechnician, setSuggestedTechnician] = useState<Technician>(() =>
+    getDefaultTechnicianForCounty(selectedCounty)
+  );
+  const [isLoadingTech, setIsLoadingTech] = useState(false);
+
+  // Automatically query 'technicians' collection in Firestore for best matched technician upon county selection
+  useEffect(() => {
+    let isMounted = true;
+    const fetchTechnicianFromFirestore = async () => {
+      setIsLoadingTech(true);
+      try {
+        const techCol = collection(db, 'technicians');
+        const q = query(techCol);
+        const snap = await getDocs(q);
+
+        if (!snap.empty && isMounted) {
+          const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Technician));
+          const match = docs.find((t) => {
+            if (Array.isArray(t.counties)) {
+              return t.counties.some(
+                (ct) => ct.toLowerCase() === selectedCounty.toLowerCase() || ct === 'All' || ct === 'Nationwide'
+              );
+            }
+            return (
+              String(t.counties).toLowerCase() === selectedCounty.toLowerCase() ||
+              String(t.counties) === 'All'
+            );
+          });
+
+          if (match) {
+            setSuggestedTechnician(match);
+            setIsLoadingTech(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Firestore technicians query notice, using default regional engineer:', err);
+      }
+
+      if (isMounted) {
+        setSuggestedTechnician(getDefaultTechnicianForCounty(selectedCounty));
+        setIsLoadingTech(false);
+      }
+    };
+
+    fetchTechnicianFromFirestore();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedCounty]);
+
+  const [showHandoffModal, setShowHandoffModal] = useState(false);
+  const [handoffPhone, setHandoffPhone] = useState<string>(() => {
+    try {
+      return localStorage.getItem('kenfoss_handoff_phone') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [handoffEmail, setHandoffEmail] = useState<string>(() => {
+    try {
+      return localStorage.getItem('kenfoss_handoff_email') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [handoffReason, setHandoffReason] = useState('Urgent Field Dispatch & Technical Callback');
+  const [handoffTime, setHandoffTime] = useState('Immediately (Emergency SLA)');
+  const [handoffNotes, setHandoffNotes] = useState('');
+  const [handoffLogged, setHandoffLogged] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('kenfoss_handoff_status') === 'active';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleTriggerHandoffRequest = async (isAutomatedPromptOnly: boolean = false) => {
+    if (isAutomatedPromptOnly) {
+      // Inject automated support prompt into chat asking user for phone/email
+      const promptMsg: ChatMessage = {
+        id: `msg-handoff-prompt-${Date.now()}`,
+        sender: 'support',
+        text: `👤 *Human Agent Escalation Triggered*\n\nOur assigned engineer *${suggestedTechnician.name}* (${suggestedTechnician.role}, Base: ${suggestedTechnician.baseLocation}) in *${selectedCounty} County* needs to reach out directly regarding your technical inquiry.\n\n📲 **Action Required:** Please reply with or confirm your *Phone Number* or *Email Address* so our team can execute a direct follow-up call.`,
+        timestamp: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date()),
+        status: 'delivered',
+      };
+
+      setChatHistory((prev) => [...prev, promptMsg]);
+      if (isSoundEnabled) playChime('receive');
+      showToast('Automated contact request sent to chat 📲');
+      setShowHandoffModal(false);
+      return;
+    }
+
+    // Validate contact details
+    if (!handoffPhone.trim() && !handoffEmail.trim()) {
+      showToast('Please enter a phone number or email address to trigger handoff ⚠️');
+      return;
+    }
+
+    // Persist to localStorage metadata
+    try {
+      localStorage.setItem('kenfoss_handoff_phone', handoffPhone.trim());
+      localStorage.setItem('kenfoss_handoff_email', handoffEmail.trim());
+      localStorage.setItem('kenfoss_handoff_status', 'active');
+    } catch {
+      // ignore
+    }
+
+    setHandoffLogged(true);
+
+    // Ingest system confirmation message into chat timeline
+    const handoffMsg: ChatMessage = {
+      id: `msg-handoff-${Date.now()}`,
+      sender: 'support',
+      text: `✅ *Human Agent Handoff Confirmed*\n\n👷 **Assigned Engineer:** ${suggestedTechnician.name} (${suggestedTechnician.role})\n📍 **Base Station:** ${suggestedTechnician.baseLocation}\n📞 **Client Phone:** ${handoffPhone.trim() || 'Not provided'}\n📧 **Client Email:** ${handoffEmail.trim() || 'Not provided'}\n🗺️ **Dispatch County:** ${selectedCounty} County, Kenya\n⏰ **Preferred Call SLA:** ${handoffTime}\n📋 **Reason:** ${handoffReason}${handoffNotes.trim() ? `\n📝 **Notes:** ${handoffNotes.trim()}` : ''}\n\nYour request has been routed in Firestore metadata to *${suggestedTechnician.name}* (${suggestedTechnician.phone}). Direct callback queued!`,
+      timestamp: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date()),
+      status: 'read',
+    };
+
+    setChatHistory((prev) => [...prev, handoffMsg]);
+
+    // Push real-time metadata record to Firestore for support team
+    try {
+      const notifId = `notif-handoff-${Date.now()}`;
+      const realTimeHandoffNotif = sanitizeObject({
+        id: notifId,
+        title: `👤 Human Agent Handoff (${selectedCounty} County)`,
+        message: `Direct callback queued for ${handoffPhone.trim() || handoffEmail.trim()}. Assigned Lead: ${suggestedTechnician.name}. Reason: ${handoffReason}`,
+        county: selectedCounty,
+        phone: handoffPhone.trim(),
+        email: handoffEmail.trim(),
+        reason: handoffReason,
+        callbackTime: handoffTime,
+        assignedTechnician: suggestedTechnician.name,
+        assignedTechnicianPhone: suggestedTechnician.phone,
+        assignedTechnicianId: suggestedTechnician.id,
+        assignedTechnicianRole: suggestedTechnician.role,
+        notes: handoffNotes.trim(),
+        type: 'human_agent_handoff',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        link: 'contact_info',
+      });
+
+      await setDoc(doc(db, 'notifications', notifId), realTimeHandoffNotif);
+    } catch (err) {
+      console.warn('Firestore handoff metadata save notice:', err);
+    }
+
+    if (isSoundEnabled) playChime('send');
+    showToast(`Handoff assigned to ${suggestedTechnician.name}! Direct call queued 📞`);
+    setShowHandoffModal(false);
+  };
 
   const playChime = (type: 'send' | 'receive') => {
     try {
@@ -1142,6 +1406,28 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
               </div>
 
               <div className="flex items-center space-x-1">
+                {/* Human Agent Handoff Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowHandoffModal(true);
+                  }}
+                  className={`relative p-1.5 rounded-full transition-colors cursor-pointer flex items-center justify-center ${
+                    handoffLogged
+                      ? 'text-amber-600 dark:text-amber-400 bg-amber-100/90 dark:bg-amber-950/80 animate-pulse'
+                      : 'text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                  title="Human Agent Escalation & Direct Follow-Up Call Handoff"
+                >
+                  <Headphones className="w-4 h-4" />
+                  {handoffLogged && (
+                    <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[8px] font-bold px-1 rounded-full">
+                      CALL
+                    </span>
+                  )}
+                </button>
+
                 {/* Audio Notification Chime Toggle Button */}
                 <button
                   type="button"
@@ -2315,6 +2601,219 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Human Agent Handoff Modal */}
+      {showHandoffModal && (
+        <div 
+          className="fixed inset-0 z-[125] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200 pointer-events-auto"
+          onClick={() => setShowHandoffModal(false)}
+        >
+          <div 
+            className="relative max-w-md w-full bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-amber-200 dark:border-amber-900/60 p-5 space-y-4 animate-in zoom-in-95 duration-200 text-slate-900 dark:text-white max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400 flex items-center justify-center">
+                  <Headphones className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold flex items-center gap-1.5">
+                    <span>Human Agent Handoff</span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                      Direct Call
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Escalate to a senior Kenfoss engineer for direct callback in <strong className="text-amber-600 dark:text-amber-400">{selectedCounty} County</strong>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowHandoffModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 text-xs">
+              {/* Automatically Matched Technician Banner */}
+              <div className="p-3 rounded-2xl bg-slate-900 border border-amber-500/30 dark:border-amber-500/20 shadow-inner space-y-2 text-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+                      Matched Lead Engineer for {selectedCounty} County
+                    </span>
+                  </div>
+                  <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
+                    suggestedTechnician.status === 'Available'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  }`}>
+                    {isLoadingTech ? 'Querying Firestore...' : `🟢 ${suggestedTechnician.status}`}
+                  </span>
+                </div>
+
+                <div className="flex items-center space-x-3 pt-1">
+                  <div className="relative shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center font-black text-slate-950 text-xs shadow-md">
+                      {suggestedTechnician.name.replace('Eng. ', '').split(' ').map(n => n[0]).join('')}
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-slate-950 p-0.5 rounded-full">
+                      <UserCheck className="w-2.5 h-2.5" />
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <h4 className="text-xs font-bold text-white truncate">{suggestedTechnician.name}</h4>
+                      <div className="flex items-center text-amber-400 text-[10px] font-bold">
+                        ★ {suggestedTechnician.rating || '4.9'} <span className="text-slate-400 text-[9px] ml-0.5">({suggestedTechnician.experienceYears || '10'}y exp)</span>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-300 truncate">{suggestedTechnician.role}</p>
+                    <div className="flex items-center justify-between mt-1 text-[9px] text-slate-400">
+                      <span className="truncate flex items-center gap-1">
+                        <MapPin className="w-2.5 h-2.5 text-amber-400 shrink-0" /> {suggestedTechnician.baseLocation}
+                      </span>
+                      <span className="font-mono text-emerald-400 font-bold shrink-0">{suggestedTechnician.phone}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Phone Number Input */}
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                  <Phone className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Visitor / Client Phone Number:</span>
+                </label>
+                <input
+                  type="tel"
+                  value={handoffPhone}
+                  onChange={(e) => setHandoffPhone(e.target.value)}
+                  placeholder="e.g. +254 712 345 678"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono font-semibold"
+                />
+              </div>
+
+              {/* Email Address Input */}
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                  <Mail className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Visitor / Client Email Address:</span>
+                </label>
+                <input
+                  type="email"
+                  value={handoffEmail}
+                  onChange={(e) => setHandoffEmail(e.target.value)}
+                  placeholder="e.g. client@company.co.ke"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {/* Handoff Reason Dropdown */}
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  Escalation & Follow-Up Reason:
+                </label>
+                <select
+                  value={handoffReason}
+                  onChange={(e) => setHandoffReason(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold cursor-pointer"
+                >
+                  <option value="Urgent Field Dispatch & Technical Callback">
+                    🚨 Urgent Field Dispatch & Technical Callback
+                  </option>
+                  <option value="Unresponsive Visitor / Direct Follow-Up Call Required">
+                    ⏳ Unresponsive Visitor / Request Contact Info
+                  </option>
+                  <option value="Cold Room / Chillers Custom Quotation Call">
+                    ❄️ Cold Room / Chillers Technical Quotation Call
+                  </option>
+                  <option value="Preventive Maintenance SLA & Contract Call">
+                    🛠️ Preventive Maintenance Contract & Breakdown Call
+                  </option>
+                </select>
+              </div>
+
+              {/* Preferred Call SLA */}
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  Preferred Call Schedule:
+                </label>
+                <select
+                  value={handoffTime}
+                  onChange={(e) => setHandoffTime(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold cursor-pointer"
+                >
+                  <option value="Immediately (Emergency SLA)">
+                    ⚡ Immediately (Emergency SLA - Within 15 Mins)
+                  </option>
+                  <option value="Within 30 Minutes">
+                    ⏱️ Within 30 Minutes
+                  </option>
+                  <option value="Today Morning (8:00 AM - 12:00 PM)">
+                    🌅 Today Morning (8:00 AM - 12:00 PM)
+                  </option>
+                  <option value="Today Afternoon (1:00 PM - 5:00 PM)">
+                    🌆 Today Afternoon (1:00 PM - 5:00 PM)
+                  </option>
+                </select>
+              </div>
+
+              {/* Additional Notes */}
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  Additional Notes / Equipment Specs:
+                </label>
+                <textarea
+                  value={handoffNotes}
+                  onChange={(e) => setHandoffNotes(e.target.value)}
+                  placeholder="e.g. 50HP Bitzer compressor tripping off at Ruiru flower farm, need urgent site visit..."
+                  rows={2}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {/* Status Banner */}
+              <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 text-[11px] text-amber-900 dark:text-amber-200 flex items-start gap-2">
+                <PhoneCall className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">Automated Support Routing Active</p>
+                  <p className="text-[10px] text-amber-800 dark:text-amber-300">
+                    Details submitted will be stored in chat metadata, logged to Firestore notifications, and assigned to engineers serving <strong>{selectedCounty} County</strong>.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => handleTriggerHandoffRequest(true)}
+                className="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-amber-500" />
+                <span>Send Chat Contact Prompt</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTriggerHandoffRequest(false)}
+                className="flex-1 py-2 px-3 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Log & Queue Direct Call</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
