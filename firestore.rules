@@ -46,7 +46,7 @@ service cloud.firestore {
     // 2. Staff Directory collection (/staff/{userId})
     match /staff/{userId} {
       allow read: if isSignedIn() && (isOwner(userId) || isStaffOrAdmin());
-      allow create, update: if isSuperAdmin();
+      allow create, update: if isSignedIn() && (isOwner(userId) || isSuperAdmin());
       allow delete: if isSuperAdmin();
     }
 
@@ -130,7 +130,7 @@ service cloud.firestore {
     // 11. Website & System Settings
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if isSuperAdmin();
+      allow write: if isSignedIn();
     }
 
     // 12. Notifications

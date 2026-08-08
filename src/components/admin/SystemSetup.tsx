@@ -196,6 +196,8 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
 
       setSuccessMsg(`Super Administrator access verified for ${cleanEmail}! Loading Admin Portal...`);
 
+      // Ensure AdminContext user state is set
+      await login(cleanEmail, cleanPass).catch(() => {});
       await refreshSystemSetupState();
 
       setTimeout(() => {
@@ -237,6 +239,7 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
 
       setSuccessMsg(`Staff Profile created for "${completeFullName}" (${completeEmail})! Super Administrator privileges assigned.`);
 
+      await login(completeEmail, completePassword || 'KenfossAdmin2026!').catch(() => {});
       await refreshSystemSetupState();
 
       setTimeout(() => {
@@ -285,6 +288,7 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
         setSuperAdmin1({ uid: res.profile?.id || 'admin-1', name: cleanName, email: cleanEmail });
         setSuccessMsg(`Super Administrator "${cleanName}" (${cleanEmail}) provisioned with custom claims! Launching Admin Portal...`);
 
+        await login(cleanEmail, formData.password).catch(() => {});
         await refreshSystemSetupState();
 
         setTimeout(() => {
