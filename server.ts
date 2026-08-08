@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import http from 'http';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
@@ -45,6 +46,7 @@ function sanitizeInput(val: any): string {
 
 async function startServer() {
   const app = express();
+  const httpServer = http.createServer(app);
   const PORT = 3000;
 
   // Security Hardening: Disable Express fingerprinting header
@@ -640,7 +642,7 @@ Provide advanced technical calculations, refrigeration load sizing, enthalpy/P-T
     const vite = await createViteServer({
       server: { 
         middlewareMode: true,
-        hmr: process.env.DISABLE_HMR === 'true' ? false : undefined,
+        hmr: process.env.DISABLE_HMR === 'true' ? false : { server: httpServer },
       },
       appType: 'spa',
     });
@@ -653,7 +655,7 @@ Provide advanced technical calculations, refrigeration load sizing, enthalpy/P-T
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Kenfoss Server running on http://localhost:${PORT}`);
   });
 }

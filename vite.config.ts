@@ -15,7 +15,7 @@ export default defineConfig(() => {
       },
     },
     server: {
-      hmr: false,
+      hmr: process.env.DISABLE_HMR === 'true' ? false : true,
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
   };

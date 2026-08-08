@@ -31,6 +31,7 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { AdminPortal } from './components/admin/AdminPortal';
 import { AdminRouteGuard } from './components/admin/AdminRouteGuard';
 import { PWAInstallPrompt } from './components/pwa/PWAInstallPrompt';
+import { FirestoreSyncStatus } from './components/FirestoreSyncStatus';
 
 function MainAppContent() {
   const { isAdminOpen, setIsAdminOpen } = useAdmin();
@@ -179,6 +180,9 @@ function MainAppContent() {
 
       {/* Floating Toast Notification Stack */}
       <NotificationToastContainer />
+
+      {/* Firestore Live Connection & Sync Restoration Indicator */}
+      <FirestoreSyncStatus />
 
       {/* PWA Install Banner & Offline Status Manager */}
       <PWAInstallPrompt />
