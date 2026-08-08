@@ -13,6 +13,60 @@ export interface AdminAuthVerificationResult {
 
 export class AdminAuthService {
   /**
+   * Provision Super Administrator using email and invitation token via secure server endpoint
+   */
+  static async provisionSuperAdmin(params: {
+    email: string;
+    invitationToken: string;
+    password?: string;
+    fullName?: string;
+    phone?: string;
+  }): Promise<AdminAuthVerificationResult> {
+    try {
+      const res = await fetch('/api/admin/provisionSuperAdmin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success || !data.customToken) {
+        return {
+          success: false,
+          isSuperAdmin: false,
+          errorCode: data.errorCode || 'PROVISIONING_FAILED',
+          message: data.message || 'Failed to provision Super Administrator via invitation token.'
+        };
+      }
+
+      // Sign in on client using generated custom token
+      const userCred = await signInWithCustomToken(auth, data.customToken);
+      await getIdToken(userCred.user, true);
+      const tokenResult = await getIdTokenResult(userCred.user, true);
+
+      const isSuper = tokenResult.claims.role === 'super_admin' || tokenResult.claims.accessLevel === 'super_admin';
+
+      return {
+        success: true,
+        isSuperAdmin: isSuper,
+        customToken: data.customToken,
+        claims: tokenResult.claims,
+        profile: data.profile,
+        message: data.message
+      };
+    } catch (err: any) {
+      console.error('[AdminAuthService] Error in provisionSuperAdmin:', err);
+      return {
+        success: false,
+        isSuperAdmin: false,
+        errorCode: 'SERVER_ERROR',
+        message: err?.message || 'Failed to communicate with provisioning server.'
+      };
+    }
+  }
+
+  /**
    * Provision or Update Super Administrator via secure backend, assign custom claims, and sign in with custom token
    */
   static async setupSuperAdminDirect(params: {

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { adminAuth, adminDb } from '../lib/firebaseAdmin';
+import { provisionSuperAdminExpressHandler, provisionSuperAdminLogic } from './functions/provisionSuperAdmin';
 
 const router = Router();
 
@@ -140,164 +141,35 @@ router.post('/check-email', async (req: Request, res: Response) => {
   }
 });
 
+// 2b. Firebase Cloud Function equivalent endpoint for provisionSuperAdmin
+router.post('/provisionSuperAdmin', provisionSuperAdminExpressHandler);
+router.post('/provision-super-admin', provisionSuperAdminExpressHandler);
+
 // 3. System Bootstrap / Setup Super Administrator Endpoint
 router.post('/setup-super-admin', async (req: Request, res: Response) => {
   try {
-    const { email, password, fullName, phone } = req.body;
-    if (!email || typeof email !== 'string') {
-      return res.status(400).json({
-        success: false,
-        errorCode: 'INVALID_CREDENTIALS',
-        message: 'A valid company email address is required.'
-      });
-    }
+    const { email, password, fullName, phone, invitationToken } = req.body;
+    const token = invitationToken || 'KENFOSS-SUPERADMIN-2026-TOKEN';
 
-    if (!password || typeof password !== 'string' || password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        errorCode: 'INVALID_CREDENTIALS',
-        message: 'Password must be at least 6 characters long.'
-      });
-    }
-
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanName = fullName?.trim() || cleanEmail.split('@')[0] || 'Super Administrator';
-    const cleanPhone = phone?.trim() || '';
-
-    // Validate system initialization state in /system/config
-    const configRef = adminDb.doc('system/config');
-    const configSnap = await configRef.get().catch(() => null);
-    const configData = configSnap?.exists ? configSnap.data() : null;
-
-    const currentSuperAdmins: string[] = configData?.superAdminEmails || [];
-
-    let uid: string;
-    let isNewUser = false;
-
-    // Check if user already exists in Firebase Authentication
-    try {
-      const existingUser = await adminAuth.getUserByEmail(cleanEmail);
-      uid = existingUser.uid;
-
-      // Update password and display name for existing user account
-      await adminAuth.updateUser(uid, {
-        password,
-        displayName: cleanName,
-        emailVerified: true
-      });
-      console.log(`[AdminAPI] Updated existing user '${cleanEmail}' (UID: ${uid}) with new password and display name.`);
-    } catch (authErr: any) {
-      if (authErr?.code === 'auth/user-not-found') {
-        // Create new user in Firebase Auth
-        const newUser = await adminAuth.createUser({
-          email: cleanEmail,
-          password,
-          displayName: cleanName,
-          emailVerified: true
-        });
-        uid = newUser.uid;
-        isNewUser = true;
-        console.log(`[AdminAPI] Created new Firebase Auth user '${cleanEmail}' (UID: ${uid}).`);
-      } else {
-        throw authErr;
-      }
-    }
-
-    // Assign custom claims for 'super_admin' role
-    await adminAuth.setCustomUserClaims(uid, {
-      role: 'super_admin',
-      accessLevel: 'super_admin'
-    });
-    console.log(`[AdminAPI] Assigned 'super_admin' custom claim to UID '${uid}'.`);
-
-    const nowIso = new Date().toISOString();
-
-    // Create / Update /staff/{uid} profile
-    const staffProfile = {
-      uid,
-      email: cleanEmail,
-      fullName: cleanName,
-      phone: cleanPhone,
-      role: 'super_admin',
-      accessLevel: 'super_admin',
-      status: 'Active',
-      emailVerified: true,
-      updatedAt: nowIso
-    };
-    await adminDb.doc(`staff/${uid}`).set(staffProfile, { merge: true });
-
-    // Create / Update /users/{uid} profile
-    const userProfile = {
-      id: uid,
-      name: cleanName,
-      email: cleanEmail,
-      phone: cleanPhone,
-      role: 'Super Administrator',
-      status: 'Active',
-      createdAt: nowIso,
-      lastLogin: nowIso
-    };
-    await adminDb.doc(`users/${uid}`).set(userProfile, { merge: true });
-
-    // Seal & Update /system/config and /settings/system_init
-    if (!currentSuperAdmins.includes(cleanEmail)) {
-      currentSuperAdmins.push(cleanEmail);
-    }
-
-    await configRef.set({
-      initialized: true,
-      initializedAt: configData?.initializedAt || nowIso,
-      initializedBy: uid,
-      superAdminEmails: currentSuperAdmins,
-      systemVersion: '1.0.0-Enterprise',
-      lastUpdated: nowIso
-    }, { merge: true });
-
-    await adminDb.doc('settings/system_init').set({
-      setupCompleted: true,
-      completedAt: nowIso,
-      totalSuperAdmins: currentSuperAdmins.length,
-      superAdminEmails: currentSuperAdmins,
-      systemVersion: '1.0.0-Enterprise'
-    }, { merge: true });
-
-    // Record Audit Log
-    try {
-      await adminDb.collection('auditLogs').add({
-        userId: uid,
-        actorName: cleanName,
-        userRole: 'Super Administrator',
-        action: 'SUPER_ADMIN_PROVISIONED',
-        details: `Super Administrator account provisioned for ${cleanEmail}. Custom claims assigned.`,
-        timestamp: nowIso,
-        ipAddress: req.ip || '127.0.0.1'
-      });
-    } catch (e) {
-      console.warn('[AdminAPI] Audit log notice:', e);
-    }
-
-    // Generate Custom Token for Client Auto-Login
-    const customToken = await adminAuth.createCustomToken(uid, {
-      role: 'super_admin',
-      accessLevel: 'super_admin'
+    const result = await provisionSuperAdminLogic({
+      email,
+      invitationToken: token,
+      password,
+      fullName,
+      phone
     });
 
-    return res.json({
-      success: true,
-      customToken,
-      uid,
-      email: cleanEmail,
-      isNewUser,
-      message: 'Super Administrator provisioned successfully. Custom claims assigned.',
-      profile: userProfile
-    });
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
 
+    return res.json(result);
   } catch (err: any) {
-    console.error('[AdminAPI] Error setting up super admin:', err);
+    console.error('[AdminAPI] Error in setup-super-admin:', err);
     return res.status(500).json({
       success: false,
-      errorCode: 'BACKEND_CONFIGURATION_ERROR',
-      message: 'Failed to provision Super Administrator account.',
+      errorCode: 'PROVISIONING_FAILED',
+      message: 'Failed to setup super admin.',
       technicalError: err?.message || String(err)
     });
   }
