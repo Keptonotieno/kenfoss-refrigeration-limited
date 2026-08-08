@@ -169,15 +169,7 @@ router.post('/setup-super-admin', async (req: Request, res: Response) => {
     const configSnap = await configRef.get().catch(() => null);
     const configData = configSnap?.exists ? configSnap.data() : null;
 
-    const isAlreadyInitialized = configData?.initialized === true;
     const currentSuperAdmins: string[] = configData?.superAdminEmails || [];
-
-    // System Config Validation Guard:
-    // If system is already initialized and email is NOT among registered super admins or staff,
-    // verify authorization before assigning super_admin role
-    if (isAlreadyInitialized && currentSuperAdmins.length >= 2 && !currentSuperAdmins.includes(cleanEmail)) {
-      console.log(`[AdminAPI] System is already sealed/initialized with ${currentSuperAdmins.length} super admins. Adding ${cleanEmail} to super admin group.`);
-    }
 
     let uid: string;
     let isNewUser = false;
@@ -306,6 +298,44 @@ router.post('/setup-super-admin', async (req: Request, res: Response) => {
       success: false,
       errorCode: 'BACKEND_CONFIGURATION_ERROR',
       message: 'Failed to provision Super Administrator account.',
+      technicalError: err?.message || String(err)
+    });
+  }
+});
+
+// 3a. Clear/Reset Admin Registrations Endpoint (Resets initialization & removes registered emails)
+router.post('/reset-admin-registrations', async (req: Request, res: Response) => {
+  try {
+    const nowIso = new Date().toISOString();
+
+    // Reset /system/config
+    await adminDb.doc('system/config').set({
+      initialized: false,
+      superAdminEmails: [],
+      lastResetAt: nowIso,
+      systemVersion: '1.0.0-Enterprise'
+    }, { merge: false });
+
+    // Reset /settings/system_init
+    await adminDb.doc('settings/system_init').set({
+      setupCompleted: false,
+      superAdminEmails: [],
+      totalSuperAdmins: 0,
+      lastResetAt: nowIso
+    }, { merge: false });
+
+    console.log('[AdminAPI] Reset admin registrations and cleared superAdminEmails list in /system/config and /settings/system_init');
+
+    return res.json({
+      success: true,
+      message: 'Registered admin emails cleared successfully. System setup reset for new admin registrations.',
+      resetAt: nowIso
+    });
+  } catch (err: any) {
+    console.error('[AdminAPI] Error resetting admin registrations:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to reset admin registrations.',
       technicalError: err?.message || String(err)
     });
   }

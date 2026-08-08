@@ -1164,19 +1164,20 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         password: pass
       });
 
-      if (serverSetupRes.success && auth.currentUser) {
+      if (serverSetupRes.success) {
         const fbUser = auth.currentUser;
-        const userRef = doc(db, 'users', fbUser.uid);
+        const uid = fbUser?.uid || serverSetupRes.profile?.id || `usr-admin-${Date.now()}`;
+        const userRef = doc(db, 'users', uid);
         const snap = await getDoc(userRef).catch(() => null);
         const d = snap?.exists() ? snap.data() : null;
 
         const activeUser: AdminUser = {
-          id: fbUser.uid,
-          name: d?.name || fbUser.displayName || cleanEmail.split('@')[0] || 'Super Administrator',
+          id: uid,
+          name: d?.name || serverSetupRes.profile?.name || fbUser?.displayName || cleanEmail.split('@')[0] || 'Super Administrator',
           email: cleanEmail,
           role: d?.role || 'Super Administrator',
-          phone: d?.phone || '',
-          avatar: d?.avatar || fbUser.photoURL || '',
+          phone: d?.phone || serverSetupRes.profile?.phone || '',
+          avatar: d?.avatar || fbUser?.photoURL || '',
           status: 'Active',
           createdAt: d?.createdAt || new Date().toISOString(),
           lastLogin: new Date().toISOString(),
