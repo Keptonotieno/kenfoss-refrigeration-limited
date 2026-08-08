@@ -3,6 +3,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
+import adminRoutes from './src/server/adminRoutes';
 
 dotenv.config();
 
@@ -77,6 +78,9 @@ async function startServer() {
 
   // Apply rate limiting across all public API routes
   app.use('/api/', rateLimiter(40, 60 * 1000));
+
+  // Mount Admin Authentication & Provisioning API Routes
+  app.use('/api/admin', adminRoutes);
 
   // API Route: AI Instant Refrigeration & Fault Diagnostic Assistant
   app.post('/api/diagnose', async (req, res) => {

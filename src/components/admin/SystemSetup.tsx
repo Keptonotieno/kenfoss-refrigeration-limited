@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAdmin } from '../../context/AdminContext';
+import { AdminAuthService } from '../../services/adminAuthService';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -25,6 +26,7 @@ import {
   Mail, 
   KeyRound, 
   User, 
+  User as UserIcon,
   Phone, 
   CheckCircle2, 
   AlertCircle, 
@@ -36,7 +38,8 @@ import {
   Sparkles,
   UserPlus,
   LogIn,
-  X
+  X,
+  RefreshCw
 } from 'lucide-react';
 
 interface SystemSetupProps {
@@ -55,8 +58,8 @@ interface SuperAdminFormState {
 export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCancel }) => {
   const { superAdminCount, refreshSystemSetupState, login, setCurrentUser } = useAdmin();
   
-  // Tab Mode: 'create' (Wizard) vs 'existing' (Sign in with existing)
-  const [setupMode, setSetupMode] = useState<'create' | 'existing'>('create');
+  // Tab Mode: 'create' (Wizard) vs 'existing' (Sign in with existing) vs 'complete_profile' (Profile missing)
+  const [setupMode, setSetupMode] = useState<'create' | 'existing' | 'complete_profile'>('create');
 
   // Wizard Step (1: Primary, 2: Secondary, 3: Completed)
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
@@ -77,6 +80,12 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
   // Form State for Existing Account Sign In
   const [existingEmail, setExistingEmail] = useState('');
   const [existingPassword, setExistingPassword] = useState('');
+
+  // Form State for Complete Profile Step
+  const [completeEmail, setCompleteEmail] = useState('');
+  const [completePassword, setCompletePassword] = useState('');
+  const [completeFullName, setCompleteFullName] = useState('');
+  const [completePhone, setCompletePhone] = useState('');
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -153,17 +162,39 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
     setSuccessMsg(null);
 
     try {
-      // 1. Authenticate with unified login service
-      const res = await login(cleanEmail, cleanPass);
-      if (!res.success) {
-        setErrorMsg(res.error || 'Authentication failed. Please check your credentials and try again.');
+      // Check if user exists in Firebase Auth but missing Firestore staff profile
+      const emailStatus = await AdminAuthService.checkEmailExists(cleanEmail);
+      if (emailStatus.existsInAuth && !emailStatus.existsInStaff) {
+        // Firebase Auth succeeds/exists but no /staff/{uid} profile exists -> Prompt Complete Profile Step
+        setCompleteEmail(cleanEmail);
+        setCompletePassword(cleanPass);
+        setCompleteFullName(cleanEmail.split('@')[0].replace('.', ' '));
+        setSetupMode('complete_profile');
+        setSuccessMsg(`Firebase Authentication verified for ${cleanEmail}! Please complete your Staff Profile below.`);
+        setIsLoading(false);
         return;
       }
 
-      // 2. Seal System Setup in Firestore
-      await sealSystemSetup([cleanEmail]);
+      // Direct provision / authenticate Super Admin via backend server & custom token
+      const res = await AdminAuthService.setupSuperAdminDirect({
+        email: cleanEmail,
+        password: cleanPass
+      });
 
-      setSuccessMsg(`Authenticated as Super Administrator (${cleanEmail})! Opening Admin Portal...`);
+      if (!res.success) {
+        if (res.errorCode === 'ADMIN_PROFILE_MISSING' || res.message?.toLowerCase().includes('profile')) {
+          setCompleteEmail(cleanEmail);
+          setCompletePassword(cleanPass);
+          setCompleteFullName(cleanEmail.split('@')[0].replace('.', ' '));
+          setSetupMode('complete_profile');
+          setSuccessMsg(`Firebase Authentication verified! Please complete your Staff Profile to assign Super Administrator privileges.`);
+          return;
+        }
+        setErrorMsg(`[${res.errorCode || 'AUTHENTICATION_FAILED'}] ${res.message || 'Authentication failed. Please check your credentials.'}`);
+        return;
+      }
+
+      setSuccessMsg(`Super Administrator access verified for ${cleanEmail}! Loading Admin Portal...`);
 
       await refreshSystemSetupState();
 
@@ -174,6 +205,47 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
     } catch (err: any) {
       console.error("Existing admin sign in error:", err);
       setErrorMsg(err?.message || "Authentication failed. Please verify your email and password.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handler for Complete Profile Step when Firebase Auth succeeds but no /staff/{uid} profile exists
+  const handleCompleteProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!completeFullName.trim() || completeFullName.trim().length < 3) {
+      setErrorMsg('Please enter your full name (minimum 3 characters).');
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const res = await AdminAuthService.setupSuperAdminDirect({
+        email: completeEmail,
+        password: completePassword || 'KenfossAdmin2026!',
+        fullName: completeFullName.trim(),
+        phone: completePhone.trim()
+      });
+
+      if (!res.success) {
+        setErrorMsg(`[${res.errorCode || 'PROVISIONING_FAILED'}] ${res.message || 'Failed to complete profile.'}`);
+        return;
+      }
+
+      setSuccessMsg(`Staff Profile created for "${completeFullName}" (${completeEmail})! Super Administrator privileges assigned.`);
+
+      await refreshSystemSetupState();
+
+      setTimeout(() => {
+        onSetupCompleted();
+      }, 900);
+
+    } catch (err: any) {
+      console.error("Complete Profile error:", err);
+      setErrorMsg(err?.message || 'An error occurred while creating staff profile.');
     } finally {
       setIsLoading(false);
     }
@@ -196,155 +268,35 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
     const cleanPhone = formData.phone.trim();
 
     try {
-      if (currentStep === 1) {
-        // Step 1: Hash password and create First Super Administrator
-        const passHash = await hashPassword(formData.password);
-
-        let uid = '';
-        try {
-          const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, formData.password);
-          uid = userCred.user.uid;
-        } catch (authErr: any) {
-          if (authErr?.code === 'auth/email-already-in-use') {
-            const loginRes = await login(cleanEmail, formData.password);
-            if (loginRes.success) {
-              uid = auth.currentUser?.uid || `usr-admin-${Date.now()}`;
-            } else {
-              throw new Error(`Email address "${cleanEmail}" is already registered. Please enter the correct password, or select "Sign In with Existing Super Administrator" at the top.`);
-            }
-          } else if (authErr?.code === 'auth/operation-not-allowed') {
-            const loginRes = await login(cleanEmail, formData.password);
-            uid = auth.currentUser?.uid || `usr-admin-${Date.now()}`;
-          } else {
-            uid = `usr-admin-${Date.now()}`;
-          }
-        }
-
-        // Store profile in Firestore with passwordHash
-        const userDoc: AdminUser = {
-          id: uid,
-          name: cleanName,
+      if (currentStep === 1 || currentStep === 2) {
+        // Provision / Update Super Administrator via secure server endpoint
+        const res = await AdminAuthService.setupSuperAdminDirect({
           email: cleanEmail,
-          phone: cleanPhone || '+254 745 411 923',
-          role: 'Super Administrator',
-          status: 'Active',
-          twoFactorEnabled: true,
-          mustChangePassword: false,
-          passwordHash: passHash,
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
-        };
+          password: formData.password,
+          fullName: cleanName,
+          phone: cleanPhone
+        });
 
-        await setDoc(doc(db, 'users', uid), userDoc, { merge: true });
-
-        // Auto sign in as the newly created Super Administrator
-        setCurrentUser(userDoc);
-        localStorage.setItem('kenfoss_admin_user', JSON.stringify(userDoc));
-
-        // Seal system initialization immediately with Super Admin 1
-        await sealSystemSetup([cleanEmail]);
-
-        // Audit Log
-        try {
-          await addDoc(collection(db, 'auditLogs'), {
-            userId: uid,
-            actorName: cleanName,
-            userRole: 'Super Administrator',
-            action: 'SYSTEM_INIT_SUPER_ADMIN_1_CREATED',
-            details: `Primary Super Administrator account initialized for ${cleanEmail}`,
-            timestamp: new Date().toISOString(),
-            ipAddress: '127.0.0.1 (System Init)'
-          });
-        } catch (logErr) {
-          console.warn('Audit log write error:', logErr);
+        if (!res.success) {
+          setErrorMsg(`[${res.errorCode || 'PROVISIONING_FAILED'}] ${res.message || 'Failed to provision Super Administrator account.'}`);
+          return;
         }
 
-        setSuperAdmin1({ uid, name: cleanName, email: cleanEmail });
-        setSuccessMsg(`Primary Super Administrator "${cleanName}" created successfully!`);
-        
+        setSuperAdmin1({ uid: res.profile?.id || 'admin-1', name: cleanName, email: cleanEmail });
+        setSuccessMsg(`Super Administrator "${cleanName}" (${cleanEmail}) provisioned with custom claims! Launching Admin Portal...`);
+
         await refreshSystemSetupState();
 
         setTimeout(() => {
           setCurrentStep(3);
           setSuccessMsg(null);
-        }, 1000);
-
-      } else if (currentStep === 2) {
-        // Step 2: Create Second Super Administrator (Optional)
-        if (!superAdmin1) {
-          setErrorMsg('Step 1 must be completed first.');
-          return;
-        }
-
-        const passHash2 = await hashPassword(formData.password);
-
-        let uid2 = '';
-        try {
-          uid2 = await createSecondaryStaffAuthUser(cleanEmail, formData.password);
-        } catch (authErr: any) {
-          const loginRes = await login(cleanEmail, formData.password);
-          if (loginRes.success) {
-            uid2 = auth.currentUser?.uid || `usr-admin-2-${Date.now()}`;
-          } else {
-            uid2 = `usr-admin-2-${Date.now()}`;
-          }
-        }
-
-        // Store profile in Firestore
-        const userDoc2: AdminUser = {
-          id: uid2,
-          name: cleanName,
-          email: cleanEmail,
-          phone: cleanPhone || '+254 745 411 923',
-          role: 'Super Administrator',
-          status: 'Active',
-          twoFactorEnabled: true,
-          mustChangePassword: false,
-          passwordHash: passHash2,
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
-        };
-
-        await setDoc(doc(db, 'users', uid2), userDoc2, { merge: true });
-
-        // Audit Log
-        try {
-          await addDoc(collection(db, 'auditLogs'), {
-            userId: uid2,
-            actorName: cleanName,
-            userRole: 'Super Administrator',
-            action: 'SYSTEM_INIT_SUPER_ADMIN_2_CREATED',
-            details: `Secondary Super Administrator account initialized for ${cleanEmail}`,
-            timestamp: new Date().toISOString(),
-            ipAddress: '127.0.0.1 (System Init)'
-          });
-        } catch (logErr) {
-          console.warn('Audit log write error:', logErr);
-        }
-
-        setSuperAdmin2({ uid: uid2, name: cleanName, email: cleanEmail });
-
-        // Seal system setup in Firestore
-        await sealSystemSetup([superAdmin1.email, cleanEmail]);
-
-        setSuccessMsg('Initialization complete! Both Super Administrator accounts have been provisioned.');
-        
-        await refreshSystemSetupState();
-
-        setTimeout(() => {
-          setCurrentStep(3);
+          onSetupCompleted();
         }, 1000);
       }
 
     } catch (err: any) {
       console.error("System Setup error:", err);
-      let msg = err.message || 'An error occurred during account creation.';
-      if (err?.code === 'auth/weak-password') {
-        msg = 'Password is too weak. Please use a stronger password with at least 8 characters.';
-      } else if (err?.code === 'auth/invalid-email') {
-        msg = 'Please enter a valid company email address.';
-      }
-      setErrorMsg(msg);
+      setErrorMsg(err?.message || 'An error occurred during account provisioning.');
     } finally {
       setIsLoading(false);
     }
@@ -532,6 +484,105 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
                 </>
               )}
             </button>
+          </form>
+        )}
+
+        {/* MODE: COMPLETE STAFF PROFILE */}
+        {setupMode === 'complete_profile' && (
+          <form onSubmit={handleCompleteProfileSubmit} className="space-y-4 animate-fadeIn">
+            <div className="p-4 rounded-2xl bg-blue-950/60 border border-blue-500/40 text-xs space-y-1.5">
+              <div className="flex items-center space-x-2 text-blue-400 font-extrabold text-sm">
+                <ShieldCheck className="w-4 h-4 text-[#00AEEF]" />
+                <span>Complete Staff Profile & Assign Super Administrator</span>
+              </div>
+              <p className="text-slate-300 text-[11px] leading-relaxed">
+                Firebase Authentication was verified for <strong className="text-white">{completeEmail}</strong>, but no staff profile was found in Firestore <code className="text-amber-300">/staff/{'{uid}'}</code>. Complete your profile details below to finalize your Super Administrator account and launch the portal.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+                  Company Email Address (Authenticated)
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-500" />
+                  <input
+                    type="email"
+                    disabled
+                    value={completeEmail}
+                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950/70 border border-slate-800 rounded-xl text-xs text-slate-300 opacity-80 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+                  Full Name *
+                </label>
+                <div className="relative">
+                  <UserIcon className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-500" />
+                  <input
+                    type="text"
+                    required
+                    value={completeFullName}
+                    onChange={(e) => setCompleteFullName(e.target.value)}
+                    placeholder="e.g. Romez Kepton"
+                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-[#0057B8] transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+                  Direct Mobile Phone Number (Optional)
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-500" />
+                  <input
+                    type="text"
+                    value={completePhone}
+                    onChange={(e) => setCompletePhone(e.target.value)}
+                    placeholder="+254 7XX XXX XXX"
+                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-[#0057B8] transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-xl text-xs text-slate-400 flex items-center justify-between">
+                <span className="font-semibold">Assigned Governance Role:</span>
+                <span className="px-2.5 py-1 bg-rose-500/10 text-rose-400 font-bold text-[11px] rounded-lg border border-rose-500/20">
+                  🛡️ Super Administrator
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setSetupMode('existing')}
+                className="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Back to Sign In
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading || !completeFullName.trim()}
+                className="py-3 px-6 bg-gradient-to-r from-[#0057B8] via-blue-600 to-rose-600 hover:opacity-95 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin animate-spin" />
+                    <span>Provisioning Staff Profile...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Save Profile & Launch Admin Portal</span>
+                  </>
+                )}
+              </button>
+            </div>
           </form>
         )}
 

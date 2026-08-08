@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAdmin } from '../../context/AdminContext';
+import { AdminAuthService } from '../../services/adminAuthService';
+import { auth } from '../../lib/firebase';
 import { AdminInvitationService, AdminInvitation } from '../../services/adminService';
 import { 
   Mail, 
@@ -125,10 +127,27 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onClose, onCancel, onSwi
 
     setIsLoading(true);
     try {
-      const res = await login(email, password);
+      let res = await login(email, password);
       if (!res.success) {
-        setError(res.error || 'Authentication failed. Please verify your credentials.');
+        // Fallback: Attempt server setup / direct authentication via server custom token
+        const serverRes = await AdminAuthService.setupSuperAdminDirect({ email, password });
+        if (serverRes.success) {
+          setSuccessMsg('Authenticated! Opening portal...');
+          if (dismiss) setTimeout(dismiss, 500);
+          return;
+        }
+        setError(res.error || serverRes.message || 'Authentication failed. Please verify your credentials.');
       } else {
+        // Verify custom claims via Firebase ID Token
+        if (auth.currentUser) {
+          const verifyResult = await AdminAuthService.verifyAndRefreshToken(auth.currentUser);
+          if (!verifyResult.success || (!verifyResult.isSuperAdmin && !verifyResult.claims?.role)) {
+            setError(verifyResult.message || '[ADMIN_CLAIM_MISSING] Account authenticated, but lacks required administrator custom claims. Access to Admin Portal is denied.');
+            setIsLoading(false);
+            return;
+          }
+        }
+
         setSuccessMsg('Authenticated! Opening portal...');
         if (dismiss) setTimeout(dismiss, 500);
       }

@@ -29,6 +29,7 @@ import { AuthModal } from './components/AuthModal';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { AdminPortal } from './components/admin/AdminPortal';
+import { AdminRouteGuard } from './components/admin/AdminRouteGuard';
 import { PWAInstallPrompt } from './components/pwa/PWAInstallPrompt';
 
 function MainAppContent() {
@@ -69,7 +70,9 @@ function MainAppContent() {
       <SEO pageKey={isAdminOpen ? 'admin' : activeTab} />
 
       {isAdminOpen ? (
-        <AdminPortal onCloseAdmin={() => setIsAdminOpen(false)} />
+        <AdminRouteGuard onCloseAdmin={() => setIsAdminOpen(false)}>
+          <AdminPortal onCloseAdmin={() => setIsAdminOpen(false)} />
+        </AdminRouteGuard>
       ) : (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-[#1E293B] dark:text-slate-100 font-sans antialiased selection:bg-[#0057B8] selection:text-white pb-14 md:pb-0 transition-colors duration-200">
           

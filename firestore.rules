@@ -11,35 +11,23 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function userDocExists() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
-    }
-
-    function isSystemInitOpen() {
-      return !exists(/databases/$(database)/documents/settings/system_init) || 
-             get(/databases/$(database)/documents/settings/system_init).data.setupCompleted != true;
-    }
-
+    // Authorization checks based on Firebase Auth Custom Claims (set by trusted Admin SDK server)
     function isSuperAdmin() {
-      return isSystemInitOpen() || (
-        isSignedIn() && userDocExists() && getUserData().role in [
-          'Super Administrator', 'Super Admin', 'super_administrator', 'super_admin', 'superadmin',
-          'Owner', 'owner', 'admin', 'Admin', 'Administrator', 'administrator'
-        ]
+      return isSignedIn() && (
+        request.auth.token.role == 'super_admin' ||
+        request.auth.token.accessLevel == 'super_admin' ||
+        request.auth.token.role == 'Super Administrator'
       );
     }
 
     function isStaffOrAdmin() {
-      return isSystemInitOpen() || (
-        isSignedIn() && userDocExists() && getUserData().role in [
-          'Super Administrator', 'Super Admin', 'super_administrator', 'super_admin', 'superadmin',
-          'Owner', 'owner', 'admin', 'Admin', 'Administrator', 'administrator',
-          'Manager', 'manager', 'Technician', 'technician', 'Staff', 'staff'
-        ]
+      return isSignedIn() && (
+        isSuperAdmin() ||
+        request.auth.token.role in [
+          'super_admin', 'Super Administrator', 'manager', 'Manager',
+          'technician', 'Technician', 'staff', 'Staff', 'admin', 'Admin'
+        ] ||
+        request.auth.token.accessLevel in ['super_admin', 'manager', 'technician', 'staff', 'admin']
       );
     }
 
@@ -48,15 +36,28 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // 1. Users collection
-    match /users/{userId} {
-      allow read: if isSystemInitOpen() || (isSignedIn() && (isOwner(userId) || isStaffOrAdmin()));
-      allow create: if isSystemInitOpen() || (isSignedIn() && (isOwner(userId) || isStaffOrAdmin()));
-      allow update: if isSystemInitOpen() || (isSignedIn() && (isOwner(userId) || isStaffOrAdmin()));
+    // 1. Authoritative System Initialization Record (/system/config)
+    // Public/Client read allowed for setup status check, writes strictly forbidden to clients (handled by Admin SDK)
+    match /system/config {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // 2. Staff Directory collection (/staff/{userId})
+    match /staff/{userId} {
+      allow read: if isSignedIn() && (isOwner(userId) || isStaffOrAdmin());
+      allow create, update: if isSuperAdmin();
       allow delete: if isSuperAdmin();
     }
 
-    // 2. Bookings
+    // 3. User Accounts collection (/users/{userId})
+    match /users/{userId} {
+      allow read: if isSignedIn() && (isOwner(userId) || isStaffOrAdmin());
+      allow create, update: if isSignedIn() && (isOwner(userId) || isSuperAdmin());
+      allow delete: if isSuperAdmin();
+    }
+
+    // 4. Bookings
     match /bookings/{bookingId} {
       allow read: if true;
       allow create: if true;
@@ -64,7 +65,7 @@ service cloud.firestore {
       allow delete: if isStaffOrAdmin();
     }
 
-    // 3. Quotes / RFQs
+    // 5. Quotes / Commercial RFQs
     match /quotes/{quoteId} {
       allow read: if true;
       allow create: if true;
@@ -72,7 +73,7 @@ service cloud.firestore {
       allow delete: if isStaffOrAdmin();
     }
 
-    // 4. Customers
+    // 6. Customers CRM
     match /customers/{customerId} {
       allow read: if isStaffOrAdmin();
       allow create: if true;
@@ -80,27 +81,27 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
-    // 5. Diagnostics
+    // 7. AI Diagnostics
     match /diagnostics/{diagnosticId} {
       allow read: if true;
       allow create: if true;
       allow update, delete: if isStaffOrAdmin();
     }
 
-    // 6. Contact Messages
+    // 8. Contact Messages
     match /contacts/{contactId} {
       allow read: if isStaffOrAdmin();
       allow create: if true;
       allow update, delete: if isStaffOrAdmin();
     }
 
-    // 7. Invitations
+    // 9. Invitations
     match /invitations/{invitationId} {
       allow read: if true;
       allow create, update, delete: if isStaffOrAdmin();
     }
 
-    // 8. Public CMS Collections
+    // 10. Public CMS Collections
     match /services/{serviceId} {
       allow read: if true;
       allow write: if isStaffOrAdmin();
@@ -126,38 +127,36 @@ service cloud.firestore {
       allow write: if isStaffOrAdmin();
     }
 
-    // 9. Website & System Settings
+    // 11. Website & System Settings
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if isSystemInitOpen() || isStaffOrAdmin();
+      allow write: if isSuperAdmin();
     }
 
-    // 10. Notifications
+    // 12. Notifications
     match /notifications/{notificationId} {
       allow read: if true;
       allow create: if true;
       allow update, delete: if isStaffOrAdmin();
     }
 
-    // 11. System Audit Logs
+    // 13. System Audit Logs
     match /auditLogs/{logId} {
       allow read: if isStaffOrAdmin();
       allow create: if true;
       allow update, delete: if isSuperAdmin();
     }
 
-    // 12. Roles (RBAC)
+    // 14. Roles (RBAC)
     match /roles/{roleId} {
       allow read: if true;
-      allow write: if isStaffOrAdmin();
+      allow write: if isSuperAdmin();
     }
 
-    // 13. Technicians & Engineers
+    // 15. Technicians & Engineers
     match /technicians/{techId} {
       allow read: if true;
       allow write: if isStaffOrAdmin();
     }
   }
 }
-
-

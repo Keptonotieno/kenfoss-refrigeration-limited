@@ -173,6 +173,10 @@ export interface BookingRecord {
   fullName: string;
   phone: string;
   email: string;
+  userId?: string;
+  userEmail?: string;
+  customerName?: string;
+  userName?: string;
   location: string;
   county?: string;
   subCounty?: string;
@@ -211,6 +215,10 @@ export interface QuoteRecord {
   contactPerson: string;
   phone: string;
   email: string;
+  userId?: string;
+  userEmail?: string;
+  customerName?: string;
+  fullName?: string;
   projectType: string;
   specs?: string;
   status: QuoteStatus;
@@ -258,6 +266,10 @@ export interface StoredDiagnosticRecord {
   createdAt: string;
   reviewedBy?: string;
   reviewNotes?: string;
+  userId?: string;
+  userEmail?: string;
+  customerEmail?: string;
+  email?: string;
 }
 
 export interface GalleryItem {

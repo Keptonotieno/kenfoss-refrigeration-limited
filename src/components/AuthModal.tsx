@@ -67,18 +67,40 @@ export const AuthModal: React.FC = () => {
   if (!isAuthModalOpen) return null;
 
   // Filter Customer Specific Data
-  const userEmail = user?.email?.toLowerCase() || '';
-  const customerBookings = bookings.filter(b => 
-    (b.email || '').toLowerCase() === userEmail || userEmail.includes('kiprop') || userEmail.includes('freshharvest')
-  );
-  
-  // If no email match, provide sample customer bookings so customer sees live dashboard functionality
-  const displayedBookings = customerBookings.length > 0 ? customerBookings : bookings.slice(0, 3);
+  const userEmail = (user?.email || userProfile?.email || '').toLowerCase();
+  const userUid = user?.uid || userProfile?.uid || '';
+  const userName = (userProfile?.displayName || user?.displayName || '').toLowerCase();
 
-  const customerQuotes = quotes.filter(q => 
-    (q.email || '').toLowerCase() === userEmail || userEmail.includes('schere') || userEmail.includes('nairobigrandhotel')
-  );
-  const displayedQuotes = customerQuotes.length > 0 ? customerQuotes : quotes.slice(0, 2);
+  const customerBookings = bookings.filter(b => {
+    const bEmail = (b.email || b.userEmail || '').toLowerCase();
+    const bUid = b.userId || '';
+    const bName = (b.customerName || b.fullName || b.userName || '').toLowerCase();
+
+    if (userEmail && bEmail === userEmail) return true;
+    if (userUid && bUid === userUid) return true;
+    if (userName && userName.length > 2 && bName && bName.includes(userName)) return true;
+    return false;
+  });
+
+  const customerQuotes = quotes.filter(q => {
+    const qEmail = (q.email || q.userEmail || '').toLowerCase();
+    const qUid = q.userId || '';
+    const qName = (q.customerName || q.fullName || q.companyName || '').toLowerCase();
+
+    if (userEmail && qEmail === userEmail) return true;
+    if (userUid && qUid === userUid) return true;
+    if (userName && userName.length > 2 && qName && qName.includes(userName)) return true;
+    return false;
+  });
+
+  const customerDiagnostics = (diagnostics || []).filter(d => {
+    const dEmail = (d.customerEmail || d.email || '').toLowerCase();
+    const dUid = d.userId || '';
+
+    if (userEmail && dEmail === userEmail) return true;
+    if (userUid && dUid === userUid) return true;
+    return false;
+  });
 
   const handleGoogleAuth = async () => {
     setError(null);
@@ -267,7 +289,7 @@ export const AuthModal: React.FC = () => {
                   }`}
                 >
                   <Calendar className="w-4 h-4" />
-                  <span>My Bookings ({displayedBookings.length})</span>
+                  <span>My Bookings ({customerBookings.length})</span>
                 </button>
 
                 <button
@@ -279,7 +301,7 @@ export const AuthModal: React.FC = () => {
                   }`}
                 >
                   <FileText className="w-4 h-4" />
-                  <span>My Quotations ({displayedQuotes.length})</span>
+                  <span>My Quotations ({customerQuotes.length})</span>
                 </button>
 
                 <button
@@ -325,59 +347,71 @@ export const AuthModal: React.FC = () => {
                   </div>
 
                   <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
-                    {displayedBookings.map((b) => (
-                      <div 
-                        key={b.id} 
-                        className="p-4 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-2xl space-y-2.5"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center space-x-2">
-                            <span className="px-2.5 py-0.5 bg-blue-900/10 dark:bg-blue-950 text-[#0057B8] dark:text-[#00AEEF] font-mono text-xs font-bold rounded border border-blue-200 dark:border-blue-800">
-                              {b.bookingRef}
+                    {customerBookings.length > 0 ? (
+                      customerBookings.map((b) => (
+                        <div 
+                          key={b.id} 
+                          className="p-4 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-2xl space-y-2.5"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="px-2.5 py-0.5 bg-blue-900/10 dark:bg-blue-950 text-[#0057B8] dark:text-[#00AEEF] font-mono text-xs font-bold rounded border border-blue-200 dark:border-blue-800">
+                                {b.bookingRef}
+                              </span>
+                              <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                                {b.serviceType}
+                              </span>
+                            </div>
+
+                            <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full ${
+                              b.status === 'Completed' 
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                : b.status === 'In Progress'
+                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                                : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                            }`}>
+                              ● {b.status}
                             </span>
-                            <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                              {b.serviceType}
-                            </span>
                           </div>
 
-                          <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full ${
-                            b.status === 'Completed' 
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                              : b.status === 'In Progress'
-                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                              : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
-                          }`}>
-                            ● {b.status}
-                          </span>
+                          <p className="text-xs text-slate-600 dark:text-slate-300">
+                            {b.notes || 'Refrigeration diagnostic & scheduled maintenance service.'}
+                          </p>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] pt-1 text-slate-500 dark:text-slate-400 border-t border-slate-200/80 dark:border-slate-700/60">
+                            <div>
+                              <span className="block font-semibold text-slate-400">Date & Slot:</span>
+                              <span className="font-bold text-slate-800 dark:text-slate-200">{b.date} ({b.timeSlot ? b.timeSlot.split(' ')[0] : 'Morning'})</span>
+                            </div>
+                            <div>
+                              <span className="block font-semibold text-slate-400">Location:</span>
+                              <span className="font-bold text-slate-800 dark:text-slate-200">{b.location}</span>
+                            </div>
+                            <div>
+                              <span className="block font-semibold text-slate-400">Assigned Tech:</span>
+                              <span className="font-bold text-emerald-600 dark:text-emerald-400">{b.assignedTechnicianName || 'Pending Dispatch'}</span>
+                            </div>
+                          </div>
+
+                          {b.technicianNotes && (
+                            <div className="p-2.5 bg-blue-50 dark:bg-blue-950/60 rounded-xl text-[11px] text-blue-950 dark:text-blue-200 border border-blue-200 dark:border-blue-800/60">
+                              <strong className="font-bold text-[#0057B8] dark:text-blue-300 block mb-0.5">Technician Field Note:</strong>
+                              {b.technicianNotes}
+                            </div>
+                          )}
                         </div>
-
-                        <p className="text-xs text-slate-600 dark:text-slate-300">
-                          {b.notes || 'Refrigeration diagnostic & scheduled maintenance service.'}
-                        </p>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] pt-1 text-slate-500 dark:text-slate-400 border-t border-slate-200/80 dark:border-slate-700/60">
-                          <div>
-                            <span className="block font-semibold text-slate-400">Date & Slot:</span>
-                            <span className="font-bold text-slate-800 dark:text-slate-200">{b.date} ({b.timeSlot.split(' ')[0]})</span>
-                          </div>
-                          <div>
-                            <span className="block font-semibold text-slate-400">Location:</span>
-                            <span className="font-bold text-slate-800 dark:text-slate-200">{b.location}</span>
-                          </div>
-                          <div>
-                            <span className="block font-semibold text-slate-400">Assigned Tech:</span>
-                            <span className="font-bold text-emerald-600 dark:text-emerald-400">{b.assignedTechnicianName || 'Pending Dispatch'}</span>
-                          </div>
+                      ))
+                    ) : (
+                      <div className="p-6 text-center bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-3">
+                        <Calendar className="w-10 h-10 text-[#0057B8] mx-auto opacity-70" />
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">No Service Bookings Yet</p>
+                          <p className="text-[11px] text-slate-500 max-w-sm mx-auto mt-1">
+                            You have no active bookings under <strong className="text-slate-700 dark:text-slate-300">{userEmail}</strong>. Book a service visit now for refrigeration, cold room, or HVAC maintenance.
+                          </p>
                         </div>
-
-                        {b.technicianNotes && (
-                          <div className="p-2.5 bg-blue-50 dark:bg-blue-950/60 rounded-xl text-[11px] text-blue-950 dark:text-blue-200 border border-blue-200 dark:border-blue-800/60">
-                            <strong className="font-bold text-[#0057B8] dark:text-blue-300 block mb-0.5">Technician Field Note:</strong>
-                            {b.technicianNotes}
-                          </div>
-                        )}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               )}
@@ -393,58 +427,70 @@ export const AuthModal: React.FC = () => {
                   </div>
 
                   <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
-                    {displayedQuotes.map((q) => (
-                      <div 
-                        key={q.id} 
-                        className="p-4 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-2xl space-y-2.5"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center space-x-2">
-                            <span className="px-2.5 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-mono text-xs font-bold rounded border border-amber-500/20">
-                              {q.rfqRef}
-                            </span>
-                            <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                              {q.projectType}
+                    {customerQuotes.length > 0 ? (
+                      customerQuotes.map((q) => (
+                        <div 
+                          key={q.id} 
+                          className="p-4 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-2xl space-y-2.5"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="px-2.5 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-mono text-xs font-bold rounded border border-amber-500/20">
+                                {q.rfqRef}
+                              </span>
+                              <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                                {q.projectType}
+                              </span>
+                            </div>
+
+                            <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full ${
+                              q.status === 'Approved' 
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                : q.status === 'Quote Issued'
+                                ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                            }`}>
+                              {q.status}
                             </span>
                           </div>
 
-                          <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full ${
-                            q.status === 'Approved' 
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                              : q.status === 'Quote Issued'
-                              ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
-                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                          }`}>
-                            {q.status}
-                          </span>
+                          <p className="text-xs text-slate-600 dark:text-slate-300">
+                            <strong>Specs:</strong> {q.specs}
+                          </p>
+
+                          <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                            <div>
+                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Estimated Investment:</span>
+                              <span className="text-base font-black text-[#0057B8] dark:text-[#00AEEF]">
+                                {q.quoteAmount ? `KES ${q.quoteAmount.toLocaleString()}` : 'Under Engineering Calculation'}
+                              </span>
+                            </div>
+
+                            {q.status !== 'Approved' && (
+                              <button
+                                onClick={() => {
+                                  updateQuoteStatus(q.id, 'Approved');
+                                  setSuccessMsg(`Quote ${q.rfqRef} accepted successfully! Our project team will reach out immediately.`);
+                                }}
+                                className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                              >
+                                Accept Quote
+                              </button>
+                            )}
+                          </div>
                         </div>
-
-                        <p className="text-xs text-slate-600 dark:text-slate-300">
-                          <strong>Specs:</strong> {q.specs}
-                        </p>
-
-                        <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-                          <div>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Estimated Investment:</span>
-                            <span className="text-base font-black text-[#0057B8] dark:text-[#00AEEF]">
-                              {q.quoteAmount ? `KES ${q.quoteAmount.toLocaleString()}` : 'Under Engineering Calculation'}
-                            </span>
-                          </div>
-
-                          {q.status !== 'Approved' && (
-                            <button
-                              onClick={() => {
-                                updateQuoteStatus(q.id, 'Approved');
-                                setSuccessMsg(`Quote ${q.rfqRef} accepted successfully! Our project team will reach out immediately.`);
-                              }}
-                              className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                            >
-                              Accept Quote
-                            </button>
-                          )}
+                      ))
+                    ) : (
+                      <div className="p-6 text-center bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-3">
+                        <FileText className="w-10 h-10 text-amber-500 mx-auto opacity-70" />
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">No Quotation Requests</p>
+                          <p className="text-[11px] text-slate-500 max-w-sm mx-auto mt-1">
+                            No RFQs or turnkey estimates found under <strong className="text-slate-700 dark:text-slate-300">{userEmail}</strong>. Request a project proposal via our Cold Storage Calculator.
+                          </p>
                         </div>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               )}
