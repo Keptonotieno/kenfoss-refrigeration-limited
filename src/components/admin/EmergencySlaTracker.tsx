@@ -34,7 +34,7 @@ export const EmergencySlaTracker: React.FC = () => {
   // Form for custom test handoff trigger
   const [testCounty, setTestCounty] = useState<string>('Nairobi');
   const [testReason, setTestReason] = useState<string>('Emergency Cold Room Temperature Spike (> 12°C)');
-  const [testPhone, setTestPhone] = useState<string>('+254 798 123 456');
+  const [testPhone, setTestPhone] = useState<string>('+254 745 411 923');
   const [testEmail, setTestEmail] = useState<string>('manager@coldchain.co.ke');
   const [testNotes, setTestNotes] = useState<string>('Main meat freezer compressor tripped during peak hours. Urgent technician required.');
 
@@ -116,7 +116,7 @@ export const EmergencySlaTracker: React.FC = () => {
       reason: testReason,
       callbackTime: 'Immediately (15-min SLA)',
       assignedTechnician: 'Eng. David Ochieng',
-      assignedTechnicianPhone: '+254 722 000 111',
+      assignedTechnicianPhone: '+254 745 411 923',
       notes: testNotes,
       isRead: false,
       createdAt: new Date().toISOString(),

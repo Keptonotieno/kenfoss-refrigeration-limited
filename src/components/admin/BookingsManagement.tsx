@@ -501,7 +501,7 @@ export const BookingsManagement: React.FC = () => {
                     required
                     value={createForm.phone}
                     onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                    placeholder="+254 700 000 000"
+                    placeholder="+254 745 411 923"
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-[#0057B8]"
                   />
                 </div>
@@ -1047,7 +1047,7 @@ export const BookingsManagement: React.FC = () => {
               <div>
                 <h2 className="text-2xl font-black text-[#002B5B]">KENFOSS REFRIGERATION</h2>
                 <p className="text-xs text-slate-500 font-semibold">Industrial Area, Off Enterprise Road, Nairobi</p>
-                <p className="text-xs text-slate-500">Tel: +254 720 000 000 | EPRA License: EPRA/REF/2026</p>
+                <p className="text-xs text-slate-500">Tel: +254 745 411 923 | EPRA License: EPRA/REF/2026</p>
               </div>
               <div className="text-right">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">INVOICE</span>

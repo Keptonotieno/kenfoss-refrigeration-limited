@@ -1098,7 +1098,7 @@ export const CustomerManagement: React.FC = () => {
                     required
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="e.g. +254 722 000 000"
+                    placeholder="e.g. +254 745 411 923"
                     className={`w-full px-3.5 py-2.5 bg-slate-950 border rounded-xl text-xs text-white focus:outline-none focus:border-blue-500 ${
                       formErrors.phone ? 'border-rose-500' : 'border-slate-800'
                     }`}

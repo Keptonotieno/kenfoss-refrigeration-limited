@@ -482,9 +482,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <ChevronRight className="w-4 h-4 text-amber-500" />
               </button>
             )}
-            <a href={`tel:${contactInfo.mainPhone?.replace(/\s+/g, '') || '0745411923'}`} className="flex items-center space-x-2 text-slate-800 dark:text-slate-200 font-bold p-2 bg-slate-50 dark:bg-slate-800/80 rounded-lg">
+            <a href={`tel:${contactInfo.mainPhone?.replace(/\s+/g, '') || '+254745411923'}`} className="flex items-center space-x-2 text-slate-800 dark:text-slate-200 font-bold p-2 bg-slate-50 dark:bg-slate-800/80 rounded-lg">
               <Phone className="w-4 h-4 text-[#FF7A00]" />
-              <span>Direct Phone: {contactInfo.mainPhone || '0745 411 923'}</span>
+              <span>Direct Phone: {contactInfo.mainPhone || '+254 745 411 923'}</span>
             </a>
             <div className="flex items-center justify-between text-slate-600 dark:text-slate-400 px-2 pt-1">
               <span>{contactInfo.address || 'Ruiru, Kiambu County'}</span>

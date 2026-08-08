@@ -58,7 +58,7 @@ export const DEFAULT_KENYA_TECHNICIANS: Record<string, Technician> = {
     name: 'Eng. David Mwangi',
     role: 'Senior Cold Storage & VRF Lead',
     specialty: 'Bitzer Compressors & Chiller Racks',
-    phone: '+254 722 000 111',
+    phone: '+254 745 411 923',
     baseLocation: 'Ruiru Bypass Central HQ',
     rating: 4.9,
     experienceYears: 12,
@@ -70,7 +70,7 @@ export const DEFAULT_KENYA_TECHNICIANS: Record<string, Technician> = {
     name: 'Eng. Hassan Said',
     role: 'Marine Cold Storage & Ammonia Lead',
     specialty: 'Port Chillers & Marine Refrigeration',
-    phone: '+254 733 222 333',
+    phone: '+254 745 411 923',
     baseLocation: 'Mombasa Port Regional Hub',
     rating: 4.9,
     experienceYears: 10,
@@ -82,7 +82,7 @@ export const DEFAULT_KENYA_TECHNICIANS: Record<string, Technician> = {
     name: 'Eng. Kipchumba Bett',
     role: 'Horticultural & Packhouse Specialist',
     specialty: 'Flower Farm Cold Rooms & Pre-Cooling',
-    phone: '+254 711 444 555',
+    phone: '+254 745 411 923',
     baseLocation: 'Nakuru Industrial Depot',
     rating: 4.8,
     experienceYears: 11,
@@ -94,7 +94,7 @@ export const DEFAULT_KENYA_TECHNICIANS: Record<string, Technician> = {
     name: 'Eng. Otieno Ochieng',
     role: 'Post-Harvest Cold Chain Lead',
     specialty: 'Fish Freezing & Fresh Agriculture Rooms',
-    phone: '+254 720 666 777',
+    phone: '+254 745 411 923',
     baseLocation: 'Kisumu Lake Basin Depot',
     rating: 4.9,
     experienceYears: 9,
@@ -106,7 +106,7 @@ export const DEFAULT_KENYA_TECHNICIANS: Record<string, Technician> = {
     name: 'Eng. Peter Karanja',
     role: 'Supermarket & Industrial Chiller Lead',
     specialty: 'Blast Freezers & Commercial HVAC',
-    phone: '+254 725 888 999',
+    phone: '+254 745 411 923',
     baseLocation: 'Nyeri Regional Hub',
     rating: 4.8,
     experienceYears: 10,
@@ -118,7 +118,7 @@ export const DEFAULT_KENYA_TECHNICIANS: Record<string, Technician> = {
     name: 'Eng. Wycliffe Barasa',
     role: 'Commercial HVAC & Mobile SLA Lead',
     specialty: 'VRF Systems & Emergency Gas Charging',
-    phone: '+254 701 112 233',
+    phone: '+254 745 411 923',
     baseLocation: 'Kakamega Response Unit',
     rating: 4.7,
     experienceYears: 8,
@@ -130,7 +130,7 @@ export const DEFAULT_KENYA_TECHNICIANS: Record<string, Technician> = {
     name: 'Eng. Abdi Mohamed',
     role: 'Solar Off-Grid Cold Storage Lead',
     specialty: 'Solar PV Cold Rooms & Vaccine Coolers',
-    phone: '+254 715 334 455',
+    phone: '+254 745 411 923',
     baseLocation: 'Garissa North-Eastern Station',
     rating: 4.9,
     experienceYears: 9,
@@ -2746,7 +2746,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                   type="tel"
                   value={handoffPhone}
                   onChange={(e) => setHandoffPhone(e.target.value)}
-                  placeholder="e.g. +254 712 345 678"
+                  placeholder="e.g. +254 745 411 923"
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono font-semibold"
                 />
               </div>
