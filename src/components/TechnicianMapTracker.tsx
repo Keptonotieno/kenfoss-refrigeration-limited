@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow, useMap } from '@vis.gl/react-google-maps';
-import { MapPin, Phone, UserCheck, Users, Sparkles, Navigation, Signal, ShieldCheck, RefreshCw, Key, ExternalLink, Zap, Maximize2, Minimize2, X, Award, CheckCircle2, Clock, Star, Wrench, FileText, Calendar, Building2, BadgeCheck, Briefcase } from 'lucide-react';
+import { MapPin, Phone, UserCheck, Users, Sparkles, Navigation, Signal, ShieldCheck, RefreshCw, Key, ExternalLink, Zap, Maximize2, Minimize2, X, Award, CheckCircle2, Clock, Star, Wrench, FileText, Calendar, Building2, BadgeCheck, Briefcase, BellRing, Truck, Radio } from 'lucide-react';
+import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Technician } from './FloatingWhatsApp';
 import { getCountyCoords } from '../data/countyCoordinates';
 
@@ -550,9 +552,138 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
   const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY';
 
   // List of all technicians available/assigned to this county
-  const countyTechs = React.useMemo(() => {
+  const baseCountyTechs = React.useMemo(() => {
     return getTechniciansForCounty(county, technician);
   }, [county, technician]);
+
+  // Realtime Firestore Technician Statuses map
+  const [realtimeTechStatuses, setRealtimeTechStatuses] = useState<Record<string, string>>({});
+  const prevStatusesRef = useRef<Record<string, string>>({});
+
+  // Dispatch Notification Toast state
+  const [dispatchToast, setDispatchToast] = useState<{
+    isOpen: boolean;
+    techId: string;
+    techName: string;
+    techRole: string;
+    phone: string;
+    county: string;
+    previousStatus: string;
+    newStatus: string;
+    timestamp: string;
+    etaMinutes: number;
+  } | null>(null);
+
+  // Firestore Realtime listener for technician status transitions ('Available' -> 'In-Field')
+  useEffect(() => {
+    let unsubscribe: (() => void) | null = null;
+    try {
+      const techCol = collection(db, 'technicians');
+      unsubscribe = onSnapshot(
+        techCol,
+        (snapshot) => {
+          const statuses: Record<string, string> = {};
+          snapshot.docs.forEach((docSnap) => {
+            const data = docSnap.data();
+            const techId = docSnap.id || data.id;
+            if (techId && data.status) {
+              const newStatus = data.status;
+              statuses[techId] = newStatus;
+
+              const prev = prevStatusesRef.current[techId];
+              // Trigger visual alert toast when status changes from 'Available' to 'In-Field'
+              if (prev && prev === 'Available' && newStatus === 'In-Field') {
+                setDispatchToast({
+                  isOpen: true,
+                  techId: techId,
+                  techName: data.name || 'Technician',
+                  techRole: data.role || 'Field Engineer',
+                  phone: data.phone || '+254 700 000 000',
+                  county: county,
+                  previousStatus: prev,
+                  newStatus: newStatus,
+                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                  etaMinutes: Math.floor(10 + Math.random() * 12),
+                });
+              }
+              prevStatusesRef.current[techId] = newStatus;
+            }
+          });
+
+          setRealtimeTechStatuses((prev) => ({ ...prev, ...statuses }));
+        },
+        (error) => {
+          handleFirestoreError(error, OperationType.LIST, 'technicians');
+        }
+      );
+    } catch (err) {
+      console.warn('Firestore realtime subscription notice in TechnicianMapTracker:', err);
+    }
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [county]);
+
+  // List of all technicians for county with live status overrides from Firestore
+  const countyTechs = React.useMemo(() => {
+    return baseCountyTechs.map((tech) => {
+      const liveStatus = realtimeTechStatuses[tech.id];
+      if (liveStatus) {
+        return { ...tech, status: liveStatus as any };
+      }
+      return tech;
+    });
+  }, [baseCountyTechs, realtimeTechStatuses]);
+
+  // Helper function to simulate/push a status update to Firestore to test real-time alerts
+  const toggleTechnicianStatusInFirestore = async (techToToggle: Technician) => {
+    const currentStatus = realtimeTechStatuses[techToToggle.id] || techToToggle.status || 'Available';
+    const newStatus = currentStatus === 'Available' ? 'In-Field' : 'Available';
+
+    // Set prev status in ref before write so listener registers transition
+    prevStatusesRef.current[techToToggle.id] = currentStatus;
+
+    try {
+      const docRef = doc(db, 'technicians', techToToggle.id);
+      await setDoc(
+        docRef,
+        {
+          id: techToToggle.id,
+          name: techToToggle.name,
+          role: techToToggle.role,
+          specialty: techToToggle.specialty,
+          phone: techToToggle.phone,
+          baseLocation: techToToggle.baseLocation,
+          rating: techToToggle.rating,
+          experienceYears: techToToggle.experienceYears,
+          status: newStatus,
+          counties: techToToggle.counties || [county],
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+
+      // Instant local feedback toast if status changed to 'In-Field'
+      if (currentStatus === 'Available' && newStatus === 'In-Field') {
+        setDispatchToast({
+          isOpen: true,
+          techId: techToToggle.id,
+          techName: techToToggle.name,
+          techRole: techToToggle.role,
+          phone: techToToggle.phone,
+          county: county,
+          previousStatus: 'Available',
+          newStatus: 'In-Field',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          etaMinutes: Math.floor(10 + Math.random() * 12),
+        });
+      }
+    } catch (err) {
+      console.error('Error writing technician status to Firestore:', err);
+      handleFirestoreError(err, OperationType.WRITE, `technicians/${techToToggle.id}`);
+    }
+  };
 
   const [selectedTechId, setSelectedTechId] = useState<string>(technician.id);
 
@@ -928,6 +1059,79 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
 
   return (
     <>
+      {/* Real-time Firestore Status Change Toast Notification Banner */}
+      {dispatchToast && dispatchToast.isOpen && (
+        <div className="w-full mb-3 bg-gradient-to-r from-amber-950/95 via-slate-900/98 to-emerald-950/95 border-2 border-amber-400 rounded-2xl p-3.5 sm:p-4 text-white shadow-2xl relative overflow-hidden animate-in slide-in-from-top-4 duration-300 ring-2 ring-amber-400/40 z-30">
+          <div className="absolute top-0 left-0 bottom-0 w-2.5 bg-gradient-to-b from-amber-400 via-amber-500 to-emerald-400 animate-pulse" />
+          
+          <div className="flex items-start justify-between gap-3 pl-2">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-300 text-slate-950 font-black flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/30 animate-bounce">
+                <BellRing className="w-5 h-5 text-slate-950" />
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="bg-amber-400 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs">
+                    <Radio className="w-3 h-3 text-slate-950 animate-ping" />
+                    Firestore Realtime Dispatch Alert
+                  </span>
+                  <span className="text-[10px] text-amber-300 font-mono font-bold">
+                    {dispatchToast.timestamp}
+                  </span>
+                </div>
+
+                <h4 className="text-xs sm:text-sm font-black text-white mt-1 flex items-center gap-1.5 truncate">
+                  <span>🚨 {dispatchToast.techName} Status Changed to IN-FIELD!</span>
+                </h4>
+
+                <p className="text-[11px] text-slate-200 mt-0.5 leading-snug">
+                  Technician status updated from <strong className="text-emerald-400 font-bold uppercase">{dispatchToast.previousStatus}</strong> ➔ <strong className="text-amber-300 font-black uppercase bg-amber-500/20 px-1.5 py-0.2 rounded border border-amber-400/40">{dispatchToast.newStatus}</strong> in <strong className="text-amber-300">{dispatchToast.county} County</strong>. High-priority dispatch active!
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                    <Truck className="w-3 h-3 text-emerald-400 animate-pulse" />
+                    En Route • Est. Arrival ~{dispatchToast.etaMinutes} Mins
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTechId(dispatchToast.techId);
+                      setIsInfoWindowOpen(true);
+                      setIsProfileModalOpen(true);
+                    }}
+                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-extrabold px-2.5 py-0.5 rounded-lg transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95"
+                  >
+                    View Telemetry & Dossier
+                  </button>
+
+                  {onCallTechnician && (
+                    <button
+                      type="button"
+                      onClick={() => onCallTechnician(dispatchToast.phone)}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <Phone className="w-2.5 h-2.5" /> Call En-Route Tech
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setDispatchToast(null)}
+              className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer shrink-0"
+              title="Dismiss Alert"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Normal Compact / Embedded Card View */}
       <div className="w-full bg-slate-900 rounded-2xl border border-emerald-500/30 overflow-hidden shadow-xl text-white relative">
         {/* Top Telemetry Header Bar */}
@@ -1037,6 +1241,20 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => toggleTechnicianStatusInFirestore(activeTechnician)}
+              className={`px-2.5 py-1.5 font-extrabold text-[10px] rounded-xl flex items-center gap-1 transition-all cursor-pointer shadow-md border ${
+                activeTechnician.status === 'In-Field'
+                  ? 'bg-amber-500 text-slate-950 border-amber-300 ring-2 ring-amber-400/40'
+                  : 'bg-slate-900 text-amber-300 hover:bg-amber-500 hover:text-slate-950 border-amber-500/40'
+              }`}
+              title="Toggle status in Firestore ('Available' ➔ 'In-Field') to trigger real-time alert toast"
+            >
+              <Radio className="w-3 h-3 text-amber-400 animate-pulse" />
+              <span>{activeTechnician.status === 'In-Field' ? 'In-Field Active 🚨' : 'Set In-Field (Firestore)'}</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setIsProfileModalOpen(true)}
@@ -1508,21 +1726,35 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
                             </div>
                           </div>
 
-                          <div className="shrink-0 flex items-center gap-2 self-end sm:self-center">
+                          <div className="shrink-0 flex items-center gap-1.5 self-end sm:self-center">
+                            <button
+                              type="button"
+                              onClick={() => toggleTechnicianStatusInFirestore(tech)}
+                              className={`px-2.5 py-1.5 text-[10px] font-extrabold rounded-lg transition-all flex items-center gap-1 cursor-pointer border ${
+                                tech.status === 'In-Field'
+                                  ? 'bg-amber-500 text-slate-950 border-amber-300 ring-1 ring-amber-400'
+                                  : 'bg-slate-900 text-amber-300 hover:bg-amber-500 hover:text-slate-950 border-amber-500/30'
+                              }`}
+                              title="Update status in Firestore ('Available' ➔ 'In-Field') to trigger real-time alert"
+                            >
+                              <Radio className="w-3 h-3 animate-pulse" />
+                              <span>{tech.status === 'In-Field' ? 'In-Field 🚨' : 'Set In-Field'}</span>
+                            </button>
+
                             {!isSelected && (
                               <button
                                 type="button"
                                 onClick={() => handleSelectTechnician(tech)}
-                                className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 text-[10px] font-extrabold rounded-lg transition-all cursor-pointer"
+                                className="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 text-[10px] font-extrabold rounded-lg transition-all cursor-pointer"
                               >
-                                Select View
+                                View Map
                               </button>
                             )}
                             <a
                               href={`tel:${tech.phone.replace(/\s+/g, '')}`}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-extrabold rounded-lg transition-all flex items-center gap-1"
+                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-extrabold rounded-lg transition-all flex items-center gap-1"
                             >
-                              <Phone className="w-3 h-3" /> Call Tech
+                              <Phone className="w-3 h-3" /> Call
                             </a>
                           </div>
                         </div>
