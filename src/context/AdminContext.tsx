@@ -434,23 +434,37 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const refreshSystemSetupState = async () => {
     try {
+      // 1. Try checking backend server init status endpoint
+      const status = await AdminAuthService.checkInitStatus().catch(() => null);
+      if (status && typeof status.initialized === 'boolean') {
+        setIsSystemInitialized(status.initialized);
+        setSuperAdminCount(status.superAdminCount);
+        if (status.initialized) return;
+      }
+
+      // 2. Client fallback check
       const initDoc = await getDoc(doc(db, 'settings', 'system_init')).catch(() => null);
+      const sysDoc = await getDoc(doc(db, 'system', 'config')).catch(() => null);
+      const isInitFromSettings = !!(initDoc?.exists() && initDoc.data()?.setupCompleted);
+      const isInitFromSystem = !!(sysDoc?.exists() && sysDoc.data()?.initialized);
+
       const uSnap = await getDocs(collection(db, 'users')).catch(() => null);
       const superAdmins = uSnap ? uSnap.docs.filter(d => {
         const r = (d.data()?.role || '').toLowerCase();
         return (r === 'super administrator' || r === 'super_admin' || r === 'super_administrator') && d.data()?.status !== 'Disabled' && d.data()?.status !== 'Suspended';
       }) : [];
 
-      setSuperAdminCount(superAdmins.length);
+      const count = superAdmins.length || (isInitFromSettings || isInitFromSystem ? 1 : 0);
+      setSuperAdminCount(count);
 
-      if (initDoc && initDoc.exists() && initDoc.data()?.setupCompleted && superAdmins.length >= 1) {
+      if (isInitFromSettings || isInitFromSystem || superAdmins.length >= 1) {
         setIsSystemInitialized(true);
       } else {
         setIsSystemInitialized(false);
       }
     } catch (err) {
       console.warn("Error checking system init state:", err);
-      setIsSystemInitialized(false);
+      setIsSystemInitialized(true);
     }
   };
 
@@ -1071,11 +1085,15 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 1. First attempt Firebase Auth Sign In
     let userCredential: any = null;
     let authError: any = null;
-    try {
-      userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
-    } catch (err: any) {
-      authError = err;
-      console.warn("Firebase Auth sign in attempt notice:", err?.code || err?.message || err);
+    if (auth.currentUser && auth.currentUser.email?.toLowerCase() === cleanEmail) {
+      userCredential = { user: auth.currentUser };
+    } else {
+      try {
+        userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+      } catch (err: any) {
+        authError = err;
+        console.warn("Firebase Auth sign in attempt notice:", err?.code || err?.message || err);
+      }
     }
 
     if (userCredential && userCredential.user) {

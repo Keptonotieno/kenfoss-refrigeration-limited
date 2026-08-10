@@ -439,10 +439,12 @@ export class AdminAuthService {
         });
 
         if (srv.ok && srv.data && srv.data.success) {
+          await getIdToken(user, true);
+          const refreshedTokenResult = await getIdTokenResult(user, true);
           return {
             success: true,
-            isSuperAdmin: isSuper || srv.data.isSuperAdmin,
-            claims: tokenResult.claims
+            isSuperAdmin: srv.data.isSuperAdmin || refreshedTokenResult.claims.role === 'super_admin' || refreshedTokenResult.claims.role === 'Super Administrator',
+            claims: refreshedTokenResult.claims
           };
         }
       }

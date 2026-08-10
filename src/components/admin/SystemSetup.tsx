@@ -162,10 +162,22 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
     setSuccessMsg(null);
 
     try {
+      // First attempt direct login via AdminContext
+      const loginRes = await login(cleanEmail, cleanPass);
+      
+      if (loginRes.success) {
+        setSuccessMsg(`Super Administrator access verified for ${cleanEmail}! Loading Admin Portal...`);
+        await sealSystemSetup([cleanEmail]);
+        await refreshSystemSetupState();
+        setTimeout(() => {
+          onSetupCompleted();
+        }, 800);
+        return;
+      }
+
       // Check if user exists in Firebase Auth but missing Firestore staff profile
       const emailStatus = await AdminAuthService.checkEmailExists(cleanEmail);
       if (emailStatus.existsInAuth && !emailStatus.existsInStaff) {
-        // Firebase Auth succeeds/exists but no /staff/{uid} profile exists -> Prompt Complete Profile Step
         setCompleteEmail(cleanEmail);
         setCompletePassword(cleanPass);
         setCompleteFullName(cleanEmail.split('@')[0].replace('.', ' '));
@@ -190,13 +202,13 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
           setSuccessMsg(`Firebase Authentication verified! Please complete your Staff Profile to assign Super Administrator privileges.`);
           return;
         }
-        setErrorMsg(`[${res.errorCode || 'AUTHENTICATION_FAILED'}] ${res.message || 'Authentication failed. Please check your credentials.'}`);
+        setErrorMsg(loginRes.error || `[${res.errorCode || 'AUTHENTICATION_FAILED'}] ${res.message || 'Authentication failed. Please check your credentials.'}`);
         return;
       }
 
       setSuccessMsg(`Super Administrator access verified for ${cleanEmail}! Loading Admin Portal...`);
 
-      // Ensure AdminContext user state is set
+      await sealSystemSetup([cleanEmail]);
       await login(cleanEmail, cleanPass).catch(() => {});
       await refreshSystemSetupState();
 

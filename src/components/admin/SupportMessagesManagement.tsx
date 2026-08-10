@@ -16,7 +16,9 @@ import {
   ExternalLink,
   Clock,
   Send,
-  MessageCircle
+  MessageCircle,
+  Calendar,
+  RotateCcw
 } from 'lucide-react';
 
 export const SupportMessagesManagement: React.FC = () => {
@@ -27,6 +29,53 @@ export const SupportMessagesManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeMessage, setActiveMessage] = useState<ContactMessageRecord | null>(null);
 
+  // Date Range Filter States
+  const [datePreset, setDatePreset] = useState<'all' | 'today' | '7days' | '30days' | 'thisMonth' | 'custom'>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+
+  // Calculate Date Bounds
+  const getDateRangeBounds = () => {
+    const now = new Date();
+    if (datePreset === 'all') return { start: null, end: null };
+
+    if (datePreset === 'today') {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      return { start, end };
+    }
+
+    if (datePreset === '7days') {
+      const start = new Date();
+      start.setDate(now.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      return { start, end };
+    }
+
+    if (datePreset === '30days') {
+      const start = new Date();
+      start.setDate(now.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      return { start, end };
+    }
+
+    if (datePreset === 'thisMonth') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      return { start, end };
+    }
+
+    if (datePreset === 'custom') {
+      const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
+      const end = endDate ? new Date(`${endDate}T23:59:59.999`) : null;
+      return { start, end };
+    }
+
+    return { start: null, end: null };
+  };
+
   // Sentiment Counts
   const totalCount = contactMessages.length;
   const urgentCount = contactMessages.filter(m => m.sentiment === 'urgent').length;
@@ -35,9 +84,21 @@ export const SupportMessagesManagement: React.FC = () => {
   const unreadCount = contactMessages.filter(m => m.status === 'Unread').length;
 
   // Filtered Messages
+  const { start: dateStart, end: dateEnd } = getDateRangeBounds();
+
   const filteredMessages = contactMessages.filter(m => {
     const matchesSentiment = selectedSentiment === 'all' || (m.sentiment || 'general') === selectedSentiment;
     const matchesStatus = selectedStatus === 'all' || m.status === selectedStatus;
+
+    const matchesDateRange = (() => {
+      if (!dateStart && !dateEnd) return true;
+      const msgDate = new Date(m.createdAt);
+      if (isNaN(msgDate.getTime())) return true;
+      if (dateStart && msgDate < dateStart) return false;
+      if (dateEnd && msgDate > dateEnd) return false;
+      return true;
+    })();
+
     const q = searchQuery.toLowerCase();
     const matchesSearch = !q || 
       m.name.toLowerCase().includes(q) || 
@@ -46,7 +107,7 @@ export const SupportMessagesManagement: React.FC = () => {
       m.subject.toLowerCase().includes(q) || 
       m.message.toLowerCase().includes(q);
 
-    return matchesSentiment && matchesStatus && matchesSearch;
+    return matchesSentiment && matchesStatus && matchesDateRange && matchesSearch;
   });
 
   const getSentimentBadge = (sentiment?: MessageSentiment) => {
@@ -200,13 +261,106 @@ export const SupportMessagesManagement: React.FC = () => {
 
       </div>
 
+      {/* Date Range Filter Bar */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        
+        {/* Preset Selector */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center space-x-2 text-xs font-bold text-slate-300 mr-2">
+            <Calendar className="w-4 h-4 text-blue-400" />
+            <span>Date History:</span>
+          </div>
+
+          {[
+            { id: 'all', label: 'All Time' },
+            { id: 'today', label: 'Today' },
+            { id: '7days', label: 'Last 7 Days' },
+            { id: '30days', label: 'Last 30 Days' },
+            { id: 'thisMonth', label: 'This Month' },
+            { id: 'custom', label: 'Custom Range' },
+          ].map((preset) => (
+            <button
+              key={preset.id}
+              onClick={() => {
+                setDatePreset(preset.id as any);
+                if (preset.id !== 'custom') {
+                  setStartDate('');
+                  setEndDate('');
+                }
+              }}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                datePreset === preset.id
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+              }`}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Date Input Controls */}
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
+          <div className="flex items-center space-x-2 text-xs text-slate-400">
+            <span>From:</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setDatePreset('custom');
+              }}
+              className="px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div className="flex items-center space-x-2 text-xs text-slate-400">
+            <span>To:</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setDatePreset('custom');
+              }}
+              className="px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          {datePreset !== 'all' && (
+            <button
+              onClick={() => {
+                setDatePreset('all');
+                setStartDate('');
+                setEndDate('');
+              }}
+              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs flex items-center space-x-1 cursor-pointer transition-colors"
+              title="Reset Date Range"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
+        </div>
+
+      </div>
+
       {/* Messages List Table */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400 font-mono">
+        <div className="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between text-xs text-slate-400 font-mono gap-2">
           <span>Showing {filteredMessages.length} of {contactMessages.length} records</span>
-          {selectedSentiment !== 'all' && (
-            <span className="text-amber-400 font-bold">Filtered by: {selectedSentiment.toUpperCase()}</span>
-          )}
+          <div className="flex flex-wrap items-center gap-3">
+            {selectedSentiment !== 'all' && (
+              <span className="text-amber-400 font-bold">Sentiment: {selectedSentiment.toUpperCase()}</span>
+            )}
+            {datePreset !== 'all' && (
+              <span className="text-blue-400 font-bold">
+                Date Range: {datePreset === 'custom' 
+                  ? `${startDate || 'Start'} to ${endDate || 'Now'}` 
+                  : datePreset.replace('7days', 'Last 7 Days').replace('30days', 'Last 30 Days').replace('thisMonth', 'This Month').toUpperCase()}
+              </span>
+            )}
+          </div>
         </div>
 
         {filteredMessages.length === 0 ? (

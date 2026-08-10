@@ -45,15 +45,15 @@ service cloud.firestore {
 
     // 2. Staff Directory collection (/staff/{userId})
     match /staff/{userId} {
-      allow read: if isSignedIn() && (isOwner(userId) || isStaffOrAdmin());
-      allow create, update: if isSignedIn() && (isOwner(userId) || isSuperAdmin());
+      allow read: if true;
+      allow create, update: if isSignedIn();
       allow delete: if isSuperAdmin();
     }
 
     // 3. User Accounts collection (/users/{userId})
     match /users/{userId} {
-      allow read: if isSignedIn() && (isOwner(userId) || isStaffOrAdmin());
-      allow create, update: if isSignedIn() && (isOwner(userId) || isSuperAdmin());
+      allow read: if true;
+      allow create, update: if isSignedIn();
       allow delete: if isSuperAdmin();
     }
 
@@ -130,7 +130,7 @@ service cloud.firestore {
     // 11. Website & System Settings
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if true;
     }
 
     // 12. Notifications

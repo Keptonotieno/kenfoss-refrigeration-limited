@@ -20,12 +20,12 @@ export const FirestoreSyncStatus: React.FC = () => {
       setIsFromCache(false);
       setRestoredBanner({ show: true, timestamp: nowStr });
 
-      // Trigger high-visibility toast
+      // Trigger high-visibility unobtrusive toast
       showToast({
         type: 'success',
-        title: 'Firestore Connection Restored',
-        message: 'Cloud database connection re-established. Real-time updates and queued mutations are fully synchronized with Kenfoss Cloud.',
-        refCode: 'LIVE-SYNC-RESTORED'
+        title: 'Live connection restored',
+        message: 'Firestore connection status updated to connected. Real-time database streams and queued mutations are fully synchronized with Kenfoss Cloud.',
+        refCode: 'LIVE-CONN-RESTORED'
       });
 
       // Auto-dismiss banner after 7 seconds

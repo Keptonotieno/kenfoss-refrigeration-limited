@@ -202,6 +202,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               <img 
                 src={websiteSettings.logoUrl} 
                 alt={websiteSettings.companyName || 'Kenfoss Logo'} 
+                loading="eager"
+                decoding="async"
+                {...({ fetchPriority: 'high' } as any)}
                 className="h-10 max-w-[160px] object-contain"
                 onError={() => setLogoError(true)}
               />

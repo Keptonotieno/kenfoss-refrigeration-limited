@@ -539,7 +539,7 @@ export const ProjectsManagement: React.FC = () => {
                     className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-[11px] text-white focus:outline-none focus:border-emerald-500"
                   />
                   {formData.imageAfter && (
-                    <img src={formData.imageAfter} alt="After Preview" className="h-20 w-full object-cover rounded-lg border border-slate-800" />
+                    <img src={formData.imageAfter} alt="After Preview" loading="lazy" decoding="async" className="h-20 w-full object-cover rounded-lg border border-slate-800" />
                   )}
                 </div>
 
@@ -575,7 +575,7 @@ export const ProjectsManagement: React.FC = () => {
                     className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-[11px] text-white focus:outline-none focus:border-amber-500"
                   />
                   {formData.imageBefore && (
-                    <img src={formData.imageBefore} alt="Before Preview" className="h-20 w-full object-cover rounded-lg border border-slate-800" />
+                    <img src={formData.imageBefore} alt="Before Preview" loading="lazy" decoding="async" className="h-20 w-full object-cover rounded-lg border border-slate-800" />
                   )}
                 </div>
 

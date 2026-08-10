@@ -178,13 +178,40 @@ export function resolveImageUrl(src?: string | null, category?: string): string 
     }
   }
 
-  // 5. If it's a valid remote URL (http/https), return it
+  // 5. If it's a valid remote URL (http/https), return it (optimized if Unsplash)
   if (cleanSrc.startsWith('http://') || cleanSrc.startsWith('https://')) {
-    return cleanSrc;
+    return optimizeUnsplashUrl(cleanSrc);
   }
 
   // 6. Otherwise fallback to category image
   return getCategoryDefaultImage(category);
+}
+
+/**
+ * Ensures Unsplash URLs include auto-formatting (WebP/AVIF), responsive dimensions, and optimal compression.
+ */
+export function optimizeUnsplashUrl(url: string, targetWidth: number = 800): string {
+  if (!url || typeof url !== 'string' || !url.includes('images.unsplash.com')) {
+    return url;
+  }
+  try {
+    const parsed = new URL(url);
+    if (!parsed.searchParams.has('auto')) {
+      parsed.searchParams.set('auto', 'format');
+    }
+    if (!parsed.searchParams.has('fit')) {
+      parsed.searchParams.set('fit', 'crop');
+    }
+    if (!parsed.searchParams.has('q')) {
+      parsed.searchParams.set('q', '75');
+    }
+    if (!parsed.searchParams.has('w')) {
+      parsed.searchParams.set('w', targetWidth.toString());
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
 }
 
 /**
