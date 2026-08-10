@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow, useMap } from '@vis.gl/react-google-maps';
-import { MapPin, Phone, UserCheck, Sparkles, Navigation, Signal, ShieldCheck, RefreshCw, Key, ExternalLink, Zap, Maximize2, Minimize2, X, Award, CheckCircle2, Clock, Star, Wrench, FileText, Calendar, Building2, BadgeCheck, Briefcase } from 'lucide-react';
+import { MapPin, Phone, UserCheck, Users, Sparkles, Navigation, Signal, ShieldCheck, RefreshCw, Key, ExternalLink, Zap, Maximize2, Minimize2, X, Award, CheckCircle2, Clock, Star, Wrench, FileText, Calendar, Building2, BadgeCheck, Briefcase } from 'lucide-react';
 import { Technician } from './FloatingWhatsApp';
 import { getCountyCoords } from '../data/countyCoordinates';
 
@@ -431,7 +431,91 @@ interface TechnicianMapTrackerProps {
   isLoading?: boolean;
   onCallTechnician?: (phone: string) => void;
   onRequestDispatch?: () => void;
+  onSelectTechnician?: (tech: Technician) => void;
   compact?: boolean;
+}
+
+export function getTechniciansForCounty(county: string, primaryTech?: Technician): Technician[] {
+  const normCounty = (county || '').trim();
+  const primary = primaryTech || {
+    id: 'tech-001',
+    name: 'Eng. David Mwangi',
+    role: 'Senior Cold Storage & VRF Lead',
+    specialty: 'Bitzer Compressors & Chiller Racks',
+    phone: '+254 745 411 923',
+    baseLocation: `${normCounty} Central HQ`,
+    rating: 4.9,
+    experienceYears: 12,
+    status: 'Available',
+    counties: [normCounty]
+  };
+
+  const pool: Technician[] = [
+    primary,
+    {
+      id: 'tech-005',
+      name: 'Eng. Peter Karanja',
+      role: 'Supermarket & Industrial Chiller Lead',
+      specialty: 'Blast Freezers & Commercial HVAC',
+      phone: '+254 745 411 923',
+      baseLocation: `${normCounty} Commercial Depot`,
+      rating: 4.8,
+      experienceYears: 10,
+      status: 'Available',
+      counties: [normCounty]
+    },
+    {
+      id: 'tech-006',
+      name: 'Eng. Wycliffe Barasa',
+      role: 'Emergency SLA & Rapid Response Tech',
+      specialty: '24/7 Leak Repair & Gas Re-charging',
+      phone: '+254 745 411 923',
+      baseLocation: `${normCounty} Mobile Response Unit`,
+      rating: 4.7,
+      experienceYears: 8,
+      status: 'In-Field',
+      counties: [normCounty]
+    },
+    {
+      id: 'tech-007',
+      name: 'Eng. Kevin Kamau',
+      role: 'Solar Off-Grid Refrigeration Engineer',
+      specialty: 'Solar Cold Storage & Thermal Batteries',
+      phone: '+254 745 411 923',
+      baseLocation: `${normCounty} Solar Clean Energy Hub`,
+      rating: 4.9,
+      experienceYears: 7,
+      status: 'Available',
+      counties: [normCounty]
+    }
+  ];
+
+  const seen = new Set<string>();
+  return pool.filter((t) => {
+    const key = t.id || t.name;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function getTechnicianLocationInCounty(
+  county: string,
+  techIndex: number
+): { lat: number; lng: number; hubName: string } {
+  const base = getCountyCoords(county);
+  const offsets = [
+    { lat: 0, lng: 0 },
+    { lat: 0.016, lng: -0.014 },
+    { lat: -0.015, lng: 0.018 },
+    { lat: 0.021, lng: 0.012 },
+  ];
+  const offset = offsets[techIndex % offsets.length];
+  return {
+    lat: base.lat + offset.lat,
+    lng: base.lng + offset.lng,
+    hubName: base.hubName
+  };
 }
 
 // Inner helper component to auto-recenter map when county coordinates change
@@ -454,6 +538,7 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
   isLoading = false,
   onCallTechnician,
   onRequestDispatch,
+  onSelectTechnician,
   compact = false
 }) => {
   const API_KEY =
@@ -464,7 +549,36 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
 
   const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY';
 
+  // List of all technicians available/assigned to this county
+  const countyTechs = React.useMemo(() => {
+    return getTechniciansForCounty(county, technician);
+  }, [county, technician]);
+
+  const [selectedTechId, setSelectedTechId] = useState<string>(technician.id);
+
+  // Selected active technician
+  const activeTechnician = countyTechs.find((t) => t.id === selectedTechId) || countyTechs[0] || technician;
+  const activeTechIndex = countyTechs.findIndex((t) => t.id === activeTechnician.id);
+  const activeBaseCoords = getTechnicianLocationInCounty(county, activeTechIndex >= 0 ? activeTechIndex : 0);
+
   const baseCoords = getCountyCoords(county);
+
+  // Detailed Profile Modal state
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+  const [activeProfileTab, setActiveProfileTab] = useState<'certifications' | 'history' | 'metrics' | 'team'>('certifications');
+
+  // Sync prop changes
+  useEffect(() => {
+    setSelectedTechId(technician.id);
+  }, [technician.id, county]);
+
+  const handleSelectTechnician = (tech: Technician) => {
+    setSelectedTechId(tech.id);
+    setIsInfoWindowOpen(true);
+    if (onSelectTechnician) {
+      onSelectTechnician(tech);
+    }
+  };
 
   // Fullscreen expansion toggle state with localStorage persistence
   const [isFullscreen, setIsFullscreen] = useState<boolean>(() => {
@@ -476,12 +590,8 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
     }
   });
 
-  // Detailed Profile Modal state
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
-  const [activeProfileTab, setActiveProfileTab] = useState<'certifications' | 'history' | 'metrics'>('certifications');
-
-  const certifications = getTechnicianCertifications(technician);
-  const history = getTechnicianServiceHistory(technician);
+  const certifications = getTechnicianCertifications(activeTechnician);
+  const history = getTechnicianServiceHistory(activeTechnician);
 
   // Sync state changes to localStorage
   useEffect(() => {
@@ -508,17 +618,16 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
   }, [isFullscreen, isProfileModalOpen]);
 
   // Simulated active micro GPS telemetry drift for live visual realism
-  const [liveLocation, setLiveLocation] = useState<{ lat: number; lng: number }>(baseCoords);
+  const [liveLocation, setLiveLocation] = useState<{ lat: number; lng: number }>(activeBaseCoords);
   const [telemetrySpeed, setTelemetrySpeed] = useState<number>(34); // km/h
   const [lastSignalTime, setLastSignalTime] = useState<string>('Just now');
   const [isInfoWindowOpen, setIsInfoWindowOpen] = useState<boolean>(true);
 
-  // Reset live location when county changes
+  // Reset live location when county or active technician changes
   useEffect(() => {
-    const coords = getCountyCoords(county);
-    setLiveLocation(coords);
+    setLiveLocation(activeBaseCoords);
     setIsInfoWindowOpen(true);
-  }, [county, technician.id]);
+  }, [county, activeTechnician.id]);
 
   // Periodic micro GPS telemetry update simulation (every 6 seconds)
   useEffect(() => {
@@ -593,52 +702,91 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
           >
             <MapRecenterController coords={liveLocation} />
 
-            <AdvancedMarker
-              position={liveLocation}
-              title={`${technician.name} (${technician.role}) • Click to view Profile & Certifications`}
-              onClick={() => {
-                setIsInfoWindowOpen(true);
-                setIsProfileModalOpen(true);
-              }}
-            >
-              <div className="relative flex items-center justify-center cursor-pointer group">
-                {/* Double pulse radar rings */}
-                <div className="absolute -inset-4 bg-emerald-500/25 rounded-full animate-ping pointer-events-none" />
-                <div className="absolute -inset-2 bg-emerald-400/40 rounded-full animate-pulse pointer-events-none ring-2 ring-emerald-400/50 shadow-lg shadow-emerald-500/50" />
-                <Pin
-                  background={isAvailable ? '#10B981' : '#F59E0B'}
-                  borderColor="#064E3B"
-                  glyphColor="#FFFFFF"
-                />
-                {/* Technician Name Tag above icon */}
-                <div 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsProfileModalOpen(true);
-                  }}
-                  className="absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-900/95 hover:bg-amber-950 backdrop-blur-md text-white text-[9px] font-black px-1.5 py-0.5 rounded-md border border-emerald-400/50 hover:border-amber-400 whitespace-nowrap shadow-xl flex items-center gap-1 cursor-pointer transition-all hover:scale-105"
-                  title="Click to view technician dossier & certifications"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>👨‍🔧 {technician.name.split(' ')[1] || technician.name}</span>
-                  <Award className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-                </div>
+            {/* Render Markers for ALL technicians in this county */}
+            {countyTechs.map((tech, idx) => {
+              const isSelected = tech.id === activeTechnician.id || tech.name === activeTechnician.name;
+              const techPos = isSelected ? liveLocation : getTechnicianLocationInCounty(county, idx);
+              const isTechAvail = tech.status === 'Available';
 
-                {/* Technician Status Tag below icon */}
-                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-md text-white text-[8px] font-black px-1.5 py-0.5 rounded-md border border-slate-700 whitespace-nowrap shadow-xl flex items-center gap-1">
-                  <span className={`w-1.5 h-1.5 rounded-full ${
-                    technician.status === 'Available' ? 'bg-emerald-400 animate-pulse' :
-                    technician.status === 'In-Field' ? 'bg-amber-400' : 'bg-cyan-400'
-                  }`} />
-                  <span className={`uppercase tracking-wider ${
-                    technician.status === 'Available' ? 'text-emerald-300' :
-                    technician.status === 'In-Field' ? 'text-amber-300' : 'text-cyan-300'
-                  }`}>
-                    {technician.status || 'Available'}
-                  </span>
-                </div>
-              </div>
-            </AdvancedMarker>
+              if (isSelected) {
+                return (
+                  <AdvancedMarker
+                    key={tech.id || `tech-marker-${idx}`}
+                    position={techPos}
+                    title={`${tech.name} (${tech.role}) • Active Selected View`}
+                    onClick={() => {
+                      setIsInfoWindowOpen(true);
+                      setIsProfileModalOpen(true);
+                    }}
+                  >
+                    <div className="relative flex items-center justify-center cursor-pointer group">
+                      {/* Double pulse radar rings for active view */}
+                      <div className="absolute -inset-4 bg-emerald-500/25 rounded-full animate-ping pointer-events-none" />
+                      <div className="absolute -inset-2 bg-emerald-400/40 rounded-full animate-pulse pointer-events-none ring-2 ring-emerald-400/50 shadow-lg shadow-emerald-500/50" />
+                      <Pin
+                        background={isTechAvail ? '#10B981' : '#F59E0B'}
+                        borderColor="#064E3B"
+                        glyphColor="#FFFFFF"
+                      />
+                      {/* Active Technician Name Tag */}
+                      <div 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsProfileModalOpen(true);
+                        }}
+                        className="absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-900/95 hover:bg-amber-950 backdrop-blur-md text-white text-[9px] font-black px-1.5 py-0.5 rounded-md border border-emerald-400/50 hover:border-amber-400 whitespace-nowrap shadow-xl flex items-center gap-1 cursor-pointer transition-all hover:scale-105"
+                        title="Click to view technician dossier & certifications"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>👨‍🔧 {tech.name.split(' ')[1] || tech.name}</span>
+                        <Award className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                      </div>
+
+                      {/* Status Tag */}
+                      <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-md text-white text-[8px] font-black px-1.5 py-0.5 rounded-md border border-slate-700 whitespace-nowrap shadow-xl flex items-center gap-1">
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          tech.status === 'Available' ? 'bg-emerald-400 animate-pulse' :
+                          tech.status === 'In-Field' ? 'bg-amber-400' : 'bg-cyan-400'
+                        }`} />
+                        <span className={`uppercase tracking-wider ${
+                          tech.status === 'Available' ? 'text-emerald-300' :
+                          tech.status === 'In-Field' ? 'text-amber-300' : 'text-cyan-300'
+                        }`}>
+                          {tech.status || 'Available'}
+                        </span>
+                      </div>
+                    </div>
+                  </AdvancedMarker>
+                );
+              }
+
+              // Secondary Technician Markers in County
+              return (
+                <AdvancedMarker
+                  key={tech.id || `tech-marker-${idx}`}
+                  position={techPos}
+                  title={`Click to switch map view to ${tech.name} (${tech.role})`}
+                  onClick={() => handleSelectTechnician(tech)}
+                >
+                  <div className="relative flex items-center justify-center cursor-pointer group hover:scale-110 transition-transform">
+                    <Pin
+                      background={isTechAvail ? '#3B82F6' : '#64748B'}
+                      borderColor="#1E293B"
+                      glyphColor="#FFFFFF"
+                    />
+                    <div 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectTechnician(tech);
+                      }}
+                      className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-900/90 hover:bg-amber-900 text-slate-200 hover:text-amber-300 text-[8px] font-bold px-1.5 py-0.5 rounded border border-slate-700 hover:border-amber-400 whitespace-nowrap shadow-md"
+                    >
+                      👨‍🔧 {tech.name.split(' ')[1] || tech.name}
+                    </div>
+                  </div>
+                </AdvancedMarker>
+              );
+            })}
 
             {isInfoWindowOpen && (
               <InfoWindow
@@ -652,26 +800,26 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
                     title="Click to view full technician profile & service history"
                   >
                     <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center font-bold text-slate-950 text-[10px] shrink-0">
-                      {technician.name.replace('Eng. ', '').split(' ').map((n) => n[0]).join('')}
+                      {activeTechnician.name.replace('Eng. ', '').split(' ').map((n) => n[0]).join('')}
                     </div>
                     <div className="min-w-0 flex-1">
                       <h5 className="text-[11px] font-extrabold text-slate-900 truncate flex items-center gap-1">
-                        <span>{technician.name}</span>
+                        <span>{activeTechnician.name}</span>
                         <Award className="w-3 h-3 text-amber-600 shrink-0" />
                       </h5>
-                      <p className="text-[9px] text-slate-600 truncate">{technician.role}</p>
+                      <p className="text-[9px] text-slate-600 truncate">{activeTechnician.role}</p>
                     </div>
                   </div>
 
                   <div className="text-[9px] space-y-1 bg-slate-100 p-1.5 rounded-md border border-slate-200 mb-1.5">
                     <p className="flex items-center justify-between text-slate-700">
                       <span>Base:</span>
-                      <strong className="text-slate-900">{technician.baseLocation}</strong>
+                      <strong className="text-slate-900">{activeTechnician.baseLocation}</strong>
                     </p>
                     <p className="flex items-center justify-between text-slate-700">
                       <span>Status:</span>
-                      <strong className={isAvailable ? 'text-emerald-700 font-extrabold' : 'text-amber-700 font-extrabold'}>
-                        {technician.status}
+                      <strong className={activeTechnician.status === 'Available' ? 'text-emerald-700 font-extrabold' : 'text-amber-700 font-extrabold'}>
+                        {activeTechnician.status}
                       </strong>
                     </p>
                     <p className="flex items-center justify-between text-slate-700">
@@ -692,7 +840,7 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
                     </button>
 
                     <a
-                      href={`tel:${technician.phone.replace(/\s+/g, '')}`}
+                      href={`tel:${activeTechnician.phone.replace(/\s+/g, '')}`}
                       className="w-full py-1 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold text-center flex items-center justify-center gap-1 transition-colors"
                     >
                       <Phone className="w-2.5 h-2.5" /> Call Tech
@@ -722,7 +870,7 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
                 className="text-xs font-bold text-white hover:text-amber-300 flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                 title="Click to view technician profile & certifications"
               >
-                <span>GPS Telemetry: {technician.name}</span>
+                <span>GPS Telemetry: {activeTechnician.name}</span>
                 <Award className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               </h4>
               <p className="text-[10px] text-emerald-400 font-mono font-semibold">
@@ -762,11 +910,11 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
         title="Click to view technician profile, certifications & full service history"
       >
         <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center font-black text-slate-950 text-[10px] shrink-0 group-hover:scale-105 transition-transform">
-          {technician.name.replace('Eng. ', '').split(' ').map((n) => n[0]).join('')}
+          {activeTechnician.name.replace('Eng. ', '').split(' ').map((n) => n[0]).join('')}
         </div>
         <div className="min-w-0">
           <p className="text-[10px] font-bold text-white group-hover:text-amber-300 truncate max-w-[120px] transition-colors flex items-center gap-1">
-            <span>{technician.name}</span>
+            <span>{activeTechnician.name}</span>
             <Award className="w-3 h-3 text-amber-400 shrink-0" />
           </p>
           <p className="text-[8.5px] text-amber-300 font-bold truncate flex items-center gap-1">
@@ -816,6 +964,56 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
           </div>
         </div>
 
+        {/* County Technician Toggle Selector Bar */}
+        <div className="bg-slate-900/90 px-3 py-2 border-b border-slate-800">
+          <div className="flex items-center justify-between mb-1 text-[10px]">
+            <span className="font-extrabold uppercase tracking-wider text-amber-300 flex items-center gap-1">
+              <Users className="w-3.5 h-3.5 text-amber-400" />
+              <span>{county} Field Force ({countyTechs.length} Techs On Duty)</span>
+            </span>
+            <span className="text-[8.5px] text-slate-400">Click technician to switch map view</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin scrollbar-thumb-slate-700">
+            {countyTechs.map((tech, idx) => {
+              const isSelected = tech.id === activeTechnician.id || tech.name === activeTechnician.name;
+              return (
+                <button
+                  key={tech.id || `tech-${idx}`}
+                  type="button"
+                  onClick={() => handleSelectTechnician(tech)}
+                  className={`px-2.5 py-1 rounded-xl text-left flex items-center gap-1.5 transition-all cursor-pointer shrink-0 border ${
+                    isSelected
+                      ? 'bg-gradient-to-r from-amber-500/20 to-emerald-500/20 border-amber-400 text-white shadow-md ring-1 ring-amber-400/40'
+                      : 'bg-slate-950/70 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <div className="relative shrink-0">
+                    <div className={`w-5 h-5 rounded-md font-bold text-[8.5px] flex items-center justify-center ${
+                      isSelected ? 'bg-amber-400 text-slate-950 font-black' : 'bg-slate-800 text-slate-300'
+                    }`}>
+                      {tech.name.replace('Eng. ', '').split(' ').map((n) => n[0]).join('')}
+                    </div>
+                    <span className={`absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${
+                      tech.status === 'Available' ? 'bg-emerald-400' : tech.status === 'In-Field' ? 'bg-amber-400' : 'bg-cyan-400'
+                    }`} />
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold truncate max-w-[100px] flex items-center gap-0.5">
+                      <span>{tech.name.split(' ')[1] || tech.name}</span>
+                      {isSelected && <span className="text-[7.5px] bg-amber-400 text-slate-950 font-black px-1 rounded">ACTIVE</span>}
+                    </p>
+                    <p className="text-[8px] text-slate-400 truncate max-w-[110px]">
+                      {tech.role.split('&')[0]}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Map Body */}
         {renderMapContent(compact ? '220px' : '300px')}
 
@@ -829,12 +1027,12 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span className="font-bold text-slate-200 group-hover:text-amber-300 text-[11px] truncate transition-colors flex items-center gap-1">
-                <span>{technician.name}</span>
+                <span>{activeTechnician.name}</span>
                 <span className="text-[8.5px] font-bold text-amber-300 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/30">Dossier</span>
               </span>
             </div>
             <p className="text-[10px] text-slate-400 truncate pl-5">
-              {technician.specialty} • <span className="text-emerald-400 font-bold">{technician.rating} ⭐ ({technician.experienceYears}Yrs)</span>
+              {activeTechnician.specialty} • <span className="text-emerald-400 font-bold">{activeTechnician.rating} ⭐ ({activeTechnician.experienceYears}Yrs)</span>
             </p>
           </div>
 
@@ -1109,6 +1307,19 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
                   <Signal className="w-3.5 h-3.5" />
                   <span>Field Metrics</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveProfileTab('team')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    activeProfileTab === 'team'
+                      ? 'bg-amber-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>County Team ({countyTechs.length})</span>
+                </button>
               </div>
 
               {/* Tab 1: Certifications & Licenses */}
@@ -1239,18 +1450,84 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
                     <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
                       <MapPin className="w-4 h-4 text-emerald-400" />
-                      <span>Operational Coverage & Supported Counties ({technician.counties?.length || 7})</span>
+                      <span>Operational Coverage & Supported Counties ({activeTechnician.counties?.length || 7})</span>
                     </h4>
                     <p className="text-xs text-slate-300 leading-relaxed">
-                      Lead dispatch engineer covering regional hub <strong className="text-amber-300">{technician.baseLocation}</strong> with rapid deployment across:
+                      Lead dispatch engineer covering regional hub <strong className="text-amber-300">{activeTechnician.baseLocation}</strong> with rapid deployment across:
                     </p>
                     <div className="flex flex-wrap gap-1.5 pt-1">
-                      {technician.counties?.map((c) => (
+                      {activeTechnician.counties?.map((c) => (
                         <span key={c} className="bg-slate-900 border border-slate-800 text-slate-300 font-semibold text-[10px] px-2.5 py-1 rounded-lg">
                           🇰🇪 {c}
                         </span>
                       ))}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 4: County Field Force Team */}
+              {activeProfileTab === 'team' && (
+                <div className="space-y-3 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span className="font-semibold">Engineers Assigned to {county} County</span>
+                    <span className="text-amber-300 font-bold">{countyTechs.length} Technicians Available</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {countyTechs.map((tech) => {
+                      const isSelected = tech.id === activeTechnician.id || tech.name === activeTechnician.name;
+                      return (
+                        <div
+                          key={tech.id}
+                          className={`p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+                            isSelected
+                              ? 'bg-slate-950 border-amber-400 ring-1 ring-amber-400/40'
+                              : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-300 text-slate-950 font-black text-sm flex items-center justify-center shrink-0 shadow-md">
+                              {tech.name.replace('Eng. ', '').split(' ').map((n) => n[0]).join('')}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-xs font-extrabold text-white truncate">
+                                  {tech.name}
+                                </h4>
+                                {isSelected && (
+                                  <span className="bg-amber-400 text-slate-950 text-[8px] font-black px-1.5 py-0.2 rounded uppercase">
+                                    ACTIVE VIEW
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-amber-300 font-semibold">{tech.role}</p>
+                              <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                {tech.specialty} • <strong className="text-emerald-400">{tech.rating} ⭐ ({tech.experienceYears}Yrs)</strong>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 flex items-center gap-2 self-end sm:self-center">
+                            {!isSelected && (
+                              <button
+                                type="button"
+                                onClick={() => handleSelectTechnician(tech)}
+                                className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 text-[10px] font-extrabold rounded-lg transition-all cursor-pointer"
+                              >
+                                Select View
+                              </button>
+                            )}
+                            <a
+                              href={`tel:${tech.phone.replace(/\s+/g, '')}`}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-extrabold rounded-lg transition-all flex items-center gap-1"
+                            >
+                              <Phone className="w-3 h-3" /> Call Tech
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

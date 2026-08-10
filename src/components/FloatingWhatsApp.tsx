@@ -1601,6 +1601,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                       compact={true}
                       onCallTechnician={(phone) => window.open(`tel:${phone.replace(/\s+/g, '')}`)}
                       onRequestDispatch={() => setShowHandoffModal(true)}
+                      onSelectTechnician={(tech) => setSuggestedTechnician(tech)}
                     />
                   </div>
                 )}
@@ -2732,6 +2733,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ onOpenChatbo
                     isLoading={isLoadingTech}
                     compact={true}
                     onCallTechnician={(phone) => window.open(`tel:${phone.replace(/\s+/g, '')}`)}
+                    onSelectTechnician={(tech) => setSuggestedTechnician(tech)}
                   />
                 </div>
               </div>
