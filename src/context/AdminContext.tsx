@@ -624,6 +624,11 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Live Firestore Synchronization Effect
   useEffect(() => {
     const handleSubError = (colName: string, err: any) => {
+      const isPermissionDenied = err?.code === 'permission-denied' || err?.message?.includes('insufficient permissions');
+      if (isPermissionDenied && !isStaff) {
+        console.warn(`[Firestore Sync Notice] Collection '${colName}' requires staff authentication.`);
+        return;
+      }
       const formatted = handleFirestoreError(err, OperationType.LIST, colName);
       console.error(`Firestore subscription error on '${colName}':`, formatted);
     };
@@ -723,17 +728,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, (err) => handleSubError('blogs', err));
 
-    // 5. Diagnostics (Public)
-    const unsubDiagnostics = onSnapshot(collection(db, 'diagnostics'), (snap) => {
-      if (snap.empty) {
-        setDiagnostics([]);
-      } else {
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as StoredDiagnosticRecord));
-        setDiagnostics(items);
-      }
-    }, (err) => handleSubError('diagnostics', err));
-
-    // 6. Gallery (Public)
+    // 5. Gallery (Public)
     const unsubGallery = onSnapshot(collection(db, 'gallery'), (snap) => {
       if (snap.empty) {
         setGallery([]);
@@ -750,7 +745,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, (err) => handleSubError('gallery', err));
 
-    // 7. System Init Status (Public)
+    // 6. System Init Status (Public)
     const unsubSystemInit = onSnapshot(doc(db, 'settings', 'system_init'), (snap) => {
       if (snap.exists() && snap.data()?.setupCompleted) {
         setIsSystemInitialized(true);
@@ -765,7 +760,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, (err) => handleSubError('system_init', err));
 
-    // 8. Settings Contact Info (Public)
+    // 7. Settings Contact Info (Public)
     const unsubContactInfo = onSnapshot(doc(db, 'settings', 'contact_info'), (snap) => {
       if (!snap.exists()) {
         if (isStaff) {
@@ -776,7 +771,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, (err) => handleSubError('contact_info', err));
 
-    // 9. Website Settings (Public)
+    // 8. Website Settings (Public)
     const unsubWebSettings = onSnapshot(doc(db, 'settings', 'website_settings'), (snap) => {
       if (!snap.exists()) {
         if (isStaff) {
@@ -787,7 +782,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, (err) => handleSubError('website_settings', err));
 
-    // 10. Roles (Public Read)
+    // 9. Roles (Public Read)
     const unsubRoles = onSnapshot(collection(db, 'roles'), (snap) => {
       if (snap.empty) {
         if (isStaff) {
@@ -804,6 +799,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     let unsubBookings = () => {};
     let unsubQuotes = () => {};
     let unsubCustomers = () => {};
+    let unsubDiagnostics = () => {};
     let unsubContacts = () => {};
     let unsubUsers = () => {};
     let unsubNotifications = () => {};
@@ -824,6 +820,15 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (snap.empty) setCustomers([]);
         else setCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() } as CustomerRecord)));
       }, (err) => handleSubError('customers', err));
+
+      unsubDiagnostics = onSnapshot(collection(db, 'diagnostics'), (snap) => {
+        if (snap.empty) {
+          setDiagnostics([]);
+        } else {
+          const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as StoredDiagnosticRecord));
+          setDiagnostics(items);
+        }
+      }, (err) => handleSubError('diagnostics', err));
 
       unsubContacts = onSnapshot(collection(db, 'contacts'), (snap) => {
         if (snap.empty) setContactMessages([]);
@@ -867,6 +872,17 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (snap.empty) setAuditLogs([]);
         else setAuditLogs(snap.docs.map(d => ({ id: d.id, ...d.data() } as AuditLogItem)));
       }, (err) => handleSubError('auditLogs', err));
+    } else if (auth.currentUser) {
+      const custUid = auth.currentUser.uid;
+      unsubDiagnostics = onSnapshot(
+        query(collection(db, 'diagnostics'), where('userId', '==', custUid)),
+        (snap) => {
+          if (!snap.empty) {
+            setDiagnostics(snap.docs.map(d => ({ id: d.id, ...d.data() } as StoredDiagnosticRecord)));
+          }
+        },
+        () => {}
+      );
     }
 
     return () => {

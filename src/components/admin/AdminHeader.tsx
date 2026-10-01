@@ -133,7 +133,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onToggleSidebar, isMob
             </button>
 
             {showNotifMenu && (
-              <div className="absolute right-0 mt-2 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95">
+              <div className="absolute -right-10 sm:right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95">
                 <div className="px-4 py-2 border-b border-slate-800 flex items-center justify-between">
                   <span className="text-xs font-bold text-white">Notifications ({notifications.length})</span>
                   {unreadCount > 0 && (

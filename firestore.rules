@@ -2,7 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // ==========================================================
+    // HELPER FUNCTIONS & AUTHENTICATION VALIDATORS
+    // ==========================================================
     function isSignedIn() {
       return request.auth != null;
     }
@@ -11,17 +13,25 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Authorization checks based on Firebase Auth Custom Claims (set by trusted Admin SDK server)
+    // Suspended or Disabled accounts are instantly stripped of data access
+    function isActive() {
+      return isSignedIn() &&
+        request.auth.token.status != 'Suspended' &&
+        request.auth.token.status != 'Disabled';
+    }
+
+    // Super Administrator verified via Firebase Auth custom claims
     function isSuperAdmin() {
-      return isSignedIn() && (
+      return isActive() && (
         request.auth.token.role == 'super_admin' ||
         request.auth.token.accessLevel == 'super_admin' ||
         request.auth.token.role == 'Super Administrator'
       );
     }
 
+    // Privileged Staff / Administrative roles
     function isStaffOrAdmin() {
-      return isSignedIn() && (
+      return isActive() && (
         isSuperAdmin() ||
         request.auth.token.role in [
           'super_admin', 'Super Administrator', 'manager', 'Manager',
@@ -31,49 +41,112 @@ service cloud.firestore {
       );
     }
 
-    // Default deny
+    // Default deny all access
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // 1. Authoritative System Initialization Record (/system/config)
-    // Public/Client read allowed for setup status check, writes strictly forbidden to clients (handled by Admin SDK)
+    // ==========================================================
+    // 1. SYSTEM INITIALIZATION CONFIGURATION (/system/config & /settings/system_init)
+    // Client read allowed to verify initialization status; client writes strictly denied
+    // ==========================================================
     match /system/config {
       allow read: if true;
       allow write: if false;
     }
 
-    // 2. Staff Directory collection (/staff/{userId})
-    match /staff/{userId} {
+    match /settings/system_init {
       allow read: if true;
-      allow create, update: if isSignedIn();
-      allow delete: if isSuperAdmin();
+      allow write: if false;
     }
 
-    // 3. User Accounts collection (/users/{userId})
+    // ==========================================================
+    // 2. USER ACCOUNTS & PROFILES (/users/{userId})
+    // Invariant 1: Privilege Isolation - no role escalation to SuperAdmin/Manager/Technician
+    // Invariant 4: Non-admins can update profile info, but cannot alter role or status
+    // Threat P1, P2, P8, P11, P12 mitigation
+    // ==========================================================
     match /users/{userId} {
-      allow read: if true;
-      allow create, update: if isSignedIn();
+      // Reading user profiles requires ownership or staff access (prevents public scraping P8)
+      allow read: if isOwner(userId) || isStaffOrAdmin();
+
+      // Creation:
+      // - SuperAdmin can provision any account
+      // - Self-registration allows Customer role only (prevents P1, P11)
+      allow create: if isSuperAdmin() || (
+        isOwner(userId) &&
+        (!('role' in request.resource.data) || request.resource.data.role == 'Customer') &&
+        (!('status' in request.resource.data) || request.resource.data.status == 'Active')
+      );
+
+      // Updates:
+      // - SuperAdmin can update any field
+      // - Users can update profile fields, but CANNOT change role, status, or mustChangePassword (prevents P2)
+      allow update: if isSuperAdmin() || (
+        isOwner(userId) &&
+        (!('role' in request.resource.data) || request.resource.data.role == resource.data.role) &&
+        (!('status' in request.resource.data) || request.resource.data.status == resource.data.status) &&
+        (!('mustChangePassword' in request.resource.data) || request.resource.data.mustChangePassword == resource.data.mustChangePassword)
+      );
+
+      // Deletion: SuperAdmin ONLY (prevents P12)
       allow delete: if isSuperAdmin();
     }
 
-    // 4. Bookings
+    // ==========================================================
+    // 3. STAFF DIRECTORY (/staff/{userId})
+    // Invariant 2: Privileged staff can ONLY be managed by active SuperAdmin
+    // Threat P4 mitigation
+    // ==========================================================
+    match /staff/{userId} {
+      allow read: if isStaffOrAdmin() || isOwner(userId);
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    // ==========================================================
+    // 4. SERVICE BOOKINGS (/bookings/{bookingId})
+    // Threat P3 (Suspended staff) & P7 (Cross-customer boundary) mitigation
+    // ==========================================================
     match /bookings/{bookingId} {
-      allow read: if true;
+      allow read: if isStaffOrAdmin() || (
+        isActive() && (
+          resource.data.userId == request.auth.uid ||
+          resource.data.email == request.auth.token.email
+        )
+      );
       allow create: if true;
-      allow update: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
+      allow update: if isStaffOrAdmin() || (
+        isActive() && (
+          resource.data.userId == request.auth.uid ||
+          resource.data.email == request.auth.token.email
+        )
+      );
       allow delete: if isStaffOrAdmin();
     }
 
-    // 5. Quotes / Commercial RFQs
+    // ==========================================================
+    // 5. COMMERCIAL QUOTATIONS / RFQs (/quotes/{quoteId})
+    // ==========================================================
     match /quotes/{quoteId} {
-      allow read: if true;
+      allow read: if isStaffOrAdmin() || (
+        isActive() && (
+          resource.data.userId == request.auth.uid ||
+          resource.data.email == request.auth.token.email
+        )
+      );
       allow create: if true;
-      allow update: if isStaffOrAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
+      allow update: if isStaffOrAdmin() || (
+        isActive() && (
+          resource.data.userId == request.auth.uid ||
+          resource.data.email == request.auth.token.email
+        )
+      );
       allow delete: if isStaffOrAdmin();
     }
 
-    // 6. Customers CRM
+    // ==========================================================
+    // 6. CUSTOMER CRM RECORDS (/customers/{customerId})
+    // ==========================================================
     match /customers/{customerId} {
       allow read: if isStaffOrAdmin();
       allow create: if true;
@@ -81,27 +154,85 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
-    // 7. AI Diagnostics
+    // ==========================================================
+    // 7. AI HVAC DIAGNOSTICS (/diagnostics/{diagnosticId})
+    // ==========================================================
     match /diagnostics/{diagnosticId} {
       allow read: if true;
       allow create: if true;
       allow update, delete: if isStaffOrAdmin();
     }
 
-    // 8. Contact Messages
+    // ==========================================================
+    // 8. CONTACT INQUIRIES & MESSAGES (/contacts/{contactId})
+    // ==========================================================
     match /contacts/{contactId} {
       allow read: if isStaffOrAdmin();
       allow create: if true;
       allow update, delete: if isStaffOrAdmin();
     }
 
-    // 9. Invitations
+    // ==========================================================
+    // 9. STAFF INVITATIONS (/invitations/{invitationId})
+    // ==========================================================
     match /invitations/{invitationId} {
       allow read: if true;
-      allow create, update, delete: if isStaffOrAdmin();
+      allow create, update, delete: if isSuperAdmin();
     }
 
-    // 10. Public CMS Collections
+    // ==========================================================
+    // 10. IMMUTABLE SYSTEM AUDIT LOGS (/auditLogs/{logId})
+    // Invariant 3: Append-only by authenticated users, NEVER modified or deleted
+    // Threat P5, P6 mitigation
+    // ==========================================================
+    match /auditLogs/{logId} {
+      allow read: if isStaffOrAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false; // IMMUTABLE: no client role can alter or delete
+    }
+
+    // ==========================================================
+    // 11. WEBSITE & SYSTEM SETTINGS (/settings/{settingId})
+    // Threat P10 mitigation: SuperAdmin ONLY for write
+    // ==========================================================
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // ==========================================================
+    // 12. NOTIFICATIONS (/notifications/{notificationId})
+    // ==========================================================
+    match /notifications/{notificationId} {
+      allow read: if isStaffOrAdmin() || (
+        isActive() && (
+          resource.data.recipientId == request.auth.uid ||
+          resource.data.recipientEmail == request.auth.token.email
+        )
+      );
+      allow create: if true;
+      allow update, delete: if isStaffOrAdmin();
+    }
+
+    // ==========================================================
+    // 13. ROLES & PERMISSION MATRIX (/roles/{roleId})
+    // ==========================================================
+    match /roles/{roleId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // ==========================================================
+    // 14. FIELD TECHNICIANS & DISPATCH (/technicians/{techId})
+    // ==========================================================
+    match /technicians/{techId} {
+      allow read: if true;
+      allow write: if isStaffOrAdmin();
+    }
+
+    // ==========================================================
+    // 15. PUBLIC CMS CONTENT (Services, Projects, Testimonials, Blogs, Gallery)
+    // ==========================================================
     match /services/{serviceId} {
       allow read: if true;
       allow write: if isStaffOrAdmin();
@@ -123,38 +254,6 @@ service cloud.firestore {
     }
 
     match /gallery/{galleryId} {
-      allow read: if true;
-      allow write: if isStaffOrAdmin();
-    }
-
-    // 11. Website & System Settings
-    match /settings/{settingId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    // 12. Notifications
-    match /notifications/{notificationId} {
-      allow read: if true;
-      allow create: if true;
-      allow update, delete: if isStaffOrAdmin();
-    }
-
-    // 13. System Audit Logs
-    match /auditLogs/{logId} {
-      allow read: if isStaffOrAdmin();
-      allow create: if true;
-      allow update, delete: if isSuperAdmin();
-    }
-
-    // 14. Roles (RBAC)
-    match /roles/{roleId} {
-      allow read: if true;
-      allow write: if isSuperAdmin();
-    }
-
-    // 15. Technicians & Engineers
-    match /technicians/{techId} {
       allow read: if true;
       allow write: if isStaffOrAdmin();
     }

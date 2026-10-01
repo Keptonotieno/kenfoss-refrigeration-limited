@@ -1222,7 +1222,7 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
         {renderMapContent(compact ? '220px' : '300px')}
 
         {/* Bottom Technician Dispatch Card */}
-        <div className="p-3 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-2 text-xs">
+        <div className="p-3 bg-slate-950 border-t border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 text-xs">
           <div 
             className="min-w-0 flex-1 cursor-pointer group"
             onClick={() => setIsProfileModalOpen(true)}
@@ -1240,7 +1240,7 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => toggleTechnicianStatusInFirestore(activeTechnician)}
@@ -1262,7 +1262,7 @@ export const TechnicianMapTracker: React.FC<TechnicianMapTrackerProps> = ({
               title="View Profile & Full Service History"
             >
               <Award className="w-3 h-3 text-amber-400" />
-              <span className="hidden xs:inline">Profile</span>
+              <span>Profile</span>
             </button>
 
             {onCallTechnician && (

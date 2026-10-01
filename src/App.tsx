@@ -75,7 +75,7 @@ function MainAppContent() {
           <AdminPortal onCloseAdmin={() => setIsAdminOpen(false)} />
         </AdminRouteGuard>
       ) : (
-        <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-[#1E293B] dark:text-slate-100 font-sans antialiased selection:bg-[#0057B8] selection:text-white pb-14 md:pb-0 transition-colors duration-200">
+        <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-[#1E293B] dark:text-slate-100 font-sans antialiased selection:bg-[#0057B8] selection:text-white pb-[calc(4.25rem+env(safe-area-inset-bottom,0px))] md:pb-0 overflow-x-hidden transition-colors duration-200">
           
           {/* Sticky Navigation Header */}
           <Navbar

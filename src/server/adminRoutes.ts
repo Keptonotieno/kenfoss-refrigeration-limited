@@ -178,6 +178,30 @@ router.post('/setup-super-admin', async (req: Request, res: Response) => {
 // 3a. Clear/Reset Admin Registrations Endpoint (Resets initialization & removes registered emails)
 router.post('/reset-admin-registrations', async (req: Request, res: Response) => {
   try {
+    const token = extractToken(req);
+    const setupSecret = req.headers['x-setup-secret'] || req.body?.setupSecret;
+    const isAuthorizedSecret = setupSecret === 'KENFOSS-SUPERADMIN-2026-TOKEN';
+
+    let isAuthorizedAdmin = false;
+    if (token) {
+      try {
+        const decoded = await adminAuth.verifyIdToken(token);
+        if (decoded.role === 'super_admin' || decoded.accessLevel === 'super_admin') {
+          isAuthorizedAdmin = true;
+        }
+      } catch {
+        // invalid token
+      }
+    }
+
+    if (!isAuthorizedSecret && !isAuthorizedAdmin) {
+      return res.status(403).json({
+        success: false,
+        errorCode: 'UNAUTHORIZED_ACCESS',
+        message: 'Administrative privileges or authoritative setup credentials required to reset system initialization.'
+      });
+    }
+
     const nowIso = new Date().toISOString();
 
     // Reset /system/config

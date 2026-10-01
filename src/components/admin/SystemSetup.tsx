@@ -319,19 +319,19 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden font-sans">
+    <div className="min-h-screen min-h-[100dvh] bg-slate-950 text-slate-100 flex items-center justify-center p-3 sm:p-6 relative overflow-y-auto font-sans py-8">
       {/* Background Subtle Gradient Mesh */}
       <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#0057B8]/20 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-rose-600/15 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="system-initialization-wizard w-full max-w-2xl bg-slate-900/90 border border-slate-800/80 rounded-3xl p-6 sm:p-9 shadow-2xl relative z-10 space-y-6 backdrop-blur-md">
+      <div className="system-initialization-wizard w-full max-w-2xl bg-slate-900/90 border border-slate-800/80 rounded-3xl p-4 sm:p-8 shadow-2xl relative z-10 space-y-5 sm:space-y-6 backdrop-blur-md my-auto">
         
         {/* Top Close (X) Option */}
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="absolute top-5 right-5 p-2.5 text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 rounded-xl transition-all cursor-pointer shadow-sm group"
+            className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2 sm:p-2.5 text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 rounded-xl transition-all cursor-pointer shadow-sm group"
             title="Exit System Setup Flow"
             aria-label="Close System Setup Wizard"
           >
@@ -341,14 +341,14 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
         
         {/* Top Brand Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#0057B8] to-rose-600 text-white shadow-xl shadow-blue-900/40 mb-1">
-            <Building2 className="w-7 h-7" />
+          <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-[#0057B8] to-rose-600 text-white shadow-xl shadow-blue-900/40 mb-1">
+            <Building2 className="w-6 h-6 sm:w-7 sm:h-7" />
           </div>
           <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold font-mono">
             <ShieldAlert className="w-3.5 h-3.5" />
             <span>First-Time Deployment Setup</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white">
             System Initialization Wizard
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
@@ -357,7 +357,7 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
         </div>
 
         {/* Mode Selector Options */}
-        <div className="grid grid-cols-2 gap-3 p-1.5 bg-slate-950 rounded-2xl border border-slate-800/80 text-xs font-bold">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 p-1.5 bg-slate-950 rounded-2xl border border-slate-800/80 text-xs font-bold">
           <button
             type="button"
             onClick={() => {
@@ -365,14 +365,14 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
               setErrorMsg(null);
               setSuccessMsg(null);
             }}
-            className={`py-3 px-4 rounded-xl flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+            className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl flex items-center justify-center space-x-2 transition-all cursor-pointer min-h-[44px] ${
               setupMode === 'create'
                 ? 'bg-[#0057B8] text-white shadow-md'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
             }`}
           >
-            <UserPlus className="w-4 h-4" />
-            <span>Create New Super Administrator</span>
+            <UserPlus className="w-4 h-4 shrink-0" />
+            <span className="truncate">Create Super Administrator</span>
           </button>
 
           <button
@@ -382,14 +382,14 @@ export const SystemSetup: React.FC<SystemSetupProps> = ({ onSetupCompleted, onCa
               setErrorMsg(null);
               setSuccessMsg(null);
             }}
-            className={`py-3 px-4 rounded-xl flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+            className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl flex items-center justify-center space-x-2 transition-all cursor-pointer min-h-[44px] ${
               setupMode === 'existing'
                 ? 'bg-amber-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
             }`}
           >
-            <LogIn className="w-4 h-4" />
-            <span>Sign In with Existing Super Administrator</span>
+            <LogIn className="w-4 h-4 shrink-0" />
+            <span className="truncate">Sign In Existing Super Admin</span>
           </button>
         </div>
 

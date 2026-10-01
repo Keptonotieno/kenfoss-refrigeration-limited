@@ -177,6 +177,34 @@
         "description": { "type": "string" }
       },
       "required": ["id", "name"]
+    },
+    "staff": {
+      "title": "Staff Directory",
+      "description": "Authorized staff credentials and elevated administrative profiles",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "fullName": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string" },
+        "accessLevel": { "type": "string" },
+        "status": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "settings": {
+      "title": "System & Website Settings",
+      "description": "Authoritative configuration and company settings",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "mainPhone": { "type": "string" },
+        "address": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["companyName"]
     }
   }
 }

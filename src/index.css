@@ -6,6 +6,9 @@
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 76px;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
   }
 
   @media (min-width: 768px) {
@@ -16,11 +19,28 @@
 
   body {
     font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
+    min-width: 320px;
     @apply transition-colors duration-200;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Poppins', sans-serif;
+  }
+}
+
+/* Responsive Touch Target and Safe-Area Helper Classes */
+.touch-target-safe {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+@supports (padding: max(0px)) {
+  .safe-p-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .safe-p-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
   }
 }
 
